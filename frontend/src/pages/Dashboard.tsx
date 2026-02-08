@@ -370,14 +370,6 @@ const OwnerDashboard = () => {
                 Record Expense
               </Button>
 
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full h-14 bg-green-50 border-2 border-green-400 text-green-600 font-semibold hover:bg-green-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
-              >
-                <HandCoins className="mr-2 h-5 w-5" />
-                Receive Partner Payment
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -410,12 +402,6 @@ const PartnerDashboard = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
-
-  // Payment Modal State
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentNotes, setPaymentNotes] = useState("");
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Real stats from API
   const [stats, setStats] = useState({
@@ -803,101 +789,6 @@ const PartnerDashboard = () => {
       </Card>
 
       {/* Payment Recording Modal */}
-      <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <CreditCard className="h-5 w-5 text-green-600" />
-              Record Payment to Sir Waqar
-            </DialogTitle>
-            <DialogDescription>
-              Record a payment you've made to clear your outstanding debt.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Current Debt Display */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="text-sm text-amber-800 font-medium">
-                Outstanding Amount Owed:
-              </p>
-              <p className="text-2xl font-bold text-amber-900">
-                PKR {stats.expenseDebt.toLocaleString()}
-              </p>
-            </div>
-
-            {/* Payment Amount Input */}
-            <div className="space-y-2">
-              <Label htmlFor="paymentAmount" className="font-semibold">
-                Payment Amount (PKR)
-              </Label>
-              <Input
-                id="paymentAmount"
-                type="number"
-                placeholder="Enter amount paid"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                className="h-12 text-lg"
-                max={stats.expenseDebt}
-                min={1}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the exact amount you've paid to Sir Waqar
-              </p>
-            </div>
-
-            {/* Optional Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="paymentNotes" className="font-semibold">
-                Notes (Optional)
-              </Label>
-              <Input
-                id="paymentNotes"
-                type="text"
-                placeholder="e.g., Cash payment at academy"
-                value={paymentNotes}
-                onChange={(e) => setPaymentNotes(e.target.value)}
-                className="h-10"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPaymentModalOpen(false);
-                setPaymentAmount("");
-                setPaymentNotes("");
-              }}
-              disabled={isProcessingPayment}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRecordPayment}
-              disabled={
-                isProcessingPayment ||
-                !paymentAmount ||
-                parseInt(paymentAmount) <= 0
-              }
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isProcessingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Confirm Payment
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 };

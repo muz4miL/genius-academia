@@ -224,53 +224,7 @@ exports.approvePayoutRequest = async (req, res) => {
       },
     });
 
-    // 3. Create an Expense record for tracking
-    const config = await Configuration.findOne();
-    const splitRatio = config?.expenseSplit || {
-      waqar: 40,
-      zahid: 30,
-      saud: 30,
-    };
-
-    // Find partners and calculate shares
-    const partners = await User.find({
-      role: { $in: ["OWNER", "PARTNER"] },
-      isActive: { $ne: false },
-    });
-
-    const shares = [];
-    for (const partner of partners) {
-      const nameKey = partner.fullName.toLowerCase();
-      let percentage = 0;
-
-      if (nameKey.includes("waqar")) percentage = splitRatio.waqar;
-      else if (nameKey.includes("zahid")) percentage = splitRatio.zahid;
-      else if (nameKey.includes("saud")) percentage = splitRatio.saud;
-
-      if (percentage > 0) {
-        const shareAmount = Math.round(
-          (payoutRequest.amount * percentage) / 100,
-        );
-        shares.push({
-          partner: partner._id,
-          partnerName: partner.fullName,
-          amount: shareAmount,
-          percentage,
-          status: "PAID", // Already paid from teacher earnings
-        });
-
-        // Deduct from partner's wallet
-        if (
-          partner.walletBalance &&
-          typeof partner.walletBalance === "object"
-        ) {
-          partner.walletBalance.verified =
-            (partner.walletBalance.verified || 0) - shareAmount;
-          await partner.save();
-        }
-      }
-    }
-
+    // 3. Create an Expense record for tracking (simplified - no partner splits)
     const expense = await Expense.create({
       title: `Salary: ${teacher.name}`,
       category: "Salaries",
@@ -281,8 +235,6 @@ exports.approvePayoutRequest = async (req, res) => {
       status: "paid",
       paidDate: new Date(),
       description: `Approved payout request ${payoutRequest.requestId}`,
-      splitRatio,
-      shares,
     });
 
     // 4. Update the payout request

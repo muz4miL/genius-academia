@@ -22,7 +22,6 @@ import UserManagement from "./pages/UserManagement";
 import WebsiteManager from "./pages/WebsiteManager";
 import PublicLanding from "./pages/PublicLanding";
 import Payroll from "./pages/Payroll";
-import PartnerSettlement from "./pages/PartnerSettlement";
 import Leads from "./pages/Leads";
 // Phase 2 & 3: Security & LMS
 import Gatekeeper from "./pages/Gatekeeper";
@@ -175,14 +174,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Payroll />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/partner-settlement"
-              element={
-                <ProtectedRoute>
-                  <PartnerSettlement />
                 </ProtectedRoute>
               }
             />
