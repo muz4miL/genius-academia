@@ -20,7 +20,7 @@ const seedUsers = async () => {
     // NOTE: We are sending PLAIN TEXT passwords. 
     // The User.js model's "pre-save" hook will handle the encryption automatically.
     
-    // 2. Create Sir Waqar (Owner)
+    // Create Owner (Sir Waqar)
     const waqar = await User.create({
       userId: "OWNER-001",
       username: "waqar",
@@ -32,34 +32,9 @@ const seedUsers = async () => {
       permissions: ["dashboard", "admissions", "students", "finance", "teachers", "configuration"]
     });
 
-    // 3. Create Sir Saud (Partner)
-    const saud = await User.create({
-      userId: "PARTNER-002",
-      username: "saud",
-      fullName: "Sir Shah Saud",
-      password: "admin123", // <--- SENT AS PLAIN TEXT
-      role: "PARTNER",
-      totalCash: 0,
-      walletBalance: { floating: 0, verified: 0 },
-      permissions: ["dashboard", "admissions", "students", "finance"]
-    });
-    
-     // 4. Create Sir Zahid (Partner)
-    const zahid = await User.create({
-      userId: "PARTNER-001",
-      username: "zahid",
-      fullName: "Dr. Zahid",
-      password: "admin123", // <--- SENT AS PLAIN TEXT
-      role: "PARTNER",
-      totalCash: 0,
-      walletBalance: { floating: 0, verified: 0 },
-      permissions: ["dashboard", "admissions", "students", "finance"]
-    });
-
-    console.log("🎉 Users Created Successfully (Single Hashed)!");
+    console.log("🎉 Owner Created Successfully!");
     console.log("-----------------------------------------");
-    console.log("👤 OWNER:   waqar / admin123");
-    console.log("👤 PARTNER: saud  / admin123");
+    console.log("👤 OWNER: waqar / admin123");
     console.log("-----------------------------------------");
 
     process.exit();

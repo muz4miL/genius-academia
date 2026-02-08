@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const Configuration = require("./models/Configuration"); // Ensure filename matches your model
+const Configuration = require("./models/Configuration");
 
 dotenv.config();
 
@@ -13,34 +13,30 @@ const seedConfig = async () => {
   try {
     await Configuration.deleteMany({}); // Clear old settings
     
-    // Create Default Configuration
+    // Create Default Configuration for Genius Academia
     await Configuration.create({
-      academyName: "Edwardian Academy",
-      address: "Peshawar, Pakistan",
-      phone: "+92 300 1234567",
+      academyName: "Genius Academia",
+      academyAddress: "Peshawar, Pakistan",
+      academyPhone: "+92 300 1234567",
       
-      // Default Splits
-      teacherSharePercentage: 70,
-      academySharePercentage: 30,
-      
-      // Partner Rules
-      partnerStructure: {
-        type: "percentage",
-        splits: {
-          waqar: 50,
-          zahid: 30,
-          saud: 20
-        }
+      // Teacher Compensation
+      salaryConfig: {
+        teacherShare: 70,
+        academyShare: 30,
       },
-
-      // The Critical Part: Session Prices
-      sessionPrices: [], // Starts empty, you will fill this in Mission 1
-
-      // Expenses
-      expenseCategories: ["Utilities", "Rent", "Salaries", "Maintenance", "Tea/Entertainment"]
+      
+      // Financial Policies
+      defaultLateFee: 500,
+      feeDueDay: 10,
+      
+      // Default Subject Fees (will be auto-initialized by model)
+      defaultSubjectFees: [],
+      
+      // Session Prices (to be filled as needed)
+      sessionPrices: [],
     });
 
-    console.log("🎉 Financial Configuration Created!");
+    console.log("🎉 Genius Academia Configuration Created!");
     process.exit();
   } catch (error) {
     console.error("❌ Error:", error);
