@@ -352,18 +352,18 @@ export default function PublicLanding() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-24">
             {/* Logo with Dynamic Title */}
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.05 }}
               className="flex items-center gap-4 cursor-pointer"
             >
               <img
                 src="/logo.png"
-                alt="Edwardian Academy"
+                alt="Genius Islamian's Academy"
                 className="h-14 w-14 object-contain"
               />
               <div className="flex flex-col">
                 <span className="text-2xl font-serif font-black tracking-tight text-brand-primary leading-none">
-                  {config?.heroSection?.title?.split("'")[0] || "Edwardian"}
+                  {config?.heroSection?.title?.split("'")[0] || "Genius Islamian's"}
                 </span>
                 <span className="text-sm font-bold tracking-[0.4em] text-brand-gold uppercase">
                   Academy
@@ -406,7 +406,7 @@ export default function PublicLanding() {
       <section className="relative pt-20 pb-32 overflow-hidden liquid-mesh">
         <div className="absolute inset-0 bg-brand-primary/40 backdrop-blur-[2px]" />
         <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 -skew-x-12 transform origin-top-right backdrop-blur-3xl" />
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="max-w-2xl text-left">
@@ -418,11 +418,10 @@ export default function PublicLanding() {
                   transition={{ duration: 0.8, type: "spring" }}
                 >
                   <Badge
-                    className={`mb-6 text-xs font-bold uppercase tracking-[0.2em] px-5 py-2 rounded-full backdrop-blur-xl border ${
-                      config.admissionStatus.isOpen
-                        ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/20"
-                        : "bg-red-400/10 text-red-300 border-red-400/20"
-                    }`}
+                    className={`mb-6 text-xs font-bold uppercase tracking-[0.2em] px-5 py-2 rounded-full backdrop-blur-xl border ${config.admissionStatus.isOpen
+                      ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/20"
+                      : "bg-red-400/10 text-red-300 border-red-400/20"
+                      }`}
                   >
                     {config.admissionStatus.isOpen
                       ? `🟢 ${config.admissionStatus.notice || "Admissions Open"}`
@@ -437,7 +436,7 @@ export default function PublicLanding() {
                 transition={{ duration: 1, type: "spring", stiffness: 50 }}
                 className="text-5xl sm:text-6xl lg:text-7xl font-serif font-black text-white mb-8 leading-[1.1] tracking-tight"
               >
-                {config?.heroSection?.title || "The Edwardian Academy"}
+                {config?.heroSection?.title || "Genius Islamian's Academy"}
               </motion.h1>
 
               <motion.p
@@ -494,7 +493,7 @@ export default function PublicLanding() {
                 </motion.div>
               </motion.div>
             </div>
-            
+
             <div className="hidden lg:block relative">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
@@ -502,21 +501,21 @@ export default function PublicLanding() {
                 transition={{ duration: 1.2, type: "spring" }}
                 className="relative z-10 rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] border-[12px] border-white/5 backdrop-blur-3xl"
               >
-                <img 
-                  src="edwardian.png" 
-                  alt="Academy Life" 
+                <img
+                  src="edwardian.png"
+                  alt="Academy Life"
                   className="w-full h-[600px] object-cover mix-blend-overlay opacity-90"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/80 to-transparent" />
               </motion.div>
-              <motion.div 
+              <motion.div
                 {...float}
-                className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-gold rounded-full -z-0 opacity-20 blur-3xl" 
+                className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-gold rounded-full -z-0 opacity-20 blur-3xl"
               />
-              <motion.div 
+              <motion.div
                 animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.2, 0.1] }}
                 transition={{ duration: 8, repeat: Infinity }}
-                className="absolute -top-10 -right-10 w-72 h-72 bg-brand-navy rounded-full -z-0 blur-3xl" 
+                className="absolute -top-10 -right-10 w-72 h-72 bg-brand-navy rounded-full -z-0 blur-3xl"
               />
             </div>
           </div>
@@ -557,9 +556,8 @@ export default function PublicLanding() {
                   <button
                     key={idx}
                     onClick={() => setCurrentAnnouncement(idx)}
-                    className={`h-2 rounded-full transition-all ${
-                      idx === currentAnnouncement ? "w-8 bg-brand-primary" : "w-2 bg-slate-200"
-                    }`}
+                    className={`h-2 rounded-full transition-all ${idx === currentAnnouncement ? "w-8 bg-brand-primary" : "w-2 bg-slate-200"
+                      }`}
                   />
                 ))}
               </div>
@@ -571,7 +569,7 @@ export default function PublicLanding() {
       {/* Featured Subjects Section */}
       <section className="py-32 bg-brand-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
+          <motion.div
             {...waterfall}
             className="text-center mb-20"
           >
@@ -594,7 +592,7 @@ export default function PublicLanding() {
               >
                 <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] group-hover:-translate-y-3 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-brand-gold/5 rounded-bl-[4rem] -mr-8 -mt-8 group-hover:bg-brand-gold/10 transition-colors" />
-                  
+
                   <div className="w-20 h-20 bg-brand-secondary rounded-[1.5rem] flex items-center justify-center mb-8 group-hover:bg-brand-primary group-hover:scale-110 transition-all duration-500">
                     <BookOpen className="h-10 w-10 text-brand-primary group-hover:text-white" />
                   </div>
@@ -624,7 +622,7 @@ export default function PublicLanding() {
               className="text-center mb-20"
             >
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-brand-primary mb-6 tracking-tight">
-                Why Edwardian's?
+                Why Genius Islamian's?
               </h2>
               <div className="w-24 h-1.5 bg-brand-gold mx-auto rounded-full mb-8" />
               <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
@@ -682,17 +680,16 @@ export default function PublicLanding() {
                 {...waterfall}
                 transition={{ ...waterfall.whileInView.transition, delay: index * 0.1 }}
               >
-                <div className={`group relative bg-white rounded-[3rem] p-10 text-center border transition-all duration-500 hover:-translate-y-3 ${
-                  professor.isPartner 
-                    ? "border-brand-gold/30 shadow-[0_20px_50px_rgba(180,83,9,0.1)]" 
-                    : "border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)]"
-                }`}>
+                <div className={`group relative bg-white rounded-[3rem] p-10 text-center border transition-all duration-500 hover:-translate-y-3 ${professor.isPartner
+                  ? "border-brand-gold/30 shadow-[0_20px_50px_rgba(180,83,9,0.1)]"
+                  : "border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)]"
+                  }`}>
                   <div className="relative inline-block mb-8">
                     <div className="w-32 h-32 mx-auto rounded-full bg-slate-50 flex items-center justify-center text-4xl font-black text-brand-primary shadow-inner border-[6px] border-white overflow-hidden group-hover:scale-105 transition-transform duration-500">
                       {professor.name?.charAt(0)?.toUpperCase() || "?"}
                     </div>
                     {professor.isPartner && (
-                      <motion.div 
+                      <motion.div
                         animate={{ rotate: [0, 10, -10, 0] }}
                         transition={{ duration: 4, repeat: Infinity }}
                         className="absolute -top-1 -right-1 bg-brand-gold text-white p-2.5 rounded-full shadow-lg"
@@ -730,7 +727,7 @@ export default function PublicLanding() {
               <p className="text-xl text-slate-500 mb-12 font-medium leading-relaxed">
                 Our admissions team is ready to help you plan your academic journey. Send us a message and we'll respond within 24 hours.
               </p>
-              
+
               <div className="space-y-10">
                 <div className="flex items-start gap-8 group">
                   <div className="w-16 h-16 bg-brand-secondary rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:bg-brand-primary group-hover:rotate-6 transition-all duration-500">
@@ -764,7 +761,7 @@ export default function PublicLanding() {
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               {...waterfall}
               className="bg-brand-secondary p-10 md:p-16 rounded-[4rem] shadow-[0_40px_100px_rgba(0,0,0,0.08)] relative overflow-hidden"
             >
@@ -785,7 +782,7 @@ export default function PublicLanding() {
               <div className="flex items-center gap-4 mb-10">
                 <img src="/logo.png" alt="Logo" className="h-14 w-14 brightness-0 invert opacity-90" />
                 <div className="flex flex-col">
-                  <span className="text-2xl font-serif font-black tracking-tight">EDWARDIAN</span>
+                  <span className="text-2xl font-serif font-black tracking-tight">GENIUS ISLAMIAN'S</span>
                   <span className="text-sm font-bold tracking-[0.4em] text-brand-gold">ACADEMY</span>
                 </div>
               </div>
@@ -794,9 +791,9 @@ export default function PublicLanding() {
               </p>
               <div className="flex gap-5">
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
-                  <motion.a 
-                    key={i} 
-                    href="#" 
+                  <motion.a
+                    key={i}
+                    href="#"
                     whileHover={{ y: -5, scale: 1.1 }}
                     className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center hover:bg-brand-gold hover:text-white transition-all border border-white/5 hover:border-brand-gold"
                   >
@@ -837,9 +834,9 @@ export default function PublicLanding() {
               </div>
             </div>
           </div>
-          
+
           <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
-            <p>© {new Date().getFullYear()} The Edwardian Academy. All Rights Reserved.</p>
+            <p>© {new Date().getFullYear()} Genius Islamian's Academy. All Rights Reserved.</p>
             <div className="flex gap-10">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>

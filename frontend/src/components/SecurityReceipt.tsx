@@ -25,12 +25,12 @@ import {
 import { toast } from "sonner";
 
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('.app.github.dev')) {
-    const hostname = window.location.hostname;
-    const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, '');
-    return `https://${codespaceBase}-5000.app.github.dev`;
-  }
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    if (typeof window !== 'undefined' && window.location.hostname.includes('.app.github.dev')) {
+        const hostname = window.location.hostname;
+        const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, '');
+        return `https://${codespaceBase}-5000.app.github.dev`;
+    }
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 };
 const API_BASE_URL = getApiBaseUrl();
 
@@ -128,7 +128,7 @@ export function SecurityReceipt({ student, open, onOpenChange }: SecurityReceipt
 
                         {/* Header */}
                         <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
-                            <h1 className="text-xl font-bold text-gray-900 print:text-2xl">EDWARDIAN ACADEMY</h1>
+                            <h1 className="text-xl font-bold text-gray-900 print:text-2xl">GENIUS ISLAMIAN'S ACADEMY</h1>
                             <p className="text-sm text-gray-600 font-medium">Official Entry Permit</p>
                         </div>
 
@@ -196,16 +196,16 @@ export function SecurityReceipt({ student, open, onOpenChange }: SecurityReceipt
 
                         {/* Fee Status */}
                         <div className={`rounded p-3 mb-4 text-center border ${student.feeStatus === "paid"
-                                ? "bg-green-100 border-green-300"
-                                : student.feeStatus === "partial"
-                                    ? "bg-amber-100 border-amber-300"
-                                    : "bg-red-100 border-red-300"
+                            ? "bg-green-100 border-green-300"
+                            : student.feeStatus === "partial"
+                                ? "bg-amber-100 border-amber-300"
+                                : "bg-red-100 border-red-300"
                             }`}>
                             <p className={`font-bold text-sm flex items-center justify-center gap-1 ${student.feeStatus === "paid"
-                                    ? "text-green-700"
-                                    : student.feeStatus === "partial"
-                                        ? "text-amber-700"
-                                        : "text-red-700"
+                                ? "text-green-700"
+                                : student.feeStatus === "partial"
+                                    ? "text-amber-700"
+                                    : "text-red-700"
                                 }`}>
                                 {student.feeStatus === "paid" && <CheckCircle2 className="h-4 w-4 inline" />}
                                 {student.feeStatus !== "paid" && <AlertTriangle className="h-4 w-4 inline" />}

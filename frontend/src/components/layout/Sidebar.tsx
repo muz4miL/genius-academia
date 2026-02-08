@@ -12,24 +12,14 @@ import {
   Clock,
   CalendarClock,
   GraduationCap,
-  Shield,
-  Globe,
-  Banknote,
-  Handshake,
   Phone,
-  ScanLine,
-  UserCheck,
-  ClipboardCheck,
-  Video,
-  BarChart,
-  FileQuestion,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
-// Navigation items with permission keys
-// permission: matches the key in user.permissions array
-// ownerOnly: additional restriction for sensitive pages
+// Navigation items with permission keys - SRS 2.0 Compliant
+// KEPT: Dashboard, Admissions, Students, Teachers, Finance, Classes, Timetable, Sessions, Configuration, Payroll
 const navItems = [
   {
     icon: LayoutDashboard,
@@ -56,12 +46,6 @@ const navItems = [
     path: "/finance",
     permission: "finance",
   },
-  {
-    icon: Phone,
-    label: "Inquiries",
-    path: "/leads",
-    permission: "inquiries",
-  },
   { icon: BookOpen, label: "Classes", path: "/classes", permission: "classes" },
   {
     icon: Clock,
@@ -75,70 +59,24 @@ const navItems = [
     path: "/sessions",
     permission: "sessions",
   },
-  // Phase 2: Physical Security
   {
-    icon: ScanLine,
-    label: "Gate Scanner",
-    path: "/gatekeeper",
-    permission: "gatekeeper",
+    icon: Phone,
+    label: "Inquiries",
+    path: "/leads",
+    permission: "inquiries",
   },
   {
-    icon: ClipboardCheck,
-    label: "Front Desk",
-    path: "/front-desk",
-    permission: "frontdesk",
+    icon: Banknote,
+    label: "Payroll",
+    path: "/payroll",
+    permission: "payroll",
+    ownerOnly: true,
   },
   {
     icon: Settings,
     label: "Configuration",
     path: "/configuration",
     permission: "configuration",
-    ownerOnly: true,
-  },
-  {
-    icon: Shield,
-    label: "Users",
-    path: "/users",
-    permission: "users",
-    ownerOnly: true,
-  },
-  {
-    icon: Video,
-    label: "Lectures",
-    path: "/lectures",
-    permission: "lectures",
-  },
-  {
-    icon: FileQuestion,
-    label: "Exams",
-    path: "/exams",
-    permission: "exams",
-  },
-  {
-    icon: BarChart,
-    label: "Reports",
-    path: "/reports",
-    permission: "reports",
-  },
-  {
-    icon: Globe,
-    label: "Website",
-    path: "/website-manager",
-    permission: "website",
-    ownerOnly: true,
-  },
-  {
-    icon: Banknote,
-    label: "Payroll",
-    path: "/payroll",
-    permission: "reports", // Changed to use reports permission
-    ownerOnly: true,
-  },
-  {
-    icon: Handshake,
-    label: "Settlement",
-    path: "/partner-settlement",
-    permission: "reports", // Changed to use reports permission
     ownerOnly: true,
   },
 ];
@@ -160,9 +98,6 @@ export function Sidebar() {
     // ownerOnly items are restricted to OWNER role
     if (item.ownerOnly) return false;
 
-    // Teachers automatically get access to lectures
-    if (user?.role === "TEACHER" && item.label === "Lectures") return true;
-
     // Check if user has permission for this item
     return userPermissions.includes(item.permission);
   });
@@ -174,16 +109,16 @@ export function Sidebar() {
         collapsed ? "w-16" : "w-64",
       )}
     >
-      {/* Sidebar Header - Luxury Academic Theme */}
-      <div className="border-b border-amber-500/20 px-4 py-5">
+      {/* Sidebar Header - Genius Islamian's Academy Red Theme */}
+      <div className="border-b border-red-500/20 px-4 py-5">
         {!collapsed && (
           <div className="flex flex-col items-center gap-2">
             <img
               src="/logo.png"
-              alt="Edwardian Academy"
+              alt="Genius Islamian's Academy"
               className="h-20 w-auto object-contain"
             />
-            <p className="text-[10px] font-semibold text-amber-400/80 tracking-widest uppercase">
+            <p className="text-[10px] font-semibold text-red-400/80 tracking-widest uppercase">
               Enterprise ERP
             </p>
           </div>
@@ -191,7 +126,7 @@ export function Sidebar() {
         {collapsed && (
           <img
             src="/logo.png"
-            alt="Edwardian Academy"
+            alt="Genius Islamian's Academy"
             className="mx-auto h-10 w-10 object-contain"
           />
         )}
@@ -221,8 +156,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-
 
       {/* Collapse button */}
       <button

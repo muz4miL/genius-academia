@@ -8,7 +8,7 @@
  * Features:
  * - Image compression (max 800px width) to prevent DB bloat
  * - Base64 output for MongoDB storage
- * - Premium Edwardian Gold themed styling
+ * - Premium Gold themed styling
  */
 
 import { useState, useRef, useCallback } from "react";

@@ -27,8 +27,8 @@ interface FeeReceiptProps {
   onPrint?: () => void;
 }
 
-// Printable Fee Receipt - Matches Edwardian Academy's physical paper format EXACTLY
-// Based on image_e56dcb.jpg - Landscape orientation with blue/red styling
+// Printable Fee Receipt - Matches Genius Islamian's Academy physical paper format EXACTLY
+// Red & Black branded with shield logo
 const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
   (
     {
@@ -64,13 +64,13 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
           className="relative bg-white w-full max-w-[700px] mx-auto shadow-lg print:shadow-none overflow-hidden"
           style={{ fontFamily: "'Times New Roman', Georgia, serif" }}
         >
-          {/* Top Blue Border */}
-          <div className="h-2 bg-blue-800" />
+          {/* Top Red Border */}
+          <div className="h-2 bg-red-700" />
 
-          {/* Main Content with Left Blue Border */}
+          {/* Main Content with Left Red Border */}
           <div className="flex">
-            {/* Left Blue Accent */}
-            <div className="w-2 bg-blue-800" />
+            {/* Left Red Accent */}
+            <div className="w-2 bg-red-700" />
 
             {/* Content Area */}
             <div className="flex-1 p-5">
@@ -79,14 +79,14 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
                 className="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none"
                 aria-hidden="true"
               >
-                <div className="w-64 h-64 rounded-full border-[10px] border-blue-800 flex items-center justify-center">
+                <div className="w-64 h-64 rounded-full border-[10px] border-red-700 flex items-center justify-center">
                   <div className="text-center">
-                    <span className="text-2xl font-serif italic text-blue-800">
-                      The
+                    <span className="text-2xl font-serif italic text-red-700">
+                      Genius
                     </span>
                     <br />
-                    <span className="text-3xl font-bold text-blue-800">
-                      EDWARDIAN'S
+                    <span className="text-3xl font-bold text-red-700">
+                      ISLAMIAN'S
                     </span>
                   </div>
                 </div>
@@ -97,27 +97,24 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
                 {/* Left: Logo + Title */}
                 <div className="flex items-center gap-3">
                   {/* Academy Emblem */}
-                  <div className="w-16 h-16 rounded-full border-2 border-blue-800 flex items-center justify-center bg-gradient-to-b from-blue-50 to-white flex-shrink-0">
-                    <div className="text-center leading-none">
-                      <div className="text-[8px] font-serif italic text-blue-800">
-                        The
-                      </div>
-                      <div className="text-[7px] font-bold text-blue-800 tracking-tight">
-                        EDWARDIAN'S
-                      </div>
-                    </div>
+                  <div className="w-16 h-16 rounded-full border-2 border-red-700 flex items-center justify-center bg-gradient-to-b from-red-50 to-white flex-shrink-0">
+                    <img
+                      src="/logo.png"
+                      alt="Genius Islamian's Academy"
+                      className="w-12 h-12 object-contain"
+                    />
                   </div>
 
                   {/* Title */}
                   <div>
                     <h1 className="text-2xl font-bold leading-tight">
-                      <span className="text-blue-800 font-serif italic">
-                        The{" "}
+                      <span className="text-red-700 font-serif italic">
+                        Genius{" "}
                       </span>
-                      <span className="text-blue-800 tracking-wide">
-                        EDWARDIAN'S{" "}
+                      <span className="text-red-700 tracking-wide">
+                        ISLAMIAN'S{" "}
                       </span>
-                      <span className="text-red-600">Academy</span>
+                      <span className="text-gray-900">Academy</span>
                     </h1>
                     {/* Contact in Red */}
                     <p className="text-red-600 font-semibold text-sm mt-0.5">
@@ -148,7 +145,7 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
                     <span className="font-semibold text-gray-700 w-20">
                       Professor:
                     </span>
-                    <span className="flex-1 border-b border-gray-400 px-2 py-0.5 uppercase font-bold text-blue-900">
+                    <span className="flex-1 border-b border-gray-400 px-2 py-0.5 uppercase font-bold text-red-800">
                       {professorName || "—"}
                     </span>
                   </div>
@@ -251,7 +248,7 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
 
               {/* Split Breakdown (internal use) */}
               {showSplit && splitBreakdown && (
-                <div className="relative z-10 mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                <div className="relative z-10 mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs">
                   <div className="flex justify-between">
                     <span>Teacher ({splitBreakdown.teacherPercentage}%):</span>
                     <span className="font-semibold">
@@ -293,8 +290,8 @@ const FeeReceipt = forwardRef<HTMLDivElement, FeeReceiptProps>(
                   University Road Peshawar
                 </p>
                 <p className="mt-0.5">
-                  Email: theedwardianacademy2017@gmail.com |
-                  www.facebook.com/theedwardianacademy
+                  Email: geniusislamians@gmail.com |
+                  www.facebook.com/geniusislamians
                 </p>
                 <p className="text-[8px] text-gray-400 mt-1 italic">
                   Can't Be Used For Legal Purpose

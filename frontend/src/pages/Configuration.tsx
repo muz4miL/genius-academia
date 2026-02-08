@@ -94,7 +94,7 @@ const Configuration = () => {
   const [eteaPoolError, setEteaPoolError] = useState("");
 
   // --- Card 4: Academy Info ---
-  const [academyName, setAcademyName] = useState("Edwardian Academy");
+  const [academyName, setAcademyName] = useState("Genius Islamian's Academy");
   const [academyAddress, setAcademyAddress] = useState("Peshawar, Pakistan");
   const [academyPhone, setAcademyPhone] = useState("");
 
@@ -192,7 +192,7 @@ const Configuration = () => {
           }
 
           // Card 4: Academy Info
-          setAcademyName(data.academyName || "Edwardian Academy");
+          setAcademyName(data.academyName || "Genius Islamian's Academy");
           setAcademyAddress(data.academyAddress || "Peshawar, Pakistan");
           setAcademyPhone(data.academyPhone || "");
 

@@ -31,7 +31,7 @@ const websiteConfigSchema = new mongoose.Schema(
     heroSection: {
       title: {
         type: String,
-        default: "The Edwardian's Academy",
+        default: "Genius Islamian's Academy",
       },
       subtitle: {
         type: String,
@@ -74,7 +74,7 @@ const websiteConfigSchema = new mongoose.Schema(
       },
       email: {
         type: String,
-        default: "theedwardianacademy2017@gmail.com",
+        default: "geniusislamians@gmail.com",
       },
       address: {
         type: String,
@@ -83,7 +83,7 @@ const websiteConfigSchema = new mongoose.Schema(
       },
       facebook: {
         type: String,
-        default: "https://www.facebook.com/theedwardianacademy",
+        default: "https://www.facebook.com/geniusislamians",
       },
     },
 

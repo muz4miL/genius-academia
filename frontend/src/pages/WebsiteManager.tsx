@@ -334,7 +334,7 @@ export default function WebsiteManager() {
                     <Input
                       value={heroTitle}
                       onChange={(e) => setHeroTitle(e.target.value)}
-                      placeholder="The Edwardian Academy"
+                      placeholder="Genius Islamian's Academy"
                       className="h-12 rounded-xl border-slate-200 focus:ring-brand-gold"
                     />
                   </div>
@@ -411,11 +411,10 @@ export default function WebsiteManager() {
                         key={ann._id}
                         // initial={{ opacity: 0, x: -20 }}
                         // animate={{ opacity: 1, x: 0 }}
-                        className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${
-                          ann.active
+                        className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${ann.active
                             ? "bg-emerald-50/30 border-emerald-100"
                             : "bg-slate-50 border-slate-200"
-                        }`}
+                          }`}
                       >
                         <div className="flex-1 pr-6">
                           <p className={`text-sm font-bold ${ann.active ? "text-brand-primary" : "text-slate-400 italic"}`}>
@@ -424,9 +423,8 @@ export default function WebsiteManager() {
                           <div className="flex items-center gap-2 mt-2">
                             <Badge
                               variant={ann.active ? "default" : "secondary"}
-                              className={`text-[10px] uppercase tracking-widest px-2 py-0.5 ${
-                                ann.active ? "bg-emerald-500 hover:bg-emerald-600" : "bg-slate-200"
-                              }`}
+                              className={`text-[10px] uppercase tracking-widest px-2 py-0.5 ${ann.active ? "bg-emerald-500 hover:bg-emerald-600" : "bg-slate-200"
+                                }`}
                             >
                               {ann.active ? "Live" : "Draft"}
                             </Badge>
@@ -554,15 +552,13 @@ export default function WebsiteManager() {
           <div className="space-y-6">
             {/* Admission Status Toggle */}
             <Card
-              className={`rounded-[2rem] overflow-hidden border-2 transition-all duration-500 ${
-                config?.admissionStatus?.isOpen
+              className={`rounded-[2rem] overflow-hidden border-2 transition-all duration-500 ${config?.admissionStatus?.isOpen
                   ? "border-emerald-500/30 bg-emerald-50/20 shadow-xl shadow-emerald-500/10"
                   : "border-red-500/30 bg-red-50/20 shadow-xl shadow-red-500/10"
-              }`}
+                }`}
             >
-              <div className={`p-6 text-white flex items-center justify-between ${
-                config?.admissionStatus?.isOpen ? "bg-emerald-600" : "bg-red-600"
-              }`}>
+              <div className={`p-6 text-white flex items-center justify-between ${config?.admissionStatus?.isOpen ? "bg-emerald-600" : "bg-red-600"
+                }`}>
                 <div className="flex items-center gap-3">
                   <AlertCircle className="h-6 w-6" />
                   <CardTitle className="text-sm uppercase tracking-[0.2em]">Admission Pulse</CardTitle>
@@ -633,17 +629,16 @@ export default function WebsiteManager() {
                     <p className="text-[10px] uppercase tracking-[0.4em] text-brand-gold font-bold mb-2">Institutional Tagline</p>
                     <p className="text-[10px] uppercase tracking-[0.3em] text-slate-300 font-bold mb-4">{heroTagline || "Excellence in Education"}</p>
                     <h3 className="text-2xl font-serif font-black leading-tight mb-3">
-                      {heroTitle || "Edwardian Academy"}
+                      {heroTitle || "Genius Islamian's Academy"}
                     </h3>
                     <p className="text-sm text-slate-200 font-medium mb-6 opacity-80">
                       {heroSubtitle || "Advancing Knowledge. Transforming Lives."}
                     </p>
                     <Badge
-                      className={`px-4 py-1 rounded-full border ${
-                        config?.admissionStatus?.isOpen 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                      className={`px-4 py-1 rounded-full border ${config?.admissionStatus?.isOpen
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                           : "bg-red-500/10 text-red-400 border-red-500/20"
-                      }`}
+                        }`}
                     >
                       {config?.admissionStatus?.isOpen
                         ? "🟢 Admissions Open"
@@ -740,7 +735,7 @@ export default function WebsiteManager() {
               }
             >
               {addAnnouncementMutation.isPending ||
-              updateAnnouncementMutation.isPending ? (
+                updateAnnouncementMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               {editingAnnouncement ? "Update" : "Add"}

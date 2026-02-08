@@ -16,32 +16,32 @@
 
 @layer base {
   :root {
-    /* Core palette - Luxury Academic Gold Theme */
-    --background: 30 20% 98%;
-    --foreground: 30 10% 10%;
+    /* Core palette - Genius Islamian's Academy Red & Black Theme */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 30 10% 10%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 30 10% 10%;
+    --popover-foreground: 0 0% 10%;
 
-    /* Primary - Royal Gold */
-    --primary: 43 74% 49%;
-    --primary-foreground: 30 10% 10%;
-    --primary-light: 43 80% 95%;
-    --primary-hover: 43 74% 42%;
+    /* Primary - Deep Red (#D32F2F) */
+    --primary: 0 68% 51%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 0 70% 95%;
+    --primary-hover: 0 68% 42%;
 
-    /* Secondary - Warm Stone */
-    --secondary: 30 10% 95%;
-    --secondary-foreground: 30 10% 10%;
+    /* Secondary - Dark Black/Grey (#1a1a1a) */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 30 10% 95%;
-    --muted-foreground: 30 10% 45%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Accent - Light Gold */
-    --accent: 43 80% 95%;
-    --accent-foreground: 43 74% 35%;
+    /* Accent - Light Red */
+    --accent: 0 70% 95%;
+    --accent-foreground: 0 68% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -59,66 +59,66 @@
     --pending-foreground: 0 0% 100%;
     --pending-light: 0 84% 95%;
 
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --ring: 43 74% 49%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 68% 51%;
 
     --radius: 0.75rem;
 
-    /* Sidebar - Luxury Dark Theme */
-    --sidebar-background: 30 15% 8%;
-    --sidebar-foreground: 43 30% 85%;
-    --sidebar-primary: 43 74% 49%;
-    --sidebar-primary-foreground: 30 10% 10%;
-    --sidebar-accent: 30 15% 14%;
-    --sidebar-accent-foreground: 43 80% 90%;
-    --sidebar-border: 43 20% 18%;
-    --sidebar-ring: 43 74% 49%;
-    --sidebar-muted: 30 10% 55%;
+    /* Sidebar - Dark Theme with Red Accents */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 68% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 70% 90%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 68% 51%;
+    --sidebar-muted: 0 0% 55%;
 
     /* Chart colors */
-    --chart-1: 43 74% 49%;
+    --chart-1: 0 68% 51%;
     --chart-2: 142 76% 36%;
-    --chart-3: 30 30% 40%;
+    --chart-3: 0 0% 40%;
     --chart-4: 38 92% 50%;
     --chart-5: 20 60% 50%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(43 74% 49%), hsl(38 80% 45%));
-    --gradient-header: linear-gradient(135deg, hsl(43 74% 49%), hsl(35 70% 42%));
+    --gradient-primary: linear-gradient(135deg, hsl(0 68% 51%), hsl(0 68% 40%));
+    --gradient-header: linear-gradient(135deg, hsl(0 68% 51%), hsl(0 60% 42%));
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(30 10% 10% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(30 10% 10% / 0.1), 0 2px 4px -2px hsl(30 10% 10% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(30 10% 10% / 0.1), 0 4px 6px -4px hsl(30 10% 10% / 0.1);
-    --shadow-glow: 0 0 20px hsl(43 74% 49% / 0.3);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 10% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 10% / 0.1), 0 2px 4px -2px hsl(0 0% 10% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 10% / 0.1), 0 4px 6px -4px hsl(0 0% 10% / 0.1);
+    --shadow-glow: 0 0 20px hsl(0 68% 51% / 0.3);
   }
 
   .dark {
-    /* Luxury Academic Dark Theme - Warm Brown-Black */
-    --background: 30 15% 4%;
-    --foreground: 43 20% 92%;
+    /* Genius Islamian's Academy Dark Theme - Red & Black */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 92%;
 
-    --card: 30 15% 7%;
-    --card-foreground: 43 20% 92%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 92%;
 
-    --popover: 30 15% 7%;
-    --popover-foreground: 43 20% 92%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 92%;
 
-    /* Primary - Bright Gold */
-    --primary: 43 74% 54%;
-    --primary-foreground: 30 10% 10%;
-    --primary-light: 43 60% 18%;
-    --primary-hover: 43 74% 62%;
+    /* Primary - Bright Red */
+    --primary: 0 68% 56%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 0 60% 18%;
+    --primary-hover: 0 68% 62%;
 
-    --secondary: 30 15% 14%;
-    --secondary-foreground: 43 20% 92%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 30 15% 14%;
-    --muted-foreground: 30 10% 55%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 43 60% 18%;
-    --accent-foreground: 43 74% 70%;
+    --accent: 0 60% 18%;
+    --accent-foreground: 0 68% 70%;
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
@@ -127,19 +127,19 @@
     --warning-light: 38 92% 15%;
     --pending-light: 0 84% 15%;
 
-    --border: 43 15% 16%;
-    --input: 30 15% 16%;
-    --ring: 43 74% 54%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 0 68% 56%;
 
-    /* Sidebar - Luxury Dark with Gold Accents */
-    --sidebar-background: 30 15% 4%;
-    --sidebar-foreground: 43 25% 80%;
-    --sidebar-primary: 43 74% 54%;
-    --sidebar-primary-foreground: 30 10% 10%;
-    --sidebar-accent: 43 30% 12%;
-    --sidebar-accent-foreground: 43 80% 90%;
-    --sidebar-border: 43 20% 14%;
-    --sidebar-muted: 30 10% 50%;
+    /* Sidebar - Dark with Red Accents */
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 80%;
+    --sidebar-primary: 0 68% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 30% 12%;
+    --sidebar-accent-foreground: 0 80% 90%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-muted: 0 0% 50%;
   }
 }
 
@@ -264,10 +264,10 @@
   .liquid-mesh {
     background: linear-gradient(
       -45deg,
-      #0f172a,
-      #1e293b,
-      #1a365d,
-      #0f172a
+      #1a1a1a,
+      #2d2d2d,
+      #D32F2F,
+      #1a1a1a
     );
     background-size: 400% 400%;
     animation: liquidMesh 15s ease infinite;
@@ -307,10 +307,10 @@
     /* Chrome, Safari, Opera */
   }
 
-  /* Custom Scrollbar - Thin Sky Blue Theme */
+  /* Custom Scrollbar - Thin Red Theme */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(199 89% 48%) hsl(215 20% 95%);
+    scrollbar-color: hsl(0 68% 51%) hsl(0 0% 95%);
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -318,32 +318,32 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: hsl(215 20% 95%);
+    background: hsl(0 0% 95%);
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(199 89% 48%);
+    background: hsl(0 68% 51%);
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: hsl(199 89% 40%);
+    background: hsl(0 68% 40%);
   }
 
   /* Dark mode scrollbar */
   .dark .scrollbar-thin {
-    scrollbar-color: hsl(199 89% 48%) hsl(222 47% 15%);
+    scrollbar-color: hsl(0 68% 51%) hsl(0 0% 15%);
   }
 
   .dark .scrollbar-thin::-webkit-scrollbar-track {
-    background: hsl(222 47% 15%);
+    background: hsl(0 0% 15%);
   }
 
-  /* Sidebar Navigation Scrollbar - Gold Theme */
+  /* Sidebar Navigation Scrollbar - Red Theme */
   .sidebar-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: hsl(43 74% 49% / 0.6) hsl(30 15% 12%);
+    scrollbar-color: hsl(0 68% 51% / 0.6) hsl(0 0% 12%);
   }
 
   .sidebar-scrollbar::-webkit-scrollbar {
@@ -351,17 +351,17 @@
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-track {
-    background: hsl(30 15% 12%);
+    background: hsl(0 0% 12%);
     border-radius: 3px;
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(43 74% 49% / 0.6);
+    background: hsl(0 68% 51% / 0.6);
     border-radius: 3px;
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(43 74% 49% / 0.8);
+    background: hsl(0 68% 51% / 0.8);
   }
 }
 

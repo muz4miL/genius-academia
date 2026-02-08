@@ -135,7 +135,7 @@ export const TeacherPaymentReceipt = forwardRef<
             >
               <img
                 src="/logo.png"
-                alt="Edwardian Academy"
+                alt="Genius Islamian's Academy"
                 style={{
                   height: "60px",
                   width: "auto",
@@ -154,7 +154,7 @@ export const TeacherPaymentReceipt = forwardRef<
                 letterSpacing: "1px",
               }}
             >
-              EDWARDIAN ACADEMY
+              GENIUS ISLAMIAN'S ACADEMY
             </h1>
 
             {/* Address */}

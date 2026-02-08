@@ -17,24 +17,10 @@ import Classes from "./pages/Classes";
 import Configuration from "./pages/Configuration";
 import Timetable from "./pages/Timetable";
 import Sessions from "./pages/Sessions";
-import StudentCard from "./pages/StudentCard";
-import UserManagement from "./pages/UserManagement";
-import WebsiteManager from "./pages/WebsiteManager";
-import PublicLanding from "./pages/PublicLanding";
 import Payroll from "./pages/Payroll";
 import Leads from "./pages/Leads";
-// Phase 2 & 3: Security & LMS
-import Gatekeeper from "./pages/Gatekeeper";
-import PublicRegister from "./pages/PublicRegister";
-import PendingApprovals from "./pages/PendingApprovals";
-import VerificationHub from "./pages/VerificationHub";
+// Student Portal
 import StudentPortal from "./pages/StudentPortal";
-import Lectures from "./pages/Lectures";
-import Reports from "./pages/Reports";
-// Phase 4: Online Exam System
-import Exams from "./pages/Exams";
-import ExamBuilder from "./pages/ExamBuilder";
-import ExamRoom from "./pages/ExamRoom";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
 import NotFound from "./pages/NotFound";
 
@@ -50,9 +36,8 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/public-home" element={<PublicLanding />} />
-            {/* Phase 3: Public Registration & Student Portal */}
-            <Route path="/register" element={<PublicRegister />} />
+
+            {/* Student Portal */}
             <Route path="/student-portal" element={<StudentPortal />} />
             <Route path="/student-portal/seat-selection" element={<StudentSeatSelection />} />
 
@@ -146,30 +131,6 @@ const App = () => (
               }
             />
             <Route
-              path="/users"
-              element={
-                <ProtectedRoute>
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student-card"
-              element={
-                <ProtectedRoute>
-                  <StudentCard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/website-manager"
-              element={
-                <ProtectedRoute>
-                  <WebsiteManager />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/payroll"
               element={
                 <ProtectedRoute>
@@ -182,66 +143,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Leads />
-                </ProtectedRoute>
-              }
-            />
-            {/* Phase 2: Security Gates */}
-            <Route
-              path="/gatekeeper"
-              element={
-                <ProtectedRoute>
-                  <Gatekeeper />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/pending-approvals"
-              element={
-                <ProtectedRoute>
-                  <PendingApprovals />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/front-desk"
-              element={
-                <ProtectedRoute>
-                  <VerificationHub />
-                </ProtectedRoute>
-              }
-            />
-            {/* Phase 3: Academic Video Module */}
-            <Route
-              path="/lectures"
-              element={
-                <ProtectedRoute>
-                  <Lectures />
-                </ProtectedRoute>
-              }
-            />
-            {/* Phase 4: Online Exam System */}
-            <Route
-              path="/exams"
-              element={
-                <ProtectedRoute>
-                  <Exams />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/exams/create"
-              element={
-                <ProtectedRoute>
-                  <ExamBuilder />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/exam/:examId" element={<ExamRoom />} />
-            <Route
-              path="/reports"
-              element={
-                <ProtectedRoute>
-                  <Reports />
                 </ProtectedRoute>
               }
             />

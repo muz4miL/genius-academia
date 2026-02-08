@@ -149,7 +149,7 @@ const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <img
                 src="/logo.png"
-                alt="Edwardian Academy"
+                alt="Genius Islamian's Academy"
                 style={{
                   width: "55px",
                   height: "55px",
@@ -164,7 +164,7 @@ const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
                     color: "#1a365d",
                   }}
                 >
-                  The EDWARDIAN'S ACADEMY
+                  GENIUS ISLAMIAN'S ACADEMY
                 </div>
                 <div style={{ fontSize: "9px", color: "#c53030" }}>
                   Contact: 091-5601600 / 0334-5852326
@@ -292,8 +292,8 @@ const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
                       Class:
                     </td>
                     <td
-                      style={{ 
-                        padding: "4px 0", 
+                      style={{
+                        padding: "4px 0",
                         borderBottom: "1px solid #000",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
@@ -493,7 +493,7 @@ const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
                 Address: Opposite Islamia College, Danishabad University Road,
                 Peshawar
               </div>
-              <div>facebook.com/theedwardiansacademy</div>
+              <div>facebook.com/geniusislamians</div>
             </div>
           </div>
         </div>

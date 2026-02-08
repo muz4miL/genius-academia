@@ -457,7 +457,7 @@ export const ReceiptPDF = ({
                 <Image src="/logo.png" style={styles.logo} />
               )}
               <View style={styles.academyInfo}>
-                <Text style={styles.academyName}>THE EDWARDIAN'S ACADEMY</Text>
+                <Text style={styles.academyName}>GENIUS ISLAMIAN'S ACADEMY</Text>
                 <Text style={styles.contactText}>
                   Contact: 091-5601600 / 0334-5852326
                 </Text>

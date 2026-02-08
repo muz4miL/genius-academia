@@ -35,11 +35,11 @@ export const DigitalIDCard = ({ student }: DigitalIDCardProps) => {
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-center border-b-2 border-indigo-400">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-sm font-bold">
-                EA
+                GA
               </div>
               <div className="text-left">
                 <h3 className="text-sm font-bold leading-tight">
-                  THE EDWARDIAN'S
+                  GENIUS ISLAMIAN'S
                 </h3>
                 <p className="text-xs opacity-90">ACADEMY</p>
               </div>

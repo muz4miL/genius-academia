@@ -138,7 +138,7 @@ export default function PublicRegister() {
                 Your admission application has been successfully submitted for review.
               </p>
             </div>
-            
+
             <div className="p-12">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                 <div className="space-y-1">
@@ -208,7 +208,7 @@ export default function PublicRegister() {
   return (
     <div className="min-h-screen bg-brand-primary liquid-mesh flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
       <div className="absolute inset-0 bg-brand-primary/60 backdrop-blur-[2px]" />
-      
+
       <div className="max-w-4xl w-full relative z-10">
         {/* Header */}
         <motion.div
@@ -216,14 +216,14 @@ export default function PublicRegister() {
           className="text-center mb-12"
         >
           <Link to="/public-home" className="inline-block mb-10">
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.05 }}
               className="flex items-center gap-6"
             >
               <img src="/logo.png" alt="Logo" className="h-20 w-20 object-contain brightness-0 invert opacity-90" />
               <div className="text-left border-l border-white/20 pl-6">
                 <h1 className="text-4xl font-serif font-black text-white tracking-tight leading-none">
-                  Edwardian<br />
+                  Genius Islamian's<br />
                   <span className="text-brand-gold text-lg font-bold tracking-[0.4em] uppercase">Academy</span>
                 </h1>
               </div>

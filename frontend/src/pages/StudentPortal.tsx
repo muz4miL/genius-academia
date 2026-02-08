@@ -278,7 +278,7 @@ export function StudentPortal() {
     };
 
     const todayClasses = timetable.filter(e => e.day === currentDay);
-    
+
     let current = null;
     let next = null;
 
@@ -354,7 +354,7 @@ export function StudentPortal() {
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {}
+    } catch { }
     setIsLoggedIn(false);
     setToken(null);
     setProfile(null);
@@ -432,13 +432,13 @@ export function StudentPortal() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-primary liquid-mesh relative overflow-hidden font-sans">
         <div className="absolute inset-0 bg-brand-primary/60 backdrop-blur-[2px]" />
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-brand-gold/5 -skew-x-12 transform origin-top-right backdrop-blur-3xl" />
-        <motion.div 
+        <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 8, repeat: Infinity }}
-          className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-brand-navy/30 rounded-full blur-3xl" 
+          className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-brand-navy/30 rounded-full blur-3xl"
         />
 
         <motion.div
@@ -449,7 +449,7 @@ export function StudentPortal() {
             <div className="bg-brand-gold h-2 opacity-80" />
             <div className="p-10 md:p-12">
               <div className="text-center space-y-4 mb-10">
-                <motion.div 
+                <motion.div
                   whileHover={{ rotate: 10, scale: 1.1 }}
                   className="mx-auto w-20 h-20 rounded-[2rem] bg-brand-primary flex items-center justify-center shadow-2xl border border-white/10"
                 >
@@ -544,7 +544,7 @@ export function StudentPortal() {
             </div>
           </div>
           <p className="text-center text-[10px] text-slate-600 uppercase tracking-[0.4em] mt-8">
-            Institutional Access Only • Protected by Edwardian Security
+            Institutional Access Only • Protected by Genius Islamian's Security
           </p>
         </motion.div>
       </div>
@@ -565,13 +565,13 @@ export function StudentPortal() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-primary liquid-mesh relative overflow-hidden font-sans">
         <div className="absolute inset-0 bg-brand-primary/60 backdrop-blur-[2px]" />
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-brand-gold/5 -skew-x-12 transform origin-top-right backdrop-blur-3xl" />
-        <motion.div 
+        <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.2, 0.1] }}
           transition={{ duration: 8, repeat: Infinity }}
-          className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-brand-navy/30 rounded-full blur-3xl" 
+          className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-brand-navy/30 rounded-full blur-3xl"
         />
 
         <motion.div
@@ -584,15 +584,15 @@ export function StudentPortal() {
               <div className="text-center space-y-8">
                 <div className="mx-auto w-32 h-32 rounded-[2.5rem] bg-brand-primary/50 border border-brand-gold/30 flex items-center justify-center relative group overflow-hidden shadow-2xl">
                   {profile.photo ? (
-                    <img 
-                      src={profile.photo} 
-                      alt={profile.name} 
+                    <img
+                      src={profile.photo}
+                      alt={profile.name}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                   ) : (
-                    <img 
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.studentId}`} 
-                      alt={profile.name} 
+                    <img
+                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.studentId}`}
+                      alt={profile.name}
                       className="w-full h-full object-cover opacity-80"
                     />
                   )}
@@ -649,7 +649,7 @@ export function StudentPortal() {
             </div>
           </div>
           <p className="text-center text-[10px] text-slate-600 uppercase tracking-[0.4em] mt-8">
-            Admissions Department • Edwardian Academy Executive Office
+            Admissions Department • Genius Islamian's Academy Executive Office
           </p>
         </motion.div>
       </div>
@@ -682,7 +682,7 @@ export function StudentPortal() {
             <div className="p-2 rounded-xl bg-brand-primary border border-white/10 shadow-2xl">
               <img
                 src="/logo.png"
-                alt="Edwardian Academy"
+                alt="Genius Islamian's Academy"
                 className="h-10 w-auto object-contain brightness-0 invert"
               />
             </div>
@@ -715,9 +715,9 @@ export function StudentPortal() {
                     {profile?.photo ? (
                       <img src={profile.photo} alt={profile.name} className="w-full h-full object-cover" />
                     ) : (
-                      <img 
-                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.studentId}`} 
-                        alt={profile?.name} 
+                      <img
+                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.studentId}`}
+                        alt={profile?.name}
                         className="w-full h-full object-cover"
                       />
                     )}
@@ -744,7 +744,7 @@ export function StudentPortal() {
                   <User className="mr-3 h-4 w-4" />
                   <span className="font-bold">Institutional Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => navigate('/student-portal/seat-selection')}
                   className="text-slate-200 focus:bg-brand-gold/10 focus:text-brand-gold rounded-xl py-3 cursor-pointer"
                 >
@@ -799,7 +799,7 @@ export function StudentPortal() {
                     <span className="text-brand-gold">.</span>
                   </h2>
                   <p className="text-xl text-slate-400 mb-12 max-w-2xl leading-relaxed">
-                    Your portal to excellence is ready. Continue your academic journey with the Edwardian Academy's elite curriculum.
+                    Your portal to excellence is ready. Continue your academic journey with the Genius Islamian's Academy elite curriculum.
                   </p>
 
                   {/* Quick Stats Grid */}
@@ -847,9 +847,9 @@ export function StudentPortal() {
                             )}
                           </p>
                           <p className="text-slate-400 font-medium mt-1">
-                            {(currentSession || nextSession)?.startTime} — {(currentSession || nextSession)?.endTime} 
-                            <span className="mx-2 opacity-30">|</span> 
-                            {(currentSession || nextSession)?.room || "TBA"} 
+                            {(currentSession || nextSession)?.startTime} — {(currentSession || nextSession)?.endTime}
+                            <span className="mx-2 opacity-30">|</span>
+                            {(currentSession || nextSession)?.room || "TBA"}
                             <span className="mx-2 opacity-30">|</span>
                             {(currentSession || nextSession)?.teacherId?.name || "Academic Expert"}
                           </p>
@@ -860,7 +860,7 @@ export function StudentPortal() {
                         </p>
                       )}
                     </div>
-                    <Button 
+                    <Button
                       onClick={() => document.getElementById('timetable-section')?.scrollIntoView({ behavior: 'smooth' })}
                       className="bg-brand-gold hover:bg-brand-gold/90 text-brand-primary font-black uppercase tracking-widest h-14 px-8 rounded-2xl shadow-lg shadow-brand-gold/20"
                     >

@@ -385,7 +385,7 @@ export default function VerificationHub() {
   };
 
   const copyCredentials = (username: string, password: string) => {
-    const text = `Edwardian Academy - Login Credentials\n\nStudent: ${foundStudent?.studentName}\nUsername: ${username}\nPassword: ${password}\n\nLogin at: ${window.location.origin}/student-portal`;
+    const text = `Genius Islamian's Academy - Login Credentials\n\nStudent: ${foundStudent?.studentName}\nUsername: ${username}\nPassword: ${password}\n\nLogin at: ${window.location.origin}/student-portal`;
     navigator.clipboard.writeText(text);
     toast.success("Credentials copied to clipboard!");
   };
@@ -476,11 +476,10 @@ export default function VerificationHub() {
                     {foundStudent.studentName}
                   </CardTitle>
                   <Badge
-                    className={`text-sm px-3 py-1 ${
-                      foundStudent.studentStatus === "Active"
-                        ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                        : "bg-amber-100 text-amber-700 border-amber-300"
-                    }`}
+                    className={`text-sm px-3 py-1 ${foundStudent.studentStatus === "Active"
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                      : "bg-amber-100 text-amber-700 border-amber-300"
+                      }`}
                   >
                     {foundStudent.studentStatus === "Active" ? (
                       <>
@@ -578,15 +577,15 @@ export default function VerificationHub() {
                     </label>
                     <p className="text-base font-medium text-gray-900 mt-1">
                       {foundStudent.createdAt &&
-                      !isNaN(new Date(foundStudent.createdAt).getTime())
+                        !isNaN(new Date(foundStudent.createdAt).getTime())
                         ? new Date(foundStudent.createdAt).toLocaleDateString(
-                            "en-PK",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )
+                          "en-PK",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )
                         : "N/A"}
                     </p>
                   </div>
@@ -824,14 +823,14 @@ export default function VerificationHub() {
                         {activeTab === "active"
                           ? student.parentCell
                           : student.createdAt &&
-                              !isNaN(new Date(student.createdAt).getTime())
+                            !isNaN(new Date(student.createdAt).getTime())
                             ? new Date(student.createdAt).toLocaleDateString(
-                                "en-PK",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                },
-                              )
+                              "en-PK",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                              },
+                            )
                             : "N/A"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -1052,16 +1051,14 @@ export default function VerificationHub() {
                           value={feeAmount}
                           onChange={(e) => setFeeAmount(e.target.value)}
                           readOnly={!isCustomFeeMode && standardFeeTotal > 0}
-                          className={`h-11 text-lg font-bold pr-10 ${
-                            isCustomFeeMode
-                              ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-200"
-                              : "border-sky-200 bg-sky-50 text-slate-700 cursor-not-allowed"
-                          }`}
+                          className={`h-11 text-lg font-bold pr-10 ${isCustomFeeMode
+                            ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-200"
+                            : "border-sky-200 bg-sky-50 text-slate-700 cursor-not-allowed"
+                            }`}
                         />
                         <div
-                          className={`absolute right-3 top-1/2 -translate-y-1/2 ${
-                            isCustomFeeMode ? "text-amber-600" : "text-sky-600"
-                          }`}
+                          className={`absolute right-3 top-1/2 -translate-y-1/2 ${isCustomFeeMode ? "text-amber-600" : "text-sky-600"
+                            }`}
                         >
                           {isCustomFeeMode ? (
                             <Pencil className="h-4 w-4" />
@@ -1083,11 +1080,10 @@ export default function VerificationHub() {
                         Discount (PKR)
                       </label>
                       <div
-                        className={`h-11 px-3 flex items-center justify-center rounded-md border text-lg font-bold ${
-                          standardFeeTotal - (Number(feeAmount) || 0) > 0
-                            ? "bg-green-50 border-green-200 text-green-700"
-                            : "bg-slate-50 border-slate-200 text-slate-400"
-                        }`}
+                        className={`h-11 px-3 flex items-center justify-center rounded-md border text-lg font-bold ${standardFeeTotal - (Number(feeAmount) || 0) > 0
+                          ? "bg-green-50 border-green-200 text-green-700"
+                          : "bg-slate-50 border-slate-200 text-slate-400"
+                          }`}
                       >
                         {Math.max(
                           0,
@@ -1278,7 +1274,7 @@ export default function VerificationHub() {
                         onClick={() => {
                           navigator.clipboard.writeText(
                             generatedCredentials.credentials?.username ||
-                              generatedCredentials.barcodeId,
+                            generatedCredentials.barcodeId,
                           );
                           toast.success("Copied!");
                         }}
@@ -1320,7 +1316,7 @@ export default function VerificationHub() {
                 <div className="flex gap-3">
                   <Button
                     onClick={() => {
-                      const text = `*Edwardian Academy*\n\n🎓 Student: ${generatedCredentials.studentName}\n👤 Username: ${generatedCredentials.credentials?.username || generatedCredentials.barcodeId}\n🔐 Password: ${generatedCredentials.credentials?.password}\n\n🌐 Login: ${window.location.origin}/student-portal`;
+                      const text = `*Genius Islamian's Academy*\n\n🎓 Student: ${generatedCredentials.studentName}\n👤 Username: ${generatedCredentials.credentials?.username || generatedCredentials.barcodeId}\n🔐 Password: ${generatedCredentials.credentials?.password}\n\n🌐 Login: ${window.location.origin}/student-portal`;
                       navigator.clipboard.writeText(text);
                       toast.success("Copied for WhatsApp!");
                     }}

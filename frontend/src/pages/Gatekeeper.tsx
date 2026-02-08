@@ -50,17 +50,17 @@ interface EnrolledClass {
 interface ScanResult {
   success: boolean;
   status:
-    | "success"
-    | "defaulter"
-    | "partial"
-    | "blocked"
-    | "unknown"
-    | "error"
-    | "too_early"
-    | "too_late"
-    | "no_class_today";
+  | "success"
+  | "defaulter"
+  | "partial"
+  | "blocked"
+  | "unknown"
+  | "error"
+  | "too_early"
+  | "too_late"
+  | "no_class_today";
   message: string;
-  reason?: string; 
+  reason?: string;
   student?: {
     _id: string;
     studentId: string;
@@ -375,7 +375,7 @@ export default function Gatekeeper() {
                 "border-4 border-cyan-500/30",
                 "shadow-[0_0_60px_rgba(34,211,238,0.3)]",
                 terminalState === "standby" &&
-                  "animate-[pulse_3s_ease-in-out_infinite]",
+                "animate-[pulse_3s_ease-in-out_infinite]",
               )}
             >
               {terminalState === "scanning" ? (
@@ -448,7 +448,7 @@ export default function Gatekeeper() {
 
         {/* Footer */}
         <div className="px-8 py-4 border-t border-slate-700/50 flex items-center justify-between">
-          <span className="text-slate-500 text-lg">Edwardian Academy</span>
+          <span className="text-slate-500 text-lg">Genius Islamian's Academy</span>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-slate-500">System Online</span>
@@ -462,7 +462,7 @@ export default function Gatekeeper() {
   // SUCCESS STATE - Full-Screen Green Welcome
   if (terminalState === "success" && scanResult?.student) {
     const defaultPhoto = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + scanResult.student.studentId;
-    
+
     return (
       <div
         className="fixed inset-0 z-50 bg-gradient-to-br from-emerald-600 via-emerald-500 to-green-600 flex flex-col cursor-pointer overflow-hidden font-sans"
@@ -472,7 +472,7 @@ export default function Gatekeeper() {
 
         <div className="relative flex-1 flex flex-col items-center justify-center p-8">
           <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
+
             {/* Left: Visual Confirmation */}
             <div className="lg:col-span-5 flex flex-col items-center">
               <div className="mb-10 animate-[bounceIn_0.5s_ease-out]">
@@ -480,7 +480,7 @@ export default function Gatekeeper() {
                   <ShieldCheck className="h-20 w-20 text-white drop-shadow-lg" />
                 </div>
               </div>
-              
+
               <div className="relative group">
                 <div className="absolute -inset-4 bg-white/20 rounded-[3rem] blur-2xl group-hover:bg-white/30 transition-all duration-500" />
                 <img
@@ -575,7 +575,7 @@ export default function Gatekeeper() {
       scanResult.status === "too_early" ||
       scanResult.reason?.includes("TOO EARLY") ||
       scanResult.reason?.includes("OFF SCHEDULE");
-    
+
     const defaultPhoto = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + scanResult.student.studentId;
 
     return (
@@ -587,7 +587,7 @@ export default function Gatekeeper() {
 
         <div className="relative flex-1 flex flex-col items-center justify-center p-8">
           <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
+
             {/* Left: Photo */}
             <div className="lg:col-span-5 flex flex-col items-center">
               <div className="mb-10 animate-[bounceIn_0.5s_ease-out]">
@@ -595,7 +595,7 @@ export default function Gatekeeper() {
                   <ShieldAlert className="h-20 w-20 text-white drop-shadow-lg" />
                 </div>
               </div>
-              
+
               <div className="relative">
                 <img
                   src={scanResult.student.photo || defaultPhoto}
@@ -674,7 +674,7 @@ export default function Gatekeeper() {
         </div>
 
         <h1 className="text-[10rem] font-black text-white leading-none tracking-tighter drop-shadow-2xl mb-4">✕</h1>
-        
+
         <div className="bg-white/15 backdrop-blur-xl rounded-[3rem] px-16 py-12 border-2 border-white/20 shadow-2xl text-center max-w-4xl">
           <p className="text-6xl font-black text-white uppercase tracking-tight mb-6">
             {scanResult?.status === "unknown" && "UNKNOWN STUDENT"}

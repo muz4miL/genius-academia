@@ -759,7 +759,7 @@ export default function PendingApprovals() {
               {/* Copy All Button */}
               <Button
                 onClick={() => {
-                  const text = `Edwardian Academy - Login Credentials\n\nStudent: ${generatedCredentials.studentName}\nUsername: ${generatedCredentials.credentials.username}\nPassword: ${generatedCredentials.credentials.password}\n\nLogin at: ${window.location.origin}/student-portal`;
+                  const text = `Genius Islamian's Academy - Login Credentials\n\nStudent: ${generatedCredentials.studentName}\nUsername: ${generatedCredentials.credentials.username}\nPassword: ${generatedCredentials.credentials.password}\n\nLogin at: ${window.location.origin}/student-portal`;
                   navigator.clipboard.writeText(text);
                   toast.success("All credentials copied to clipboard!");
                 }}

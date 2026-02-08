@@ -35,33 +35,33 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-900/30 via-stone-950 to-stone-950 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-900/30 via-slate-950 to-slate-950 relative overflow-hidden">
             {/* Subtle Background Pattern Overlay */}
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoMnYtMmgtMnptMC00aDJ2Mmgtdi0yem0wIDhoMnYyaC0ydi0yem0wIDRoMnYyaC0ydi0yem0wLTEwaDF2NGgtMXYtNHptLTIgMGgxdjRoLTF2LTR6bTQgMGgxdjRoLTF2LTR6bTIgMGgxdjRoLTF2LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
 
-            {/* Animated Glow Orbs */}
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+            {/* Animated Glow Orbs - Red Theme */}
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-red-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
-            {/* Royal Glass Card */}
-            <Card className="w-full max-w-md mx-4 bg-stone-900/40 backdrop-blur-xl border border-amber-500/30 shadow-2xl shadow-amber-900/20 relative z-10">
+            {/* Royal Glass Card - Red/Black Theme */}
+            <Card className="w-full max-w-md mx-4 bg-slate-900/40 backdrop-blur-xl border border-red-500/30 shadow-2xl shadow-red-900/20 relative z-10">
                 <CardHeader className="space-y-4 text-center pt-8 pb-6">
                     {/* Logo with Drop Shadow */}
                     <div className="mx-auto">
                         <img
                             src="/logo.png"
-                            alt="Edwardian Academy Logo"
-                            className="h-24 w-24 object-contain mx-auto drop-shadow-[0_0_15px_rgba(234,179,8,0.3)]"
+                            alt="Genius Islamian's Academy Logo"
+                            className="h-24 w-24 object-contain mx-auto drop-shadow-[0_0_15px_rgba(211,47,47,0.3)]"
                         />
                     </div>
 
-                    {/* Metallic Gold Title - Serif */}
-                    <h1 className="text-4xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200">
-                        Edwardian Academy ERP
+                    {/* Metallic Red Title - Serif */}
+                    <h1 className="text-3xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-200 via-red-400 to-red-200">
+                        Genius Islamian's Academy
                     </h1>
 
                     {/* Script Subtitle */}
-                    <p className="text-lg italic font-serif text-yellow-100/60">
+                    <p className="text-lg italic font-serif text-red-100/60">
                         Authorized Personnel Only
                     </p>
                 </CardHeader>
@@ -79,8 +79,8 @@ const Login = () => {
 
                         {/* Username Field */}
                         <div className="space-y-2">
-                            <Label htmlFor="username" className="text-yellow-100/80 flex items-center gap-2 font-medium">
-                                <User className="w-4 h-4 text-yellow-400/70" />
+                            <Label htmlFor="username" className="text-red-100/80 flex items-center gap-2 font-medium">
+                                <User className="w-4 h-4 text-red-400/70" />
                                 Username
                             </Label>
                             <Input
@@ -91,14 +91,14 @@ const Login = () => {
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
                                 disabled={isSubmitting}
-                                className="bg-stone-900/50 border-amber-500/20 text-amber-50 placeholder:text-amber-100/30 focus:border-amber-400 focus:ring-amber-400/20 h-12"
+                                className="bg-slate-900/50 border-red-500/20 text-red-50 placeholder:text-red-100/30 focus:border-red-400 focus:ring-red-400/20 h-12"
                             />
                         </div>
 
                         {/* Password Field */}
                         <div className="space-y-2">
-                            <Label htmlFor="password" className="text-yellow-100/80 flex items-center gap-2 font-medium">
-                                <Lock className="w-4 h-4 text-yellow-400/70" />
+                            <Label htmlFor="password" className="text-red-100/80 flex items-center gap-2 font-medium">
+                                <Lock className="w-4 h-4 text-red-400/70" />
                                 Password
                             </Label>
                             <Input
@@ -109,15 +109,15 @@ const Login = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={isSubmitting}
-                                className="bg-stone-900/50 border-amber-500/20 text-amber-50 placeholder:text-amber-100/30 focus:border-amber-400 focus:ring-amber-400/20 h-12"
+                                className="bg-slate-900/50 border-red-500/20 text-red-50 placeholder:text-red-100/30 focus:border-red-400 focus:ring-red-400/20 h-12"
                             />
                         </div>
 
-                        {/* Solid Gold Button */}
+                        {/* Solid Red Button */}
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full h-12 bg-gradient-to-b from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-300 hover:via-yellow-400 hover:to-yellow-500 text-yellow-950 font-bold border-t border-yellow-300 shadow-lg shadow-yellow-600/30 transition-all duration-300"
+                            className="w-full h-12 bg-gradient-to-b from-red-500 via-red-600 to-red-700 hover:from-red-400 hover:via-red-500 hover:to-red-600 text-white font-bold border-t border-red-400 shadow-lg shadow-red-600/30 transition-all duration-300"
                         >
                             {isSubmitting ? (
                                 <>
@@ -135,7 +135,7 @@ const Login = () => {
 
                     {/* Footer */}
                     <div className="mt-6 text-center">
-                        <p className="text-xs text-yellow-100/40 italic">
+                        <p className="text-xs text-red-100/40 italic">
                             Protected by bank-grade security
                         </p>
                     </div>

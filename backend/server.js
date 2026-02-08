@@ -102,7 +102,7 @@ app.use("/api/notifications", notificationRoutes);
 // Root endpoint
 app.get("/", (req, res) => {
   res.json({
-    message: "Edwardian Academy ERP API",
+    message: "Genius Islamian's Academy ERP API",
     version: "2.0.0",
     endpoints: {
       auth: "/api/auth",

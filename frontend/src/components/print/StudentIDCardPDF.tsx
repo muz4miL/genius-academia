@@ -246,10 +246,10 @@ export const StudentIDCardPDF = ({
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <View style={styles.logoCircle}>
-                <Text style={styles.logoText}>EA</Text>
+                <Text style={styles.logoText}>GA</Text>
               </View>
               <View style={styles.academyNameContainer}>
-                <Text style={styles.academyName}>THE EDWARDIAN'S ACADEMY</Text>
+                <Text style={styles.academyName}>GENIUS ISLAMIAN'S ACADEMY</Text>
                 <Text style={styles.academySubtitle}>
                   Excellence in Education
                 </Text>
