@@ -36,6 +36,7 @@ import Reports from "./pages/Reports";
 import Exams from "./pages/Exams";
 import ExamBuilder from "./pages/ExamBuilder";
 import ExamRoom from "./pages/ExamRoom";
+import StudentSeatSelection from "./pages/StudentSeatSelection";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
             {/* Phase 3: Public Registration & Student Portal */}
             <Route path="/register" element={<PublicRegister />} />
             <Route path="/student-portal" element={<StudentPortal />} />
+            <Route path="/student-portal/seat-selection" element={<StudentSeatSelection />} />
 
             {/* Protected Routes */}
             <Route

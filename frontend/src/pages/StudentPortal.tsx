@@ -45,6 +45,7 @@ import {
   Timer,
   ArrowRight,
   FileQuestion,
+  Armchair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -740,6 +741,13 @@ export function StudentPortal() {
                 <DropdownMenuItem className="text-slate-200 focus:bg-brand-gold/10 focus:text-brand-gold rounded-xl py-3 cursor-pointer">
                   <User className="mr-3 h-4 w-4" />
                   <span className="font-bold">Institutional Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = '/student-portal/seat-selection'}
+                  className="text-slate-200 focus:bg-brand-gold/10 focus:text-brand-gold rounded-xl py-3 cursor-pointer"
+                >
+                  <Armchair className="mr-3 h-4 w-4" />
+                  <span className="font-bold">Book Seat</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-slate-200 focus:bg-brand-gold/10 focus:text-brand-gold rounded-xl py-3 cursor-pointer">
                   <CreditCard className="mr-3 h-4 w-4" />
