@@ -47,12 +47,14 @@ export default function StudentSeatSelection() {
   useEffect(() => {
     // Simulating student data fetch
     // In real implementation, this would use useAuth() hook or fetch from API
+    // NOTE: classId should be a MongoDB ObjectId in production, not a class name
+    // This mock data is for demonstration purposes only
     const mockStudent: StudentInfo = {
       _id: "675e55fc5aa09e3a5c51adef", // Example student ID
       name: "Muhammad Muzammil",
       studentId: "STU-2024-001",
       gender: "Male",
-      class: "10th Grade",
+      class: "10th Grade", // In production, use actual class ObjectId
       section: "A",
       session: {
         _id: "675e3bb75aa09e3a5c51adb3", // Example session ID

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -169,6 +170,7 @@ const Spotlight = ({ mouseX, mouseY }: { mouseX: any; mouseY: any }) => {
 };
 
 export function StudentPortal() {
+  const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [token, setToken] = useState<string | null>(null);
@@ -743,7 +745,7 @@ export function StudentPortal() {
                   <span className="font-bold">Institutional Profile</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => window.location.href = '/student-portal/seat-selection'}
+                  onClick={() => navigate('/student-portal/seat-selection')}
                   className="text-slate-200 focus:bg-brand-gold/10 focus:text-brand-gold rounded-xl py-3 cursor-pointer"
                 >
                   <Armchair className="mr-3 h-4 w-4" />

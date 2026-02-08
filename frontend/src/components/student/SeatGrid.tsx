@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ export default function SeatGrid({
   const [bookingInProgress, setBookingInProgress] = useState(false);
 
   // Fetch seats
-  const fetchSeats = async () => {
+  const fetchSeats = useCallback(async () => {
     try {
       setLoading(true);
       const data: GetSeatsResponse = await seatService.getSeats(
@@ -56,14 +56,14 @@ export default function SeatGrid({
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId, sessionId, studentId]);
 
   // Auto-refresh seats every 10 seconds
   useEffect(() => {
     fetchSeats();
     const interval = setInterval(fetchSeats, 10000);
     return () => clearInterval(interval);
-  }, [classId, sessionId, studentId]);
+  }, [fetchSeats]);
 
   // Handle seat selection
   const handleSeatClick = (seat: Seat) => {
