@@ -8,6 +8,8 @@ const {
   deleteTeacher,
 } = require("../controllers/teacherController");
 const TeacherPayment = require("../models/TeacherPayment");
+const Teacher = require("../models/Teacher");
+const User = require("../models/User");
 
 // @route   GET /api/teachers
 // @desc    Get all teachers
@@ -28,6 +30,73 @@ router.put("/:id", updateTeacher);
 // @route   DELETE /api/teachers/:id
 // @desc    Delete teacher
 router.delete("/:id", deleteTeacher);
+
+// @route   POST /api/teachers/:id/reset-password
+// @desc    Reset teacher password (Admin sets new password)
+// @access  Public (Admin use)
+router.post("/:id/reset-password", async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 4 characters",
+      });
+    }
+
+    // Find teacher and their linked User account
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    if (!teacher.userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher has no linked User account. Cannot reset password.",
+      });
+    }
+
+    // Find the User document and update password
+    const user = await User.findById(teacher.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found for this teacher",
+      });
+    }
+
+    // Update password (pre-save hook will hash it)
+    user.password = newPassword;
+    await user.save();
+
+    // Store plainPassword on teacher for admin display
+    teacher.plainPassword = newPassword;
+    await teacher.save();
+
+    console.log("✅ Password reset for teacher:", teacher.name);
+
+    res.json({
+      success: true,
+      message: "Password reset successfully",
+      data: {
+        username: teacher.username || user.username,
+        newPassword: newPassword,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error resetting teacher password:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset password",
+      error: error.message,
+    });
+  }
+});
 
 // @route   GET /api/teachers/payments/history
 // @desc    Get all teacher payment transactions

@@ -223,6 +223,7 @@ exports.createTeacher = async (req, res) => {
       profileImage: profileImage || null,
       userId: user._id,
       username: username,
+      plainPassword: plainPassword, // Store for admin credential display
     });
 
     await teacher.save();
