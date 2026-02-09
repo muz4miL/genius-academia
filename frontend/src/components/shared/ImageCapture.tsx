@@ -269,11 +269,11 @@ export function ImageCapture({
       <div className="flex gap-2">
         <Button
           size="sm"
-          variant="outline"
+          variant="secondary"
           onClick={() => setMode("webcam")}
           disabled={disabled || isProcessing}
           className={cn(
-            "border-amber-500/50 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950",
+            "bg-slate-900 text-white hover:bg-slate-800",
             config.button,
           )}
         >
@@ -285,7 +285,7 @@ export function ImageCapture({
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || isProcessing}
-          className={config.button}
+          className={cn("border-slate-300 hover:bg-slate-50", config.button)}
         >
           <Upload className="h-4 w-4 mr-1" />
           Upload

@@ -23,6 +23,7 @@ import Leads from "./pages/Leads";
 import StudentPortal from "./pages/StudentPortal";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
 import NotFound from "./pages/NotFound";
+import PublicLanding from "./pages/PublicLanding";
 
 const queryClient = new QueryClient();
 
@@ -36,10 +37,14 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/public-home" element={<PublicLanding />} />
 
             {/* Student Portal */}
             <Route path="/student-portal" element={<StudentPortal />} />
-            <Route path="/student-portal/seat-selection" element={<StudentSeatSelection />} />
+            <Route
+              path="/student-portal/seat-selection"
+              element={<StudentSeatSelection />}
+            />
 
             {/* Protected Routes */}
             <Route

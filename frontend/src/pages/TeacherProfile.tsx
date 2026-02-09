@@ -177,11 +177,8 @@ export default function TeacherProfile() {
     (r: any) => r.status === "PENDING",
   );
 
-  // Determine if teacher is a Partner (gets 100%)
-  const isPartner =
-    teacher?.name?.toLowerCase().includes("waqar") ||
-    teacher?.name?.toLowerCase().includes("zahid") ||
-    teacher?.name?.toLowerCase().includes("saud");
+  // Single-owner system: no partner distinction
+  const isPartner = false;
 
   // Check if current user is Owner (can process payouts)
   const isOwner = user?.role === "OWNER";

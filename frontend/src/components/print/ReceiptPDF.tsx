@@ -215,9 +215,9 @@ const styles = StyleSheet.create({
     color: "#1f2937",
   },
 
-  // Center Section - Barcode
+  // Center Section - Student ID
   centerSection: {
-    flex: 0.8,
+    flex: 0.6,
     alignItems: "center",
     justifyContent: "center",
     borderLeft: "1pt dashed #9ca3af",
@@ -231,13 +231,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     letterSpacing: 1,
   },
-  barcodeImage: {
-    width: 110,
-    height: 45,
-    marginBottom: 4,
-  },
   barcodeId: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 700,
     color: "#1a365d",
     letterSpacing: 1,
@@ -389,7 +384,7 @@ export interface ReceiptPDFConfig {
 interface ReceiptPDFProps {
   student: StudentPDFData;
   receiptConfig: ReceiptPDFConfig;
-  barcodeDataUrl: string;
+  barcodeDataUrl?: string; // Deprecated - no longer used
   logoDataUrl?: string; // Optional logo data URL for PDF
 }
 
@@ -457,7 +452,9 @@ export const ReceiptPDF = ({
                 <Image src="/logo.png" style={styles.logo} />
               )}
               <View style={styles.academyInfo}>
-                <Text style={styles.academyName}>GENIUS ISLAMIAN'S ACADEMY</Text>
+                <Text style={styles.academyName}>
+                  GENIUS ISLAMIAN'S ACADEMY
+                </Text>
                 <Text style={styles.contactText}>
                   Contact: 091-5601600 / 0334-5852326
                 </Text>
@@ -517,7 +514,9 @@ export const ReceiptPDF = ({
                 <View style={styles.detailRow}>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Class:</Text>
-                    <Text style={styles.detailValue}>{formatClassName(student.class)}</Text>
+                    <Text style={styles.detailValue}>
+                      {formatClassName(student.class)}
+                    </Text>
                   </View>
                   <View style={[styles.detailItem, { marginLeft: 16 }]}>
                     <Text style={styles.detailLabel}>Group:</Text>
@@ -561,18 +560,11 @@ export const ReceiptPDF = ({
               )}
             </View>
 
-            {/* Center Section - Barcode */}
+            {/* Center Section - Student ID */}
             <View style={styles.centerSection}>
-              <Text style={styles.barcodeLabel}>SMART GATE ID</Text>
-              {barcodeDataUrl ? (
-                <Image src={barcodeDataUrl} style={styles.barcodeImage} />
-              ) : (
-                <Text style={{ fontSize: 8, color: "#999" }}>No Barcode</Text>
-              )}
+              <Text style={styles.barcodeLabel}>STUDENT ID</Text>
               <Text style={styles.barcodeId}>{student.studentId}</Text>
-              <Text style={styles.barcodeHint}>
-                Scan for entry verification
-              </Text>
+              <Text style={styles.barcodeHint}>For record verification</Text>
             </View>
 
             {/* Right Section - Financial Box */}

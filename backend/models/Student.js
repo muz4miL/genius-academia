@@ -115,6 +115,12 @@ const studentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Gender field — required for seat selection (SRS 4.1)
+    gender: {
+      type: String,
+      enum: ["Male", "Female"],
+      default: "Male",
+    },
     fatherName: {
       type: String,
       required: true,
@@ -202,6 +208,17 @@ const studentSchema = new mongoose.Schema(
     assignedTeacherName: {
       type: String,
       trim: true,
+    },
+    // How did you hear about us? - Referral tracking
+    referralSource: {
+      type: String,
+      trim: true,
+    },
+    // Smart Seat System — auto-assigned based on gender (SRS 4.1)
+    seatNumber: {
+      type: String,
+      trim: true,
+      // Format: R-001 (Right Wing / Male), L-001 (Left Wing / Female)
     },
   },
   {
@@ -362,7 +379,8 @@ studentSchema.methods.generateBarcodeId = async function () {
 
 // Get public profile (for student portal)
 studentSchema.methods.getStudentProfile = function () {
-  const defaultPhoto = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + this.studentId;
+  const defaultPhoto =
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=" + this.studentId;
   return {
     _id: this._id,
     studentId: this.studentId,

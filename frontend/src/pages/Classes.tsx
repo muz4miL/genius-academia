@@ -52,7 +52,6 @@ import {
   User,
   Calendar,
   Clock,
-  Crown,
   Filter,
   GraduationCap,
   AlertCircle,
@@ -195,8 +194,6 @@ const DAYS_OF_WEEK = [
   { value: "Sun", label: "Sun", full: "Sunday" },
 ] as const;
 
-const PARTNER_NAMES = ["waqar", "zahid", "saud"];
-
 // ============================================================================
 // QUERY KEY FACTORIES (Enterprise Pattern)
 // ============================================================================
@@ -246,9 +243,6 @@ const normalizeId = (id: string | undefined | null): string => {
   if (!id) return "";
   return String(id).trim();
 };
-
-const isPartnerTeacher = (name: string): boolean =>
-  PARTNER_NAMES.some((partner) => name.toLowerCase().includes(partner));
 
 // ============================================================================
 // MAIN COMPONENT
@@ -1339,9 +1333,6 @@ export default function Classes() {
                       <SelectItem key={teacher._id} value={teacher._id}>
                         <div className="flex items-center gap-2">
                           <span>{teacher.name}</span>
-                          {isPartnerTeacher(teacher.name) && (
-                            <Crown className="h-3 w-3 text-amber-500" />
-                          )}
                           <span className="text-xs text-muted-foreground capitalize">
                             ({teacher.subject || "General"})
                           </span>
@@ -1466,9 +1457,6 @@ export default function Classes() {
                                       >
                                         <div className="flex items-center gap-2">
                                           {teacher.name}
-                                          {isPartnerTeacher(teacher.name) && (
-                                            <Crown className="h-3 w-3 text-amber-500" />
-                                          )}
                                         </div>
                                       </SelectItem>
                                     ))

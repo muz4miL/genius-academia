@@ -89,24 +89,40 @@ exports.getStudent = async (req, res) => {
   }
 };
 
-// Helper: Calculate Fee Status based on strict logic
+// Helper: Calculate Fee Status — PAID only when Paid == Total, otherwise PENDING
 const calculateFeeStatus = (paidAmount, totalFee) => {
-  if (paidAmount === 0) return "Pending";
-  if (paidAmount > 0 && paidAmount < totalFee) return "Partial";
-  if (paidAmount >= totalFee) return "Paid";
-  return "Pending"; // default fallback
+  if (paidAmount >= totalFee && totalFee > 0) return "Paid";
+  return "Pending"; // default — includes partial payments
 };
 
 // CREATE student
 exports.createStudent = async (req, res) => {
   try {
     const studentData = { ...req.body };
-    
+
     // Calculate fee status on admission
     const paidAmount = studentData.paidAmount || 0;
     const totalFee = studentData.totalFee || 0;
     studentData.feeStatus = calculateFeeStatus(paidAmount, totalFee);
-    
+
+    // Smart Seat Assignment — gender-based wing prefix
+    if (!studentData.seatNumber) {
+      const gender = studentData.gender || "Male";
+      const prefix = gender === "Female" ? "L" : "R"; // L = Left Wing, R = Right Wing
+      const lastSeat = await Student.findOne({
+        seatNumber: new RegExp(`^${prefix}-`),
+      })
+        .sort({ seatNumber: -1 })
+        .select("seatNumber")
+        .lean();
+      let nextNum = 1;
+      if (lastSeat && lastSeat.seatNumber) {
+        const parts = lastSeat.seatNumber.split("-");
+        nextNum = (parseInt(parts[1], 10) || 0) + 1;
+      }
+      studentData.seatNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+    }
+
     const student = await Student.create(studentData);
     res.status(201).json({ success: true, data: student });
   } catch (error) {
@@ -199,7 +215,10 @@ exports.collectFee = async (req, res) => {
 
     // Update student with strict fee status calculation
     student.paidAmount = (student.paidAmount || 0) + Number(amount);
-    student.feeStatus = calculateFeeStatus(student.paidAmount, student.totalFee || 0);
+    student.feeStatus = calculateFeeStatus(
+      student.paidAmount,
+      student.totalFee || 0,
+    );
     await student.save();
 
     // Update teacher balance

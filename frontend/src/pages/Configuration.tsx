@@ -1,5 +1,6 @@
 /**
- * Configuration Page - Financial Engine Setup
+ * Configuration Page - Academy Settings
+ * Clean single-owner setup: Academy Profile, Session Master, Master Subject Pricing
  */
 
 import { useState, useEffect } from "react";
@@ -9,7 +10,6 @@ import { HeaderBanner } from "@/components/dashboard/HeaderBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -27,9 +27,6 @@ import {
   Save,
   Loader2,
   ShieldAlert,
-  PieChart,
-  Users,
-  Crown,
   Building2,
   AlertCircle,
   CheckCircle2,
@@ -37,11 +34,12 @@ import {
   Plus,
   Edit,
   Trash2,
-  Wallet,
-  GraduationCap,
-  Receipt,
   Lock,
   Calendar,
+  Users,
+  Eye,
+  EyeOff,
+  Power,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -60,56 +58,19 @@ const Configuration = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
 
-  // --- Card 1: Global Staff Split (Revenue IN) ---
-  const [teacherShare, setTeacherShare] = useState(70);
-  const [academyShare, setAcademyShare] = useState(30);
-  const [salaryError, setSalaryError] = useState("");
-
-  // --- Card 2: Partner 100% Rule ---
-  const [partner100Rule, setPartner100Rule] = useState(true);
-
-  // --- Card 3: Dynamic Expense Split (Money OUT) ---
-  const [waqarShare, setWaqarShare] = useState(40);
-  const [zahidShare, setZahidShare] = useState(30);
-  const [saudShare, setSaudShare] = useState(30);
-  const [splitError, setSplitError] = useState("");
-
-  // --- Card 6: Academy Pool Distribution (Income IN) ---
-  const [poolWaqarShare, setPoolWaqarShare] = useState(40);
-  const [poolZahidShare, setPoolZahidShare] = useState(30);
-  const [poolSaudShare, setPoolSaudShare] = useState(30);
-  const [poolSplitError, setPoolSplitError] = useState("");
-
-  // --- Card 8: Waqar's Protocol - Dual Pool Splits ---
-  // Protocol A: Tuition Pool (50/30/20)
-  const [tuitionPoolWaqar, setTuitionPoolWaqar] = useState(50);
-  const [tuitionPoolZahid, setTuitionPoolZahid] = useState(30);
-  const [tuitionPoolSaud, setTuitionPoolSaud] = useState(20);
-  const [tuitionPoolError, setTuitionPoolError] = useState("");
-
-  // Protocol B: ETEA Pool (40/30/30)
-  const [eteaPoolWaqar, setEteaPoolWaqar] = useState(40);
-  const [eteaPoolZahid, setEteaPoolZahid] = useState(30);
-  const [eteaPoolSaud, setEteaPoolSaud] = useState(30);
-  const [eteaPoolError, setEteaPoolError] = useState("");
-
-  // --- Card 4: Academy Info ---
+  // --- Academy Info ---
   const [academyName, setAcademyName] = useState("Genius Islamian's Academy");
   const [academyAddress, setAcademyAddress] = useState("Peshawar, Pakistan");
   const [academyPhone, setAcademyPhone] = useState("");
 
-  // --- Card 5: Master Subject Pricing ---
+  // --- Master Subject Pricing ---
   const [defaultSubjectFees, setDefaultSubjectFees] = useState<
     Array<{ name: string; fee: number }>
   >([]);
   const [newSubjectName, setNewSubjectName] = useState("");
   const [newSubjectFee, setNewSubjectFee] = useState("");
 
-  // --- Card 7: ETEA/MDCAT Config ---
-  const [eteaCommission, setEteaCommission] = useState(3000);
-  const [englishFixedSalary, setEnglishFixedSalary] = useState(80000);
-
-  // --- Card 9: Session Rate Master (Waqar Protocol v2) ---
+  // --- Session Rate Master ---
   const [sessionPrices, setSessionPrices] = useState<
     Array<{ sessionId: string; sessionName: string; price: number }>
   >([]);
@@ -126,6 +87,15 @@ const Configuration = () => {
     index: number;
   } | null>(null);
   const [editFeeValue, setEditFeeValue] = useState("");
+
+  // --- Staff Access Management ---
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [newStaffUsername, setNewStaffUsername] = useState("");
+  const [newStaffPassword, setNewStaffPassword] = useState("");
+  const [newStaffFullName, setNewStaffFullName] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isCreatingStaff, setIsCreatingStaff] = useState(false);
 
   // --- Check Owner Access ---
   useEffect(() => {
@@ -156,56 +126,15 @@ const Configuration = () => {
         if (result.success && result.data) {
           const data = result.data;
 
-          // Card 1: Staff Split
-          if (data.salaryConfig) {
-            setTeacherShare(data.salaryConfig.teacherShare ?? 70);
-            setAcademyShare(data.salaryConfig.academyShare ?? 30);
-          }
-
-          // Card 2: Partner 100% Rule
-          setPartner100Rule(data.partner100Rule ?? true);
-
-          // Card 3: Expense Split
-          if (data.expenseSplit) {
-            setWaqarShare(data.expenseSplit.waqar ?? 40);
-            setZahidShare(data.expenseSplit.zahid ?? 30);
-            setSaudShare(data.expenseSplit.saud ?? 30);
-          }
-
-          // Card 6: Pool Distribution (Legacy)
-          if (data.poolDistribution) {
-            setPoolWaqarShare(data.poolDistribution.waqar ?? 40);
-            setPoolZahidShare(data.poolDistribution.zahid ?? 30);
-            setPoolSaudShare(data.poolDistribution.saud ?? 30);
-          }
-
-          // Card 8: Waqar's Protocol - Dual Pool Splits
-          if (data.tuitionPoolSplit) {
-            setTuitionPoolWaqar(data.tuitionPoolSplit.waqar ?? 50);
-            setTuitionPoolZahid(data.tuitionPoolSplit.zahid ?? 30);
-            setTuitionPoolSaud(data.tuitionPoolSplit.saud ?? 20);
-          }
-          if (data.eteaPoolSplit) {
-            setEteaPoolWaqar(data.eteaPoolSplit.waqar ?? 40);
-            setEteaPoolZahid(data.eteaPoolSplit.zahid ?? 30);
-            setEteaPoolSaud(data.eteaPoolSplit.saud ?? 30);
-          }
-
-          // Card 4: Academy Info
+          // Academy Info
           setAcademyName(data.academyName || "Genius Islamian's Academy");
           setAcademyAddress(data.academyAddress || "Peshawar, Pakistan");
           setAcademyPhone(data.academyPhone || "");
 
-          // Card 5: Master Subject Pricing
+          // Master Subject Pricing
           setDefaultSubjectFees(data.defaultSubjectFees || []);
 
-          // Card 7: ETEA Config
-          if (data.eteaConfig) {
-            setEteaCommission(data.eteaConfig.perStudentCommission ?? 3000);
-            setEnglishFixedSalary(data.eteaConfig.englishFixedSalary ?? 80000);
-          }
-
-          // Card 9: Session Rate Master (Waqar Protocol v2)
+          // Session Rate Master
           if (data.sessionPrices) {
             setSessionPrices(data.sessionPrices);
           }
@@ -227,57 +156,7 @@ const Configuration = () => {
     }
   }, [user, toast]);
 
-  // --- Validate Expense Split (must total 100%) ---
-  useEffect(() => {
-    const total = waqarShare + zahidShare + saudShare;
-    if (total !== 100) {
-      setSplitError(`Total must be 100%. Current: ${total}%`);
-    } else {
-      setSplitError("");
-    }
-  }, [waqarShare, zahidShare, saudShare]);
-
-  // --- Validate Pool Distribution (must total 100%) ---
-  useEffect(() => {
-    const total = poolWaqarShare + poolZahidShare + poolSaudShare;
-    if (total !== 100) {
-      setPoolSplitError(`Total must be 100%. Current: ${total}%`);
-    } else {
-      setPoolSplitError("");
-    }
-  }, [poolWaqarShare, poolZahidShare, poolSaudShare]);
-
-  // --- Validate Tuition Pool Split (must total 100%) ---
-  useEffect(() => {
-    const total = tuitionPoolWaqar + tuitionPoolZahid + tuitionPoolSaud;
-    if (total !== 100) {
-      setTuitionPoolError(`Total must be 100%. Current: ${total}%`);
-    } else {
-      setTuitionPoolError("");
-    }
-  }, [tuitionPoolWaqar, tuitionPoolZahid, tuitionPoolSaud]);
-
-  // --- Validate ETEA Pool Split (must total 100%) ---
-  useEffect(() => {
-    const total = eteaPoolWaqar + eteaPoolZahid + eteaPoolSaud;
-    if (total !== 100) {
-      setEteaPoolError(`Total must be 100%. Current: ${total}%`);
-    } else {
-      setEteaPoolError("");
-    }
-  }, [eteaPoolWaqar, eteaPoolZahid, eteaPoolSaud]);
-
-  // --- Validate Salary Split (must total 100%) ---
-  useEffect(() => {
-    const total = teacherShare + academyShare;
-    if (total !== 100) {
-      setSalaryError(`Total must be 100%. Current: ${total}%`);
-    } else {
-      setSalaryError("");
-    }
-  }, [teacherShare, academyShare]);
-
-  // --- Fetch Sessions for Session Rate Master ---
+  // --- Fetch Sessions ---
   useEffect(() => {
     const fetchSessions = async () => {
       if (!user || user.role !== "OWNER") return;
@@ -303,40 +182,138 @@ const Configuration = () => {
     fetchSessions();
   }, [user]);
 
+  // --- Fetch Staff Members ---
+  useEffect(() => {
+    const fetchStaff = async () => {
+      if (!user || user.role !== "OWNER") return;
+
+      setStaffLoading(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/staff`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.staff) {
+            setStaffList(result.staff);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch staff:", error);
+      } finally {
+        setStaffLoading(false);
+      }
+    };
+
+    fetchStaff();
+  }, [user]);
+
+  // --- Create Staff Handler ---
+  const handleCreateStaff = async () => {
+    if (
+      !newStaffUsername.trim() ||
+      !newStaffPassword ||
+      !newStaffFullName.trim()
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in username, password, and full name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingStaff(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/create-staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          username: newStaffUsername.trim(),
+          password: newStaffPassword,
+          fullName: newStaffFullName.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Staff Created",
+          description: `Account for ${newStaffFullName.trim()} created successfully.`,
+          className: "bg-green-50 border-green-200",
+        });
+        setNewStaffUsername("");
+        setNewStaffPassword("");
+        setNewStaffFullName("");
+        setShowNewPassword(false);
+        // Refresh staff list
+        setStaffList((prev) => [result.user, ...prev]);
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to create staff account.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create staff account.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingStaff(false);
+    }
+  };
+
+  // --- Toggle Staff Status ---
+  const handleToggleStaff = async (staffId: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/staff/${staffId}/toggle`,
+        {
+          method: "PATCH",
+          credentials: "include",
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStaffList((prev) =>
+          prev.map((s) =>
+            s._id === staffId || s.userId === staffId
+              ? { ...s, isActive: !s.isActive }
+              : s,
+          ),
+        );
+        toast({
+          title: "Updated",
+          description: result.message,
+          className: "bg-green-50 border-green-200",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update staff status.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // --- Instant Save Helper ---
   const saveConfigToBackend = async (
     subjects: Array<{ name: string; fee: number }>,
   ) => {
     try {
       const settingsData = {
-        salaryConfig: { teacherShare, academyShare },
-        partner100Rule,
-        expenseSplit: { waqar: waqarShare, zahid: zahidShare, saud: saudShare },
-        poolDistribution: {
-          waqar: poolWaqarShare,
-          zahid: poolZahidShare,
-          saud: poolSaudShare,
-        },
-        // Waqar's Protocol: Dual Pool Splits
-        tuitionPoolSplit: {
-          waqar: tuitionPoolWaqar,
-          zahid: tuitionPoolZahid,
-          saud: tuitionPoolSaud,
-        },
-        eteaPoolSplit: {
-          waqar: eteaPoolWaqar,
-          zahid: eteaPoolZahid,
-          saud: eteaPoolSaud,
-        },
-        eteaConfig: {
-          perStudentCommission: eteaCommission,
-          englishFixedSalary: englishFixedSalary,
-        },
         academyName,
         academyAddress,
         academyPhone,
         defaultSubjectFees: subjects,
-        // Waqar Protocol v2: Session-Based Pricing
         sessionPrices,
       };
 
@@ -355,22 +332,24 @@ const Configuration = () => {
 
       return result.data;
     } catch (error: any) {
-      console.error("❌ Instant Save: Failed", error);
+      console.error("Save failed:", error);
       throw error;
     }
   };
 
-  // --- Update Session Price Helper (Waqar Protocol v2) ---
-  const updateSessionPrice = (sessionId: string, sessionName: string, price: number) => {
+  // --- Update Session Price ---
+  const updateSessionPrice = (
+    sessionId: string,
+    sessionName: string,
+    price: number,
+  ) => {
     setSessionPrices((prev) => {
       const existingIndex = prev.findIndex((sp) => sp.sessionId === sessionId);
       if (existingIndex >= 0) {
-        // Update existing
         const updated = [...prev];
         updated[existingIndex] = { sessionId, sessionName, price };
         return updated;
       } else {
-        // Add new
         return [...prev, { sessionId, sessionName, price }];
       }
     });
@@ -378,84 +357,14 @@ const Configuration = () => {
 
   // --- Save Settings Handler ---
   const handleSaveSettings = async () => {
-    if (waqarShare + zahidShare + saudShare !== 100) {
-      toast({
-        title: "Validation Error",
-        description: "Expense splits must total 100%",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (poolWaqarShare + poolZahidShare + poolSaudShare !== 100) {
-      toast({
-        title: "Validation Error",
-        description: "Pool distribution must total 100%",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate Waqar's Protocol splits
-    if (tuitionPoolWaqar + tuitionPoolZahid + tuitionPoolSaud !== 100) {
-      toast({
-        title: "Validation Error",
-        description: "Tuition Pool splits must total 100%",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (eteaPoolWaqar + eteaPoolZahid + eteaPoolSaud !== 100) {
-      toast({
-        title: "Validation Error",
-        description: "ETEA Pool splits must total 100%",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (teacherShare + academyShare !== 100) {
-      toast({
-        title: "Validation Error",
-        description: "Staff splits must total 100%",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSaving(true);
 
       const settingsData = {
-        salaryConfig: { teacherShare, academyShare },
-        partner100Rule,
-        expenseSplit: { waqar: waqarShare, zahid: zahidShare, saud: saudShare },
-        poolDistribution: {
-          waqar: poolWaqarShare,
-          zahid: poolZahidShare,
-          saud: poolSaudShare,
-        },
-        // Waqar's Protocol: Dual Pool Splits
-        tuitionPoolSplit: {
-          waqar: tuitionPoolWaqar,
-          zahid: tuitionPoolZahid,
-          saud: tuitionPoolSaud,
-        },
-        eteaPoolSplit: {
-          waqar: eteaPoolWaqar,
-          zahid: eteaPoolZahid,
-          saud: eteaPoolSaud,
-        },
-        eteaConfig: {
-          perStudentCommission: eteaCommission,
-          englishFixedSalary: englishFixedSalary,
-        },
         academyName,
         academyAddress,
         academyPhone,
         defaultSubjectFees,
-        // Waqar Protocol v2: Session-Based Pricing
         sessionPrices,
       };
 
@@ -517,11 +426,11 @@ const Configuration = () => {
   }
 
   return (
-    <DashboardLayout title="Financial Configuration">
+    <DashboardLayout title="Configuration">
       <div className="min-h-screen bg-gray-50/50 pb-12">
         <HeaderBanner
-          title="Financial Engine Configuration"
-          subtitle="Manage revenue distribution, expense sharing, and academy settings"
+          title="Academy Configuration"
+          subtitle="Manage academy profile, session pricing, and subject fees"
         />
 
         {isLoading ? (
@@ -532,12 +441,12 @@ const Configuration = () => {
             </span>
           </div>
         ) : (
-          <div className="mt-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
-            {/* Simple Status Bar */}
+          <div className="mt-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-6">
+            {/* Status Bar */}
             <div className="flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-semibold">System Configuration</p>
@@ -546,676 +455,35 @@ const Configuration = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                 <Lock className="h-4 w-4" />
-                <span>Super Admin</span>
+                <span>Admin</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* ========== CARD 1: Global Staff Split ========== */}
-              <Card className="shadow-md">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100">
-                      <Users className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Global Staff Split
-                      </CardTitle>
-                      <CardDescription>
-                        Revenue IN - Non-partner teachers
-                      </CardDescription>
-                    </div>
+            {/* ========== Academy Profile ========== */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Building2 className="h-5 w-5 text-primary" />
                   </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">
-                        Teacher Share
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={teacherShare}
-                          onChange={(e) =>
-                            setTeacherShare(Number(e.target.value) || 0)
-                          }
-                          className="h-12 text-lg font-bold pr-8"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">
-                        Academy Share
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={academyShare}
-                          onChange={(e) =>
-                            setAcademyShare(Number(e.target.value) || 0)
-                          }
-                          className="h-12 text-lg font-bold pr-8"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">Academy Profile</CardTitle>
+                    <CardDescription>
+                      Logo, name, and contact information
+                    </CardDescription>
                   </div>
-
-                  {salaryError ? (
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
-                      <AlertCircle className="h-4 w-4" />
-                      {salaryError}
-                    </div>
-                  ) : (
-                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-sm text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Total: 100%
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 2: Partner Revenue Rule ========== */}
-              <Card className="shadow-md">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
-                      <Crown className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Partner Revenue Rule
-                      </CardTitle>
-                      <CardDescription>
-                        100% retention for partners
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div
-                    className={cn(
-                      "p-4 rounded-lg border-2 transition-all cursor-pointer",
-                      partner100Rule
-                        ? "bg-amber-50 border-amber-300"
-                        : "bg-gray-50 border-gray-200",
-                    )}
-                    onClick={() => setPartner100Rule(!partner100Rule)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">Partners Receive 100%</p>
-                        <p className="text-sm text-gray-500">
-                          Bypass standard split for partner subjects
-                        </p>
-                      </div>
-                      <Switch
-                        checked={partner100Rule}
-                        onCheckedChange={setPartner100Rule}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                    <div className="p-2 bg-gray-50 rounded border">
-                      <p className="font-semibold">Sir Waqar</p>
-                      <p className="text-xs text-gray-500">Chemistry</p>
-                    </div>
-                    <div className="p-2 bg-gray-50 rounded border">
-                      <p className="font-semibold">Dr. Zahid</p>
-                      <p className="text-xs text-gray-500">Zoology</p>
-                    </div>
-                    <div className="p-2 bg-gray-50 rounded border">
-                      <p className="font-semibold">Sir Saud</p>
-                      <p className="text-xs text-gray-500">Physics</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 3: Expense Split (COMPACT) ========== */}
-              <Card className="shadow-md">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100">
-                      <Wallet className="h-5 w-5 text-rose-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Expense Split</CardTitle>
-                      <CardDescription>Money OUT distribution</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-blue-600">
-                        Sir Waqar
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={waqarShare}
-                          onChange={(e) =>
-                            setWaqarShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-emerald-600">
-                        Dr. Zahid
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={zahidShare}
-                          onChange={(e) =>
-                            setZahidShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-purple-600">
-                        Sir Saud
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={saudShare}
-                          onChange={(e) =>
-                            setSaudShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {splitError ? (
-                    <div className="mt-3 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                      <AlertCircle className="h-3 w-3" />
-                      {splitError}
-                    </div>
-                  ) : (
-                    <div className="mt-3 p-2 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center gap-2">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Total: 100%
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 6: Pool Distribution (COMPACT) ========== */}
-              <Card className="shadow-md">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100">
-                      <PieChart className="h-5 w-5 text-cyan-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Pool Distribution
-                      </CardTitle>
-                      <CardDescription>Income IN sharing</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-blue-600">
-                        Sir Waqar
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={poolWaqarShare}
-                          onChange={(e) =>
-                            setPoolWaqarShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-emerald-600">
-                        Dr. Zahid
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={poolZahidShare}
-                          onChange={(e) =>
-                            setPoolZahidShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-purple-600">
-                        Sir Saud
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={poolSaudShare}
-                          onChange={(e) =>
-                            setPoolSaudShare(Number(e.target.value) || 0)
-                          }
-                          className="h-10 pr-6 text-sm font-bold"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {poolSplitError ? (
-                    <div className="mt-3 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                      <AlertCircle className="h-3 w-3" />
-                      {poolSplitError}
-                    </div>
-                  ) : (
-                    <div className="mt-3 p-2 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center gap-2">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Total: 100%
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 8: WAQAR'S PROTOCOL - DUAL POOL SPLITS ========== */}
-              <Card className="shadow-md lg:col-span-2 border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
-                <CardHeader className="pb-4 border-b border-amber-200">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
-                      <Crown className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg text-amber-800">
-                        Waqar's Protocol
-                      </CardTitle>
-                      <CardDescription className="text-amber-600">
-                        Dual-Pool Revenue Distribution
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Protocol A: Tuition Pool */}
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                          A
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-blue-800">
-                            Tuition Pool
-                          </h4>
-                          <p className="text-xs text-blue-600">
-                            After 70% teacher share
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-blue-600">
-                            Waqar
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={tuitionPoolWaqar}
-                              onChange={(e) =>
-                                setTuitionPoolWaqar(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-emerald-600">
-                            Zahid
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={tuitionPoolZahid}
-                              onChange={(e) =>
-                                setTuitionPoolZahid(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-purple-600">
-                            Saud
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={tuitionPoolSaud}
-                              onChange={(e) =>
-                                setTuitionPoolSaud(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {tuitionPoolError ? (
-                        <div className="mt-2 p-1.5 rounded bg-red-100 text-xs text-red-700 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {tuitionPoolError}
-                        </div>
-                      ) : (
-                        <div className="mt-2 p-1.5 rounded bg-blue-100 text-xs text-blue-700 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          50/30/20 ✓
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Protocol B: ETEA Pool */}
-                    <div className="p-4 rounded-lg bg-violet-50 border border-violet-200">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="h-8 w-8 rounded-full bg-violet-500 text-white flex items-center justify-center text-xs font-bold">
-                          B
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-violet-800">
-                            ETEA/MDCAT Pool
-                          </h4>
-                          <p className="text-xs text-violet-600">
-                            After teacher commission
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-blue-600">
-                            Waqar
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={eteaPoolWaqar}
-                              onChange={(e) =>
-                                setEteaPoolWaqar(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-emerald-600">
-                            Zahid
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={eteaPoolZahid}
-                              onChange={(e) =>
-                                setEteaPoolZahid(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold text-purple-600">
-                            Saud
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={eteaPoolSaud}
-                              onChange={(e) =>
-                                setEteaPoolSaud(Number(e.target.value) || 0)
-                              }
-                              className="h-9 pr-5 text-sm font-bold text-center"
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {eteaPoolError ? (
-                        <div className="mt-2 p-1.5 rounded bg-red-100 text-xs text-red-700 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {eteaPoolError}
-                        </div>
-                      ) : (
-                        <div className="mt-2 p-1.5 rounded bg-violet-100 text-xs text-violet-700 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          40/30/30 ✓
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Protocol Summary */}
-                  <div className="mt-4 p-3 rounded-lg bg-amber-100 border border-amber-300">
-                    <div className="text-xs font-medium text-amber-800 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-5 w-5 rounded-full bg-blue-500 text-white text-center text-xs leading-5">
-                          A
-                        </span>
-                        <span>
-                          <strong>Tuition:</strong> Teacher 70% → Pool 30% →{" "}
-                          {tuitionPoolWaqar}/{tuitionPoolZahid}/
-                          {tuitionPoolSaud}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-5 w-5 rounded-full bg-violet-500 text-white text-center text-xs leading-5">
-                          B
-                        </span>
-                        <span>
-                          <strong>ETEA:</strong> Commission PKR{" "}
-                          {eteaCommission.toLocaleString()} → Pool rest →{" "}
-                          {eteaPoolWaqar}/{eteaPoolZahid}/{eteaPoolSaud}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-5 w-5 rounded-full bg-amber-500 text-white text-center text-xs leading-5">
-                          E
-                        </span>
-                        <span>
-                          <strong>ETEA English:</strong> Fixed PKR{" "}
-                          {englishFixedSalary.toLocaleString()}/session → Full
-                          fee to pool
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-5 w-5 rounded-full bg-orange-500 text-white text-center text-xs leading-5">
-                          C
-                        </span>
-                        <span>
-                          <strong>Expenses:</strong> Waqar pays → Split{" "}
-                          {waqarShare}/{zahidShare}/{saudShare} → Partner debt
-                          created
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 7: ETEA/MDCAT Config (NO EXAMPLES) ========== */}
-              <Card className="shadow-md lg:col-span-2">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100">
-                      <GraduationCap className="h-5 w-5 text-violet-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        ETEA/MDCAT Commission
-                      </CardTitle>
-                      <CardDescription>
-                        Per-student compensation
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  {/* Per-Student Commission */}
-                  <div className="max-w-md">
-                    <Label className="text-sm font-semibold mb-2 block">
-                      Per-Student Commission (PKR)
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
-                        PKR
-                      </span>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={eteaCommission}
-                        onChange={(e) =>
-                          setEteaCommission(Number(e.target.value) || 0)
-                        }
-                        className="h-12 pl-12 text-lg font-bold"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Fixed amount credited to teachers for each ETEA/MDCAT
-                      student enrolled (Physics, Biology, Chemistry, etc.)
-                    </p>
-                  </div>
-
-                  {/* English Fixed Salary - NEW */}
-                  <div className="max-w-md border-t pt-6">
-                    <Label className="text-sm font-semibold mb-2 flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">
-                        English Exception
-                      </span>
-                      Fixed Salary per Session (PKR)
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">
-                        PKR
-                      </span>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={englishFixedSalary}
-                        onChange={(e) =>
-                          setEnglishFixedSalary(Number(e.target.value) || 0)
-                        }
-                        className="h-12 pl-12 text-lg font-bold border-amber-200 focus:border-amber-400"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      <strong>English teachers only:</strong> Fixed salary paid
-                      once per session. Unlike other subjects, English teachers
-                      do NOT get per-student commission. Full student fees go to
-                      pool instead.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* ========== CARD 4: Academy Info ========== */}
-              <Card className="shadow-md">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                      <Building2 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Academy Profile</CardTitle>
-                      <CardDescription>Branding information</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">
-                      Academy Name
-                    </Label>
-                    <Input
-                      value={academyName}
-                      onChange={(e) => setAcademyName(e.target.value)}
-                      className="h-10"
-                    />
-                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Academy Name</Label>
+                  <Input
+                    value={academyName}
+                    onChange={(e) => setAcademyName(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold">Address</Label>
                     <Input
@@ -1233,285 +501,453 @@ const Configuration = () => {
                       className="h-10"
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* ========== CARD 5: Master Subject Pricing ========== */}
-              <Card className="shadow-md lg:col-span-2">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
-                      <Banknote className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Master Subject Pricing
-                      </CardTitle>
-                      <CardDescription>Global fee structure</CardDescription>
-                    </div>
+            {/* ========== Session Rate Master ========== */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Calendar className="h-5 w-5 text-primary" />
                   </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  {/* Add New */}
-                  <div className="flex gap-3">
+                  <div>
+                    <CardTitle className="text-lg">
+                      Session Rate Master
+                    </CardTitle>
+                    <CardDescription>
+                      Set fixed fees per session for admissions
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {sessionsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No sessions found.</p>
+                    <p className="text-sm">
+                      Create sessions first to set pricing.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-foreground">
+                        <strong>Session Pricing:</strong> Set a single fixed
+                        price for each session. This price will be used during
+                        admissions.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {sessions.map((session) => {
+                        const currentPrice =
+                          sessionPrices.find(
+                            (sp) => sp.sessionId === session._id,
+                          )?.price || 0;
+
+                        return (
+                          <div
+                            key={session._id}
+                            className={cn(
+                              "flex items-center justify-between p-4 rounded-lg border",
+                              session.status === "active"
+                                ? "bg-green-50 border-green-200"
+                                : "bg-gray-50 border-gray-200",
+                            )}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-sm">
+                                  {session.sessionName}
+                                </p>
+                                {session.status === "active" && (
+                                  <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="relative w-32">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
+                                  PKR
+                                </span>
+                                <Input
+                                  type="number"
+                                  value={currentPrice || ""}
+                                  onChange={(e) => {
+                                    const newPrice =
+                                      Number(e.target.value) || 0;
+                                    updateSessionPrice(
+                                      session._id,
+                                      session.sessionName,
+                                      newPrice,
+                                    );
+                                  }}
+                                  placeholder="0"
+                                  className="h-10 pl-10 pr-2 text-right font-bold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ========== Master Subject Pricing ========== */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Banknote className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">
+                      Master Subject Pricing
+                    </CardTitle>
+                    <CardDescription>
+                      Global fee structure for all subjects
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {/* Add New Subject */}
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="Subject Name"
+                    value={newSubjectName}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
+                    className="flex-1 h-10"
+                  />
+                  <div className="relative w-32">
                     <Input
-                      placeholder="Subject Name"
-                      value={newSubjectName}
-                      onChange={(e) => setNewSubjectName(e.target.value)}
-                      className="flex-1 h-10"
+                      type="number"
+                      placeholder="Fee"
+                      value={newSubjectFee}
+                      onChange={(e) => setNewSubjectFee(e.target.value)}
+                      className="h-10 pr-8"
                     />
-                    <div className="relative w-32">
-                      <Input
-                        type="number"
-                        placeholder="Fee"
-                        value={newSubjectFee}
-                        onChange={(e) => setNewSubjectFee(e.target.value)}
-                        className="h-10 pr-8"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                        PKR
-                      </span>
-                    </div>
-                    <Button
-                      onClick={async () => {
-                        if (!newSubjectName.trim() || !newSubjectFee) {
-                          toast({
-                            title: "Missing Information",
-                            description: "Enter both name and fee",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        if (
-                          defaultSubjectFees.some(
-                            (s) =>
-                              s.name.toLowerCase() ===
-                              newSubjectName.trim().toLowerCase(),
-                          )
-                        ) {
-                          toast({
-                            title: "Duplicate",
-                            description: "Subject already exists",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        const newSubjects = [
-                          ...defaultSubjectFees,
-                          {
-                            name: newSubjectName.trim(),
-                            fee: Number(newSubjectFee),
-                          },
-                        ];
-                        setDefaultSubjectFees(newSubjects);
-                        const subjectName = newSubjectName.trim();
-                        setNewSubjectName("");
-                        setNewSubjectFee("");
-                        try {
-                          await saveConfigToBackend(newSubjects);
-                          toast({
-                            title: "Saved",
-                            description: `${subjectName} added`,
-                          });
-                        } catch (error) {
-                          setDefaultSubjectFees(defaultSubjectFees);
-                          setNewSubjectName(subjectName);
-                          setNewSubjectFee(String(Number(newSubjectFee)));
-                          toast({
-                            title: "Error",
-                            description: "Failed to save",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      className="h-10 px-4"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                      PKR
+                    </span>
                   </div>
+                  <Button
+                    onClick={async () => {
+                      if (!newSubjectName.trim() || !newSubjectFee) {
+                        toast({
+                          title: "Missing Information",
+                          description: "Enter both name and fee",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      if (
+                        defaultSubjectFees.some(
+                          (s) =>
+                            s.name.toLowerCase() ===
+                            newSubjectName.trim().toLowerCase(),
+                        )
+                      ) {
+                        toast({
+                          title: "Duplicate",
+                          description: "Subject already exists",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      const newSubjects = [
+                        ...defaultSubjectFees,
+                        {
+                          name: newSubjectName.trim(),
+                          fee: Number(newSubjectFee),
+                        },
+                      ];
+                      setDefaultSubjectFees(newSubjects);
+                      const subjectName = newSubjectName.trim();
+                      setNewSubjectName("");
+                      setNewSubjectFee("");
+                      try {
+                        await saveConfigToBackend(newSubjects);
+                        toast({
+                          title: "Saved",
+                          description: `${subjectName} added`,
+                        });
+                      } catch (error) {
+                        setDefaultSubjectFees(defaultSubjectFees);
+                        setNewSubjectName(subjectName);
+                        setNewSubjectFee(String(Number(newSubjectFee)));
+                        toast({
+                          title: "Error",
+                          description: "Failed to save",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="h-10 px-4 bg-primary hover:bg-primary/90"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
 
-                  {/* List */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {defaultSubjectFees.map((subject, index) => (
+                {/* Subject List */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {defaultSubjectFees.map((subject, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                    >
+                      <div>
+                        <p className="font-semibold text-sm">{subject.name}</p>
+                        <p className="text-xs text-gray-500">
+                          PKR {subject.fee.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingSubject({ ...subject, index });
+                            setEditFeeValue(String(subject.fee));
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600"
+                          onClick={async () => {
+                            if (window.confirm(`Remove ${subject.name}?`)) {
+                              const newSubjects = defaultSubjectFees.filter(
+                                (_, i) => i !== index,
+                              );
+                              setDefaultSubjectFees(newSubjects);
+                              try {
+                                await saveConfigToBackend(newSubjects);
+                                toast({
+                                  title: "Deleted",
+                                  description: `${subject.name} removed`,
+                                });
+                              } catch (error) {
+                                setDefaultSubjectFees(defaultSubjectFees);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to delete",
+                                  variant: "destructive",
+                                });
+                              }
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ========== Staff Access Management ========== */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">
+                      Staff Access Management
+                    </CardTitle>
+                    <CardDescription>
+                      Create and manage operator/staff login accounts
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                {/* Create New Staff */}
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-foreground mb-3">
+                    Create New Staff Account
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Full Name *</Label>
+                      <Input
+                        placeholder="e.g. Ali Khan"
+                        value={newStaffFullName}
+                        onChange={(e) => setNewStaffFullName(e.target.value)}
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Username *</Label>
+                      <Input
+                        placeholder="e.g. ali.khan"
+                        value={newStaffUsername}
+                        onChange={(e) => setNewStaffUsername(e.target.value)}
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Password *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showNewPassword ? "text" : "password"}
+                          placeholder="Min 6 characters"
+                          value={newStaffPassword}
+                          onChange={(e) => setNewStaffPassword(e.target.value)}
+                          className="h-10 pr-10"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    className="mt-3 bg-primary hover:bg-primary/90"
+                    onClick={handleCreateStaff}
+                    disabled={isCreatingStaff}
+                  >
+                    {isCreatingStaff ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Staff Account
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Staff List */}
+                {staffLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : staffList.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>No staff accounts yet.</p>
+                    <p className="text-sm">
+                      Create your first operator account above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      Active Staff ({staffList.length})
+                    </p>
+                    {staffList.map((staff: any) => (
                       <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                        key={staff._id || staff.userId}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-lg border",
+                          staff.isActive
+                            ? "bg-green-50 border-green-200"
+                            : "bg-gray-50 border-gray-200 opacity-60",
+                        )}
                       >
-                        <div>
-                          <p className="font-semibold text-sm">
-                            {subject.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            PKR {subject.fee.toLocaleString()}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-full text-white font-bold text-sm",
+                              staff.isActive ? "bg-primary" : "bg-gray-400",
+                            )}
+                          >
+                            {(staff.fullName || "S")
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">
+                              {staff.fullName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              @{staff.username} • {staff.role || "STAFF"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 text-xs rounded-full font-medium",
+                              staff.isActive
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-200 text-gray-600",
+                            )}
+                          >
+                            {staff.isActive ? "Active" : "Disabled"}
+                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => {
-                              setEditingSubject({ ...subject, index });
-                              setEditFeeValue(String(subject.fee));
-                              setEditDialogOpen(true);
-                            }}
+                            onClick={() =>
+                              handleToggleStaff(staff._id || staff.userId)
+                            }
+                            title={
+                              staff.isActive
+                                ? "Disable account"
+                                : "Enable account"
+                            }
                           >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-red-600"
-                            onClick={async () => {
-                              if (window.confirm(`Remove ${subject.name}?`)) {
-                                const newSubjects = defaultSubjectFees.filter(
-                                  (_, i) => i !== index,
-                                );
-                                setDefaultSubjectFees(newSubjects);
-                                try {
-                                  await saveConfigToBackend(newSubjects);
-                                  toast({
-                                    title: "Deleted",
-                                    description: `${subject.name} removed`,
-                                  });
-                                } catch (error) {
-                                  setDefaultSubjectFees(defaultSubjectFees);
-                                  toast({
-                                    title: "Error",
-                                    description: "Failed to delete",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                            <Power
+                              className={cn(
+                                "h-4 w-4",
+                                staff.isActive
+                                  ? "text-red-500"
+                                  : "text-green-500",
+                              )}
+                            />
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
 
-              {/* ========== CARD 9: Session Rate Master (Waqar Protocol v2) ========== */}
-              <Card className="shadow-md lg:col-span-2">
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-100 to-orange-100">
-                      <Calendar className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        Session Rate Master
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">
-                          v2
-                        </span>
-                      </CardTitle>
-                      <CardDescription>
-                        Set fixed fees per session (replaces subject-based pricing)
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  {sessionsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
-                    </div>
-                  ) : sessions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                      <p>No sessions found.</p>
-                      <p className="text-sm">Create sessions first to set prices.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 mb-4">
-                        <p className="text-sm text-amber-800">
-                          <strong>💡 Session Pricing:</strong> Instead of summing individual subject fees,
-                          set a single fixed price for each session. This price will be used during admissions.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {sessions.map((session) => {
-                          const currentPrice = sessionPrices.find(
-                            (sp) => sp.sessionId === session._id
-                          )?.price || 0;
-
-                          return (
-                            <div
-                              key={session._id}
-                              className={cn(
-                                "flex items-center justify-between p-4 rounded-lg border",
-                                session.status === "active"
-                                  ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                                  : "bg-gray-50 border-gray-200"
-                              )}
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-semibold text-sm">{session.sessionName}</p>
-                                  {session.status === "active" && (
-                                    <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
-                                      Active
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Session ID: {session._id.slice(-6)}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="relative w-32">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
-                                    PKR
-                                  </span>
-                                  <Input
-                                    type="number"
-                                    value={currentPrice || ""}
-                                    onChange={(e) => {
-                                      const newPrice = Number(e.target.value) || 0;
-                                      updateSessionPrice(session._id, session.sessionName, newPrice);
-                                    }}
-                                    placeholder="0"
-                                    className="h-10 pl-10 pr-2 text-right font-bold text-amber-700"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-                        <p className="text-xs text-blue-700">
-                          <strong>Note:</strong> Click "Save All Changes" below to save session prices.
-                          These prices will automatically apply when admitting students to the corresponding session.
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ========== SAVE BUTTON (NOT FLOATING) ========== */}
+            {/* ========== SAVE BUTTON ========== */}
             <div className="flex justify-end pt-6 border-t mt-8">
               <Button
                 size="lg"
                 onClick={handleSaveSettings}
-                disabled={
-                  isSaving || !!splitError || !!salaryError || !!poolSplitError
-                }
-                className={cn(
-                  "h-12 px-8",
-                  splitError || salaryError || poolSplitError
-                    ? "bg-gray-400"
-                    : "bg-slate-900 hover:bg-slate-800",
-                )}
+                disabled={isSaving}
+                className="h-12 px-8 bg-primary hover:bg-primary/90"
               >
                 {isSaving ? (
                   <>
@@ -1527,7 +963,7 @@ const Configuration = () => {
               </Button>
             </div>
 
-            {/* ========== DANGER ZONE CARD ========== */}
+            {/* ========== DANGER ZONE ========== */}
             <Card className="border-red-200 bg-red-50 mt-12">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-red-700">
@@ -1542,20 +978,11 @@ const Configuration = () => {
               <CardContent className="space-y-4">
                 <div className="bg-red-100 border border-red-300 rounded-lg p-4">
                   <p className="text-sm text-red-800 font-medium mb-4">
-                    🛑 <strong>Reset All Financial Data</strong>
+                    Reset All Data
                   </p>
                   <p className="text-xs text-red-700 mb-4">
-                    This will permanently delete:
-                    <br />
-                    • All transactions and ledger entries
-                    <br />
-                    • All fee records and receipts
-                    <br />
-                    • All students
-                    <br />
-                    • All notifications
-                    <br />• All user balance and revenue counters will be reset
-                    to 0
+                    This will permanently delete all transactions, fee records,
+                    students, and notifications. All counters will reset to 0.
                   </p>
                   <Button
                     variant="destructive"
@@ -1563,7 +990,7 @@ const Configuration = () => {
                     onClick={async () => {
                       if (
                         window.confirm(
-                          "⚠️ WARNING: This will delete ALL financial data and students. This cannot be undone. Are you sure?",
+                          "WARNING: This will delete ALL financial data and students. This cannot be undone. Are you sure?",
                         )
                       ) {
                         try {
@@ -1582,7 +1009,7 @@ const Configuration = () => {
 
                           if (data.success) {
                             toast({
-                              title: "✅ System Reset Complete",
+                              title: "System Reset Complete",
                               description:
                                 "Database wiped. All balances reset to 0. Reloading...",
                               className: "bg-green-50 border-green-200",
@@ -1592,7 +1019,7 @@ const Configuration = () => {
                             }, 2000);
                           } else {
                             toast({
-                              title: "❌ Reset Failed",
+                              title: "Reset Failed",
                               description:
                                 data.message || "Failed to reset system",
                               variant: "destructive",
@@ -1601,7 +1028,7 @@ const Configuration = () => {
                         } catch (error) {
                           console.error("Reset error:", error);
                           toast({
-                            title: "❌ Error",
+                            title: "Error",
                             description: "Failed to reset system",
                             variant: "destructive",
                           });
@@ -1609,7 +1036,7 @@ const Configuration = () => {
                       }
                     }}
                   >
-                    🛑 RESET ALL FINANCE DATA
+                    RESET ALL DATA
                   </Button>
                 </div>
               </CardContent>
@@ -1617,7 +1044,7 @@ const Configuration = () => {
           </div>
         )}
 
-        {/* Edit Dialog */}
+        {/* Edit Subject Fee Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -1683,7 +1110,7 @@ const Configuration = () => {
                     }
                   }
                 }}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                className="flex-1 bg-primary hover:bg-primary/90"
               >
                 Save
               </Button>

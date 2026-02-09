@@ -59,14 +59,9 @@ interface Expense {
   status: "pending" | "paid" | "overdue";
   billNumber?: string;
   description?: string;
-  paidByType?: "ACADEMY_CASH" | "WAQAR" | "ZAHID" | "SAUD";
+  paidByType?: string;
   hasPartnerDebt?: boolean;
   shares?: ExpenseShare[];
-  splitRatio?: {
-    waqar: number;
-    zahid: number;
-    saud: number;
-  };
 }
 
 interface ExpenseTrackerProps {
@@ -76,12 +71,15 @@ interface ExpenseTrackerProps {
 }
 
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('.app.github.dev')) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname.includes(".app.github.dev")
+  ) {
     const hostname = window.location.hostname;
-    const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, '');
+    const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, "");
     return `https://${codespaceBase}-5000.app.github.dev`;
   }
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 };
 const API_BASE_URL = getApiBaseUrl();
 
@@ -443,37 +441,17 @@ export const ExpenseTracker = ({
         {/* Paid By Dropdown - Financial Sovereignty Feature */}
         <div className="mt-4 p-4 bg-amber-50 rounded-lg border-2 border-amber-200">
           <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4 text-amber-600" />
-            Who Paid for This?
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="text-xs">
-                    If a partner paid out-of-pocket, other partners will owe
-                    them their share.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Users className="h-4 w-4 text-red-600" />
+            Payment Source
           </Label>
           <Select value={paidByType} onValueChange={setPaidByType}>
-            <SelectTrigger className="bg-white h-10 border-2 border-amber-300">
-              <SelectValue placeholder="Who paid?" />
+            <SelectTrigger className="bg-white h-10 border-2 border-gray-300">
+              <SelectValue placeholder="Select payment source" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ACADEMY_CASH">
-                🏦 Academy Cash (Normal Flow)
+                Academy Cash (Normal Flow)
               </SelectItem>
-              <SelectItem value="WAQAR">
-                👤 Sir Waqar (Out-of-Pocket)
-              </SelectItem>
-              <SelectItem value="ZAHID">
-                👤 Dr. Zahid (Out-of-Pocket)
-              </SelectItem>
-              <SelectItem value="SAUD">👤 Sir Saud (Out-of-Pocket)</SelectItem>
             </SelectContent>
           </Select>
           {paidByType !== "ACADEMY_CASH" && (

@@ -21,7 +21,6 @@ import {
   Loader2,
   LogIn,
   Sparkles,
-  Crown,
   Star,
   Award,
   ChevronRight,
@@ -99,7 +98,10 @@ const float = {
 };
 
 const ripple = {
-  whileHover: { scale: 1.02, transition: { type: "spring" as const, stiffness: 400, damping: 10 } },
+  whileHover: {
+    scale: 1.02,
+    transition: { type: "spring" as const, stiffness: 400, damping: 10 },
+  },
   whileTap: { scale: 0.98 },
 };
 
@@ -175,7 +177,9 @@ function InquiryForm() {
         <div className="h-20 w-20 mx-auto mb-6 rounded-3xl bg-brand-primary text-white flex items-center justify-center shadow-2xl shadow-brand-primary/20">
           <CheckCircle2 className="h-10 w-10" />
         </div>
-        <h3 className="text-2xl font-black text-brand-primary mb-2 uppercase tracking-tighter">Thank You!</h3>
+        <h3 className="text-2xl font-black text-brand-primary mb-2 uppercase tracking-tighter">
+          Thank You!
+        </h3>
         <p className="text-slate-500 font-medium">
           Our team will contact you shortly to assist with your inquiry.
         </p>
@@ -184,13 +188,13 @@ function InquiryForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6"
-    >
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="inquiry-name" className="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1">
+          <Label
+            htmlFor="inquiry-name"
+            className="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1"
+          >
             Full Name *
           </Label>
           <Input
@@ -222,7 +226,10 @@ function InquiryForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="inquiry-email" className="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1">
+        <Label
+          htmlFor="inquiry-email"
+          className="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1"
+        >
           Email Address (Optional)
         </Label>
         <Input
@@ -320,6 +327,25 @@ export default function PublicLanding() {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
+  // Fetch active teachers for the faculty carousel
+  const { data: teachersData } = useQuery({
+    queryKey: ["public-teachers"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/teachers?status=active&limit=8`);
+      if (!res.ok) throw new Error("Failed to fetch teachers");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const activeTeachers: {
+    _id: string;
+    name: string;
+    subject: string;
+    profileImage?: string;
+    status?: string;
+  }[] = (teachersData?.data || []).filter((t: any) => t.status === "active");
+
   const config: PublicConfig | null = data?.data || null;
 
   // Rotate announcements
@@ -363,7 +389,8 @@ export default function PublicLanding() {
               />
               <div className="flex flex-col">
                 <span className="text-2xl font-serif font-black tracking-tight text-brand-primary leading-none">
-                  {config?.heroSection?.title?.split("'")[0] || "Genius Islamian's"}
+                  {config?.heroSection?.title?.split("'")[0] ||
+                    "Genius Islamian's"}
                 </span>
                 <span className="text-sm font-bold tracking-[0.4em] text-brand-gold uppercase">
                   Academy
@@ -373,13 +400,6 @@ export default function PublicLanding() {
 
             {/* Primary Action Buttons */}
             <div className="hidden md:flex items-center gap-8">
-              <Link to="/register">
-                <motion.div {...ripple}>
-                  <Button className="bg-brand-gold hover:bg-brand-gold/90 text-white rounded-full px-10 h-12 transition-all shadow-xl shadow-brand-gold/20 font-bold tracking-wide">
-                    Apply Now
-                  </Button>
-                </motion.div>
-              </Link>
               <Link to="/student-portal">
                 <motion.div {...ripple}>
                   <Button
@@ -387,6 +407,17 @@ export default function PublicLanding() {
                     className="border-brand-primary/20 text-brand-primary hover:bg-brand-primary hover:text-white rounded-full px-10 h-12 transition-all font-bold tracking-wide bg-white/50 backdrop-blur-sm"
                   >
                     Student Portal
+                  </Button>
+                </motion.div>
+              </Link>
+              <Link to="/login">
+                <motion.div {...ripple}>
+                  <Button
+                    variant="ghost"
+                    className="text-brand-primary hover:bg-brand-primary/10 rounded-full px-8 h-12 font-bold tracking-wide"
+                  >
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Staff Login
                   </Button>
                 </motion.div>
               </Link>
@@ -418,10 +449,11 @@ export default function PublicLanding() {
                   transition={{ duration: 0.8, type: "spring" }}
                 >
                   <Badge
-                    className={`mb-6 text-xs font-bold uppercase tracking-[0.2em] px-5 py-2 rounded-full backdrop-blur-xl border ${config.admissionStatus.isOpen
-                      ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/20"
-                      : "bg-red-400/10 text-red-300 border-red-400/20"
-                      }`}
+                    className={`mb-6 text-xs font-bold uppercase tracking-[0.2em] px-5 py-2 rounded-full backdrop-blur-xl border ${
+                      config.admissionStatus.isOpen
+                        ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/20"
+                        : "bg-red-400/10 text-red-300 border-red-400/20"
+                    }`}
                   >
                     {config.admissionStatus.isOpen
                       ? `🟢 ${config.admissionStatus.notice || "Admissions Open"}`
@@ -442,7 +474,12 @@ export default function PublicLanding() {
               <motion.p
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.1, type: "spring", stiffness: 50 }}
+                transition={{
+                  duration: 1,
+                  delay: 0.1,
+                  type: "spring",
+                  stiffness: 50,
+                }}
                 className="text-xl text-slate-200/80 mb-10 leading-relaxed font-medium max-w-xl"
               >
                 {config?.heroSection?.subtitle ||
@@ -453,7 +490,12 @@ export default function PublicLanding() {
                 <motion.p
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 1, delay: 0.2, type: "spring", stiffness: 50 }}
+                  transition={{
+                    duration: 1,
+                    delay: 0.2,
+                    type: "spring",
+                    stiffness: 50,
+                  }}
                   className="text-sm font-bold uppercase tracking-[0.3em] text-brand-gold mb-8"
                 >
                   {config.heroSection.tagline}
@@ -463,7 +505,12 @@ export default function PublicLanding() {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.3, type: "spring", stiffness: 50 }}
+                transition={{
+                  duration: 1,
+                  delay: 0.3,
+                  type: "spring",
+                  stiffness: 50,
+                }}
                 className="flex flex-wrap gap-5"
               >
                 <motion.div {...ripple}>
@@ -502,7 +549,7 @@ export default function PublicLanding() {
                 className="relative z-10 rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] border-[12px] border-white/5 backdrop-blur-3xl"
               >
                 <img
-                  src="edwardian.png"
+                  src="logo.png"
                   alt="Academy Life"
                   className="w-full h-[600px] object-cover mix-blend-overlay opacity-90"
                 />
@@ -532,7 +579,9 @@ export default function PublicLanding() {
                   <Megaphone className="h-6 w-6 text-white" />
                 </div>
                 <h2 className="text-xl font-black text-brand-primary uppercase tracking-tighter">
-                  Notice<br />Board
+                  Notice
+                  <br />
+                  Board
                 </h2>
               </div>
               <div className="flex-1 overflow-hidden relative h-12 flex items-center">
@@ -556,8 +605,11 @@ export default function PublicLanding() {
                   <button
                     key={idx}
                     onClick={() => setCurrentAnnouncement(idx)}
-                    className={`h-2 rounded-full transition-all ${idx === currentAnnouncement ? "w-8 bg-brand-primary" : "w-2 bg-slate-200"
-                      }`}
+                    className={`h-2 rounded-full transition-all ${
+                      idx === currentAnnouncement
+                        ? "w-8 bg-brand-primary"
+                        : "w-2 bg-slate-200"
+                    }`}
                   />
                 ))}
               </div>
@@ -569,25 +621,33 @@ export default function PublicLanding() {
       {/* Featured Subjects Section */}
       <section className="py-32 bg-brand-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            {...waterfall}
-            className="text-center mb-20"
-          >
+          <motion.div {...waterfall} className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-brand-primary mb-6 tracking-tight">
               Academic Programs
             </h2>
             <div className="w-24 h-1.5 bg-brand-gold mx-auto rounded-full mb-8" />
             <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
-              Explore our specialized tuition tracks designed for board exam excellence.
+              Explore our specialized tuition tracks designed for board exam
+              excellence.
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {(config?.featuredSubjects || ["Chemistry", "Physics", "Biology", "Mathematics"]).map((subject, idx) => (
+            {(
+              config?.featuredSubjects || [
+                "Chemistry",
+                "Physics",
+                "Biology",
+                "Mathematics",
+              ]
+            ).map((subject, idx) => (
               <motion.div
                 key={subject}
                 {...waterfall}
-                transition={{ ...waterfall.whileInView.transition, delay: idx * 0.1 }}
+                transition={{
+                  ...waterfall.whileInView.transition,
+                  delay: idx * 0.1,
+                }}
                 className="group cursor-pointer"
               >
                 <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] group-hover:-translate-y-3 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.1)] transition-all duration-500 relative overflow-hidden">
@@ -600,11 +660,15 @@ export default function PublicLanding() {
                     {subject}
                   </h3>
                   <p className="text-slate-500 text-sm leading-relaxed font-medium mb-8">
-                    Comprehensive syllabus coverage with expert guidance and testing.
+                    Comprehensive syllabus coverage with expert guidance and
+                    testing.
                   </p>
-                  <Link to="/register" className="flex items-center text-brand-gold font-bold group-hover:gap-3 transition-all tracking-wide">
-                    Enroll Now <ChevronRight className="h-5 w-5" />
-                  </Link>
+                  <a
+                    href="#contact"
+                    className="flex items-center text-brand-gold font-bold group-hover:gap-3 transition-all tracking-wide"
+                  >
+                    Inquire Now <ChevronRight className="h-5 w-5" />
+                  </a>
                 </div>
               </motion.div>
             ))}
@@ -617,16 +681,14 @@ export default function PublicLanding() {
         <section className="py-32 px-4 bg-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-slate-50/50 -z-10" />
           <div className="max-w-7xl mx-auto">
-            <motion.div
-              {...waterfall}
-              className="text-center mb-20"
-            >
+            <motion.div {...waterfall} className="text-center mb-20">
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-brand-primary mb-6 tracking-tight">
                 Why Genius Islamian's?
               </h2>
               <div className="w-24 h-1.5 bg-brand-gold mx-auto rounded-full mb-8" />
               <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
-                We combine traditional academic excellence with modern interactive learning systems.
+                We combine traditional academic excellence with modern
+                interactive learning systems.
               </p>
             </motion.div>
 
@@ -635,12 +697,17 @@ export default function PublicLanding() {
                 <motion.div
                   key={index}
                   {...waterfall}
-                  transition={{ ...waterfall.whileInView.transition, delay: index * 0.1 }}
+                  transition={{
+                    ...waterfall.whileInView.transition,
+                    delay: index * 0.1,
+                  }}
                   className="text-center group"
                 >
                   <div className="w-24 h-24 mx-auto mb-8 rounded-[2rem] bg-brand-secondary flex items-center justify-center shadow-lg group-hover:bg-brand-primary group-hover:rotate-6 group-hover:scale-110 transition-all duration-500">
                     <div className="text-brand-primary group-hover:text-white transition-colors">
-                      {iconMap[highlight.icon] || <Sparkles className="h-10 w-10" />}
+                      {iconMap[highlight.icon] || (
+                        <Sparkles className="h-10 w-10" />
+                      )}
                     </div>
                   </div>
                   <h3 className="text-2xl font-black text-brand-primary mb-4 tracking-tight">
@@ -656,63 +723,103 @@ export default function PublicLanding() {
         </section>
       )}
 
-      {/* Faculty Section */}
-      <section className="py-32 px-4 bg-brand-secondary relative overflow-hidden" id="faculty">
+      {/* Faculty Section — Dynamic Carousel */}
+      <section
+        className="py-32 px-4 bg-brand-secondary relative overflow-hidden"
+        id="faculty"
+      >
         <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent opacity-50" />
         <div className="max-w-7xl mx-auto relative z-10">
-          <motion.div
-            {...waterfall}
-            className="text-center mb-20"
-          >
+          <motion.div {...waterfall} className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-brand-primary mb-6 tracking-tight">
               Expert Faculty
             </h2>
             <div className="w-24 h-1.5 bg-brand-gold mx-auto rounded-full mb-8" />
             <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
-              Learn from the region's most experienced professors and subject matter experts.
+              Learn from the region's most experienced professors and subject
+              matter experts.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {config?.faculty?.map((professor, index) => (
+          {activeTeachers.length > 0 ? (
+            <div className="relative overflow-hidden">
+              {/* Fade edges */}
+              <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-brand-secondary to-transparent z-10 pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-brand-secondary to-transparent z-10 pointer-events-none" />
+
+              {/* Auto-scrolling marquee */}
               <motion.div
-                key={index}
-                {...waterfall}
-                transition={{ ...waterfall.whileInView.transition, delay: index * 0.1 }}
+                className="flex gap-8"
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{
+                  x: {
+                    duration: activeTeachers.length * 5,
+                    repeat: Infinity,
+                    ease: "linear",
+                  },
+                }}
               >
-                <div className={`group relative bg-white rounded-[3rem] p-10 text-center border transition-all duration-500 hover:-translate-y-3 ${professor.isPartner
-                  ? "border-brand-gold/30 shadow-[0_20px_50px_rgba(180,83,9,0.1)]"
-                  : "border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)]"
-                  }`}>
-                  <div className="relative inline-block mb-8">
-                    <div className="w-32 h-32 mx-auto rounded-full bg-slate-50 flex items-center justify-center text-4xl font-black text-brand-primary shadow-inner border-[6px] border-white overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                      {professor.name?.charAt(0)?.toUpperCase() || "?"}
+                {/* Duplicate items for seamless loop */}
+                {[...activeTeachers, ...activeTeachers].map(
+                  (teacher, index) => (
+                    <div
+                      key={`${teacher._id}-${index}`}
+                      className="flex-shrink-0 w-72"
+                    >
+                      <div className="group relative bg-white rounded-[3rem] p-10 text-center border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_30px_60px_rgba(0,0,0,0.1)]">
+                        <div className="relative inline-block mb-8">
+                          <div className="w-32 h-32 mx-auto rounded-full bg-slate-50 flex items-center justify-center text-4xl font-black text-brand-primary shadow-inner border-[6px] border-white overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                            {teacher.profileImage ? (
+                              <img
+                                src={teacher.profileImage}
+                                alt={teacher.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              teacher.name?.charAt(0)?.toUpperCase() || "?"
+                            )}
+                          </div>
+                        </div>
+                        <h3 className="text-2xl font-black text-brand-primary mb-2">
+                          {teacher.name}
+                        </h3>
+                        <p className="text-sm font-bold text-brand-gold uppercase tracking-[0.2em]">
+                          {teacher.subject}
+                        </p>
+                      </div>
                     </div>
-                    {professor.isPartner && (
-                      <motion.div
-                        animate={{ rotate: [0, 10, -10, 0] }}
-                        transition={{ duration: 4, repeat: Infinity }}
-                        className="absolute -top-1 -right-1 bg-brand-gold text-white p-2.5 rounded-full shadow-lg"
-                      >
-                        <Crown className="h-5 w-5" />
-                      </motion.div>
-                    )}
-                  </div>
-                  <h3 className="text-2xl font-black text-brand-primary mb-2">
-                    {professor.name}
-                  </h3>
-                  <p className="text-sm font-bold text-brand-gold uppercase tracking-[0.2em] mb-6">
-                    {professor.subject}
-                  </p>
-                  {professor.isPartner && (
-                    <Badge className="bg-brand-gold/10 text-brand-gold border-brand-gold/20 hover:bg-brand-gold/20 transition-colors px-4 py-1.5 rounded-full">
-                      Academy Partner
-                    </Badge>
-                  )}
-                </div>
+                  ),
+                )}
               </motion.div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {(config?.faculty || []).map((professor, index) => (
+                <motion.div
+                  key={index}
+                  {...waterfall}
+                  transition={{
+                    ...waterfall.whileInView.transition,
+                    delay: index * 0.1,
+                  }}
+                >
+                  <div className="group relative bg-white rounded-[3rem] p-10 text-center border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-500 hover:-translate-y-3">
+                    <div className="relative inline-block mb-8">
+                      <div className="w-32 h-32 mx-auto rounded-full bg-slate-50 flex items-center justify-center text-4xl font-black text-brand-primary shadow-inner border-[6px] border-white overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                        {professor.name?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-black text-brand-primary mb-2">
+                      {professor.name}
+                    </h3>
+                    <p className="text-sm font-bold text-brand-gold uppercase tracking-[0.2em]">
+                      {professor.subject}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -722,10 +829,12 @@ export default function PublicLanding() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div {...waterfall}>
               <h2 className="text-4xl md:text-6xl font-serif font-black text-brand-primary mb-10 tracking-tight leading-[1.1]">
-                Have a Question? <br /><span className="text-brand-gold italic">Get in Touch.</span>
+                Have a Question? <br />
+                <span className="text-brand-gold italic">Get in Touch.</span>
               </h2>
               <p className="text-xl text-slate-500 mb-12 font-medium leading-relaxed">
-                Our admissions team is ready to help you plan your academic journey. Send us a message and we'll respond within 24 hours.
+                Our admissions team is ready to help you plan your academic
+                journey. Send us a message and we'll respond within 24 hours.
               </p>
 
               <div className="space-y-10">
@@ -734,8 +843,12 @@ export default function PublicLanding() {
                     <Phone className="h-7 w-7 text-brand-primary group-hover:text-white transition-colors" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Call Us</p>
-                    <p className="text-2xl font-black text-brand-primary">{config?.contactInfo?.mobile || "0300-0000000"}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">
+                      Call Us
+                    </p>
+                    <p className="text-2xl font-black text-brand-primary">
+                      {config?.contactInfo?.mobile || "0300-0000000"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-8 group">
@@ -743,8 +856,12 @@ export default function PublicLanding() {
                     <Mail className="h-7 w-7 text-brand-primary group-hover:text-white transition-colors" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Email Us</p>
-                    <p className="text-2xl font-black text-brand-primary">{config?.contactInfo?.email || "academy@example.com"}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">
+                      Email Us
+                    </p>
+                    <p className="text-2xl font-black text-brand-primary">
+                      {config?.contactInfo?.email || "academy@example.com"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-8 group">
@@ -752,9 +869,12 @@ export default function PublicLanding() {
                     <MapPin className="h-7 w-7 text-brand-primary group-hover:text-white transition-colors" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Visit Us</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">
+                      Visit Us
+                    </p>
                     <p className="text-xl font-black text-brand-primary max-w-sm">
-                      {config?.contactInfo?.address || "University Road, Peshawar"}
+                      {config?.contactInfo?.address ||
+                        "University Road, Peshawar"}
                     </p>
                   </div>
                 </div>
@@ -766,7 +886,9 @@ export default function PublicLanding() {
               className="bg-brand-secondary p-10 md:p-16 rounded-[4rem] shadow-[0_40px_100px_rgba(0,0,0,0.08)] relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 rounded-bl-[5rem]" />
-              <h3 className="text-3xl font-serif font-black text-brand-primary mb-10">Send an Inquiry</h3>
+              <h3 className="text-3xl font-serif font-black text-brand-primary mb-10">
+                Send an Inquiry
+              </h3>
               <InquiryForm />
             </motion.div>
           </div>
@@ -780,14 +902,23 @@ export default function PublicLanding() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
             <div className="col-span-1 lg:col-span-1">
               <div className="flex items-center gap-4 mb-10">
-                <img src="/logo.png" alt="Logo" className="h-14 w-14 brightness-0 invert opacity-90" />
+                <img
+                  src="/logo.png"
+                  alt="Logo"
+                  className="h-14 w-14 brightness-0 invert opacity-90"
+                />
                 <div className="flex flex-col">
-                  <span className="text-2xl font-serif font-black tracking-tight">GENIUS ISLAMIAN'S</span>
-                  <span className="text-sm font-bold tracking-[0.4em] text-brand-gold">ACADEMY</span>
+                  <span className="text-2xl font-serif font-black tracking-tight">
+                    GENIUS ISLAMIAN'S
+                  </span>
+                  <span className="text-sm font-bold tracking-[0.4em] text-brand-gold">
+                    ACADEMY
+                  </span>
                 </div>
               </div>
               <p className="text-slate-400 font-medium leading-relaxed mb-10 text-lg">
-                Advancing knowledge and transforming lives through excellence in education since 2017.
+                Advancing knowledge and transforming lives through excellence in
+                education since 2017.
               </p>
               <div className="flex gap-5">
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
@@ -804,30 +935,97 @@ export default function PublicLanding() {
             </div>
 
             <div>
-              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">Programs</h4>
+              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">
+                Programs
+              </h4>
               <ul className="space-y-5 text-slate-400 font-medium text-lg">
-                <li><Link to="/register" className="hover:text-brand-gold transition-colors">F.Sc Pre-Medical</Link></li>
-                <li><Link to="/register" className="hover:text-brand-gold transition-colors">F.Sc Pre-Engineering</Link></li>
-                <li><Link to="/register" className="hover:text-brand-gold transition-colors">Computer Science</Link></li>
-                <li><Link to="/register" className="hover:text-brand-gold transition-colors">Matric Science</Link></li>
+                <li>
+                  <a
+                    href="#contact"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    F.Sc Pre-Medical
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#contact"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    F.Sc Pre-Engineering
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#contact"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Computer Science
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#contact"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Matric Science
+                  </a>
+                </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">Quick Links</h4>
+              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">
+                Quick Links
+              </h4>
               <ul className="space-y-5 text-slate-400 font-medium text-lg">
-                <li><Link to="/student-portal" className="hover:text-brand-gold transition-colors">Student Portal</Link></li>
-                <li><Link to="/register" className="hover:text-brand-gold transition-colors">Online Admission</Link></li>
-                <li><a href="#faculty" className="hover:text-brand-gold transition-colors">Our Faculty</a></li>
-                <li><Link to="/login" className="hover:text-brand-gold transition-colors">Staff Login</Link></li>
+                <li>
+                  <Link
+                    to="/student-portal"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Student Portal
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="#contact"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Inquire About Admission
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#faculty"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Our Faculty
+                  </a>
+                </li>
+                <li>
+                  <Link
+                    to="/login"
+                    className="hover:text-brand-gold transition-colors"
+                  >
+                    Staff Login
+                  </Link>
+                </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">Newsletter</h4>
-              <p className="text-slate-400 text-base font-medium mb-8">Subscribe to get updates on admissions and academic calendars.</p>
+              <h4 className="text-sm font-bold mb-10 uppercase tracking-[0.3em] text-brand-gold">
+                Newsletter
+              </h4>
+              <p className="text-slate-400 text-base font-medium mb-8">
+                Subscribe to get updates on admissions and academic calendars.
+              </p>
               <div className="flex gap-3">
-                <Input className="h-14 bg-white/5 border-white/10 rounded-2xl px-6 text-white placeholder:text-slate-500 focus:ring-brand-gold focus:border-brand-gold" placeholder="Email Address" />
+                <Input
+                  className="h-14 bg-white/5 border-white/10 rounded-2xl px-6 text-white placeholder:text-slate-500 focus:ring-brand-gold focus:border-brand-gold"
+                  placeholder="Email Address"
+                />
                 <Button className="h-14 bg-brand-gold hover:bg-brand-gold/90 rounded-2xl px-8 shadow-lg shadow-brand-gold/20">
                   <Send className="h-5 w-5" />
                 </Button>
@@ -836,10 +1034,17 @@ export default function PublicLanding() {
           </div>
 
           <div className="pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
-            <p>© {new Date().getFullYear()} Genius Islamian's Academy. All Rights Reserved.</p>
+            <p>
+              © {new Date().getFullYear()} Genius Islamian's Academy. All Rights
+              Reserved.
+            </p>
             <div className="flex gap-10">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-white transition-colors">
+                Privacy Policy
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Terms of Service
+              </a>
             </div>
           </div>
         </div>

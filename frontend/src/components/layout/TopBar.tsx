@@ -1,8 +1,7 @@
-import { Bell, Search, User, LogOut, X } from "lucide-react";
+import { Bell, User, LogOut, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +13,15 @@ import {
 import { useAuth } from "@/context/AuthContext";
 
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('.app.github.dev')) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname.includes(".app.github.dev")
+  ) {
     const hostname = window.location.hostname;
-    const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, '');
+    const codespaceBase = hostname.replace(/-\d+\.app\.github\.dev$/, "");
     return `https://${codespaceBase}-5000.app.github.dev/api`;
   }
-  return 'http://localhost:5000/api';
+  return "http://localhost:5000/api";
 };
 const API_BASE_URL = getApiBaseUrl();
 
@@ -135,15 +137,6 @@ export function TopBar({ title }: TopBarProps) {
       <h1 className="text-xl font-semibold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-4">
-        {/* Search */}
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="w-64 pl-9 bg-secondary border-0"
-          />
-        </div>
-
         {/* Notifications - OWNER ONLY */}
         {user?.role === "OWNER" && (
           <div className="relative" ref={notificationRef}>

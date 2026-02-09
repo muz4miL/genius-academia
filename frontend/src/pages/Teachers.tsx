@@ -13,7 +13,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { UserPlus, Loader2, Trash2, Wallet } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  UserPlus,
+  Loader2,
+  Trash2,
+  KeyRound,
+  Eye as EyeIcon,
+  EyeOff,
+  Copy,
+  CheckCircle2,
+  Printer,
+} from "lucide-react";
 // Import the Modals and API
 import { AddTeacherModal } from "@/components/dashboard/AddTeacherModal";
 import { ViewEditTeacherModal } from "@/components/dashboard/ViewEditTeacherModal";
@@ -21,58 +38,6 @@ import { DeleteTeacherDialog } from "@/components/dashboard/DeleteTeacherDialog"
 import { TeacherFinanceModal } from "@/components/dashboard/TeacherFinanceModal";
 import { teacherApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-
-// Helper function to format numbers with k suffix
-const formatCurrency = (amount: number) => {
-  if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(0)}k`;
-  }
-  return amount.toLocaleString();
-};
-
-// Helper function to format compensation display with premium styling
-const formatCompensation = (compensation: any) => {
-  // Only use default if compensation object doesn't exist at all
-  if (!compensation || !compensation.type) {
-    return "70 : 30 %";
-  }
-
-  const {
-    type,
-    teacherShare,
-    academyShare,
-    fixedSalary,
-    baseSalary,
-    profitShare,
-  } = compensation;
-
-  if (type === "percentage") {
-    // Check for null/undefined, NOT falsy (0 is valid!)
-    if (
-      teacherShare !== null &&
-      teacherShare !== undefined &&
-      academyShare !== null &&
-      academyShare !== undefined
-    ) {
-      // Display ACTUAL values, even if 0
-      return `${teacherShare} : ${academyShare} %`;
-    }
-    // Only fall back if values are truly missing
-    return "70 : 30 %";
-  } else if (type === "fixed") {
-    if (fixedSalary) {
-      return `PKR ${formatCurrency(fixedSalary)}`;
-    }
-    return "Fixed Salary";
-  } else if (type === "hybrid") {
-    if (baseSalary && profitShare) {
-      return `PKR ${formatCurrency(baseSalary)} + ${profitShare}%`;
-    }
-    return "Hybrid Package";
-  }
-
-  return "Not Set";
-};
 
 // Helper function to capitalize subject names
 const capitalizeSubject = (subject: string) => {
@@ -100,6 +65,12 @@ const Teachers = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFinanceModalOpen, setIsFinanceModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any | null>(null);
+
+  // Credential Modal State
+  const [isCredentialModalOpen, setIsCredentialModalOpen] = useState(false);
+  const [credentialTeacher, setCredentialTeacher] = useState<any | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedCredField, setCopiedCredField] = useState<string | null>(null);
 
   // Fetch teachers from MongoDB using React Query
   const { data: teachersResponse, isLoading } = useQuery({
@@ -163,6 +134,57 @@ const Teachers = () => {
   const confirmDelete = () => {
     if (selectedTeacher?._id) {
       deleteTeacherMutation.mutate(selectedTeacher._id);
+    }
+  };
+
+  // Credential modal handlers
+  const handleShowCredentials = (teacher: any) => {
+    setCredentialTeacher(teacher);
+    setShowPassword(false);
+    setCopiedCredField(null);
+    setIsCredentialModalOpen(true);
+  };
+
+  const copyCredential = async (text: string, field: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedCredField(field);
+    setTimeout(() => setCopiedCredField(null), 2000);
+  };
+
+  const handlePrintLoginSlip = () => {
+    if (!credentialTeacher) return;
+    const username = `teacher.${credentialTeacher.subject || "staff"}`;
+    const slipWindow = window.open("", "_blank", "width=400,height=500");
+    if (slipWindow) {
+      slipWindow.document.write(`
+        <html>
+          <head><title>Login Slip - ${credentialTeacher.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
+            .header { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+            .sub { color: #666; font-size: 12px; margin-bottom: 24px; }
+            .field { text-align: left; margin: 16px 0; padding: 12px; background: #f9f9f9; border-radius: 8px; }
+            .label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+            .value { font-size: 16px; font-weight: bold; font-family: monospace; margin-top: 4px; }
+            .warning { margin-top: 24px; font-size: 11px; color: #d97706; padding: 12px; background: #fffbeb; border-radius: 8px; }
+            .footer { margin-top: 24px; font-size: 10px; color: #aaa; }
+          </style></head>
+          <body>
+            <div class="header">Genius Islamian's Academy</div>
+            <div class="sub">Staff Login Credentials</div>
+            <hr/>
+            <div class="field"><div class="label">Name</div><div class="value">${credentialTeacher.name}</div></div>
+            <div class="field"><div class="label">Subject</div><div class="value">${capitalizeSubject(credentialTeacher.subject || "N/A")}</div></div>
+            <div class="field"><div class="label">Username</div><div class="value">${username}</div></div>
+            <div class="field"><div class="label">Password</div><div class="value">${credentialTeacher.plainPassword || "Set at creation — contact admin"}</div></div>
+            <div class="field"><div class="label">Role</div><div class="value">Teacher / Staff</div></div>
+            <div class="warning">⚠️ Keep this slip secure. Do not share your password with anyone.</div>
+            <div class="footer">Generated on ${new Date().toLocaleDateString()}</div>
+            <script>window.onload = function() { window.print(); }</script>
+          </body>
+        </html>
+      `);
+      slipWindow.document.close();
     }
   };
 
@@ -255,26 +277,9 @@ const Teachers = () => {
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {teacher ? (
-                        <>
-                          Compensation:{" "}
-                          <span className="font-medium text-success">
-                            {teacher.compensation?.type === "percentage" &&
-                            teacher.compensation?.teacherShare !== null &&
-                            teacher.compensation?.teacherShare !== undefined &&
-                            teacher.compensation?.academyShare !== null &&
-                            teacher.compensation?.academyShare !== undefined ? (
-                              <span>
-                                {teacher.compensation.teacherShare} :{" "}
-                                <span className="text-muted-foreground">
-                                  {teacher.compensation.academyShare}
-                                </span>{" "}
-                                %
-                              </span>
-                            ) : (
-                              formatCompensation(teacher.compensation)
-                            )}
-                          </span>
-                        </>
+                        <span className="text-xs font-medium text-foreground">
+                          {teacher.status === "active" ? "Active" : "Inactive"}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">
                           No teacher assigned
@@ -328,7 +333,6 @@ const Teachers = () => {
                 <TableHead className="font-semibold">Subject</TableHead>
                 <TableHead className="font-semibold">Contact</TableHead>
                 <TableHead className="font-semibold">Joining Date</TableHead>
-                <TableHead className="font-semibold">Compensation</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="font-semibold text-right">
                   Actions
@@ -400,43 +404,19 @@ const Teachers = () => {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <div className="font-medium text-success text-sm">
-                        {teacher.compensation?.type === "percentage" &&
-                        teacher.compensation?.teacherShare !== null &&
-                        teacher.compensation?.teacherShare !== undefined &&
-                        teacher.compensation?.academyShare !== null &&
-                        teacher.compensation?.academyShare !== undefined ? (
-                          <span>
-                            {teacher.compensation.teacherShare} :{" "}
-                            <span className="text-muted-foreground">
-                              {teacher.compensation.academyShare}
-                            </span>{" "}
-                            %
-                          </span>
-                        ) : (
-                          formatCompensation(teacher.compensation)
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {teacher.compensation?.type || "Not Set"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
                     <StatusBadge status={teacher.status} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
-                      {/* Wallet Button */}
+                      {/* Credentials Button */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 hover:bg-green-100 hover:text-green-600"
-                        onClick={() => handleWallet(teacher)}
-                        title="Finance Manager"
+                        className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
+                        onClick={() => handleShowCredentials(teacher)}
+                        title="View Credentials"
                       >
-                        <Wallet className="h-4 w-4" />
+                        <KeyRound className="h-4 w-4" />
                       </Button>
 
                       {/* View Button */}
@@ -536,6 +516,144 @@ const Teachers = () => {
         onOpenChange={setIsFinanceModalOpen}
         teacher={selectedTeacher}
       />
+
+      {/* Credential Modal */}
+      <Dialog
+        open={isCredentialModalOpen}
+        onOpenChange={setIsCredentialModalOpen}
+      >
+        <DialogContent className="sm:max-w-[440px] overflow-hidden p-0">
+          <div className="bg-gradient-to-br from-amber-50 to-white p-6 text-center border-b border-amber-100">
+            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="h-7 w-7" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-gray-900">
+              Teacher Credentials
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 mt-1 text-sm">
+              {credentialTeacher?.name} — Staff login details
+            </DialogDescription>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {/* Username */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Username
+              </Label>
+              <div className="flex">
+                <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg font-mono text-sm text-gray-700">
+                  {`teacher.${credentialTeacher?.subject || "staff"}`}
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-l-none border border-l-0 border-gray-200 h-auto"
+                  onClick={() =>
+                    copyCredential(
+                      `teacher.${credentialTeacher?.subject || "staff"}`,
+                      "username",
+                    )
+                  }
+                >
+                  {copiedCredField === "username" ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Password
+              </Label>
+              <div className="flex">
+                <div className="flex-1 px-4 py-2.5 bg-amber-50 border border-r-0 border-amber-100 rounded-l-lg font-mono text-sm text-amber-900">
+                  {credentialTeacher?.plainPassword
+                    ? showPassword
+                      ? credentialTeacher.plainPassword
+                      : "••••••••"
+                    : "Set at creation"}
+                </div>
+                {credentialTeacher?.plainPassword && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="rounded-none border-y border-amber-200 bg-amber-50 hover:bg-amber-100 h-auto"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-amber-700" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4 text-amber-700" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="rounded-l-none border border-l-0 border-amber-200 bg-amber-50 hover:bg-amber-100 h-auto"
+                      onClick={() =>
+                        copyCredential(
+                          credentialTeacher?.plainPassword || "",
+                          "password",
+                        )
+                      }
+                    >
+                      {copiedCredField === "password" ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4 text-amber-700" />
+                      )}
+                    </Button>
+                  </>
+                )}
+                {!credentialTeacher?.plainPassword && (
+                  <div className="px-3 py-2.5 bg-gray-100 border border-l-0 border-gray-200 rounded-r-lg">
+                    <span className="text-xs text-gray-400">N/A</span>
+                  </div>
+                )}
+              </div>
+              {!credentialTeacher?.plainPassword && (
+                <p className="text-xs text-amber-600">
+                  Password was shown once at creation time. Contact admin to
+                  reset.
+                </p>
+              )}
+            </div>
+
+            {/* Role */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Role
+              </Label>
+              <div className="px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-lg text-sm font-medium text-blue-700">
+                Teacher / Staff
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 pt-0 flex gap-3">
+            <Button
+              variant="outline"
+              onClick={handlePrintLoginSlip}
+              className="flex-1"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print Login Slip
+            </Button>
+            <Button
+              onClick={() => setIsCredentialModalOpen(false)}
+              className="flex-1 bg-primary hover:bg-primary/90"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

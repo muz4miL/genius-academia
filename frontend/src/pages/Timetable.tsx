@@ -29,73 +29,98 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Clock, Plus, Loader2, Edit, Trash2, MapPin, Search, User } from "lucide-react";
+import {
+  Clock,
+  Plus,
+  Loader2,
+  Edit,
+  Trash2,
+  MapPin,
+  Search,
+  User,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { timetableApi, classApi, teacherApi } from "@/lib/api";
 import { toast } from "sonner";
 
 // Days of the week
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 // Time slots for the grid
 const TIME_SLOTS = [
-  '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-  '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'
+  "08:00 AM",
+  "09:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "01:00 PM",
+  "02:00 PM",
+  "03:00 PM",
+  "04:00 PM",
+  "05:00 PM",
+  "06:00 PM",
 ];
 
 // Subject options
-const SUBJECTS = ['Biology', 'Chemistry', 'Physics', 'Mathematics', 'English'];
+const SUBJECTS = ["Biology", "Chemistry", "Physics", "Mathematics", "English"];
 
 // TASK 1: Subject-specific pastel colors
 const getSubjectStyles = (subject: string) => {
-  const subjectLower = subject?.toLowerCase() || '';
+  const subjectLower = subject?.toLowerCase() || "";
 
-  if (subjectLower.includes('biology')) {
+  if (subjectLower.includes("biology")) {
     return {
-      bg: 'bg-gradient-to-br from-emerald-100 to-emerald-200',
-      border: 'border-emerald-300',
-      text: 'text-emerald-800',
-      subtext: 'text-emerald-600',
+      bg: "bg-gradient-to-br from-emerald-100 to-emerald-200",
+      border: "border-emerald-300",
+      text: "text-emerald-800",
+      subtext: "text-emerald-600",
     };
   }
-  if (subjectLower.includes('physics')) {
+  if (subjectLower.includes("physics")) {
     return {
-      bg: 'bg-gradient-to-br from-amber-100 to-amber-200',
-      border: 'border-amber-300',
-      text: 'text-sky-800',
-      subtext: 'text-amber-600',
+      bg: "bg-gradient-to-br from-amber-100 to-amber-200",
+      border: "border-amber-300",
+      text: "text-sky-800",
+      subtext: "text-amber-600",
     };
   }
-  if (subjectLower.includes('math')) {
+  if (subjectLower.includes("math")) {
     return {
-      bg: 'bg-gradient-to-br from-purple-100 to-purple-200',
-      border: 'border-purple-300',
-      text: 'text-purple-800',
-      subtext: 'text-purple-600',
+      bg: "bg-gradient-to-br from-purple-100 to-purple-200",
+      border: "border-purple-300",
+      text: "text-purple-800",
+      subtext: "text-purple-600",
     };
   }
-  if (subjectLower.includes('english')) {
+  if (subjectLower.includes("english")) {
     return {
-      bg: 'bg-gradient-to-br from-rose-100 to-rose-200',
-      border: 'border-rose-300',
-      text: 'text-rose-800',
-      subtext: 'text-rose-600',
+      bg: "bg-gradient-to-br from-rose-100 to-rose-200",
+      border: "border-rose-300",
+      text: "text-rose-800",
+      subtext: "text-rose-600",
     };
   }
-  if (subjectLower.includes('chemistry')) {
+  if (subjectLower.includes("chemistry")) {
     return {
-      bg: 'bg-gradient-to-br from-amber-100 to-amber-200',
-      border: 'border-amber-300',
-      text: 'text-amber-800',
-      subtext: 'text-amber-600',
+      bg: "bg-gradient-to-br from-amber-100 to-amber-200",
+      border: "border-amber-300",
+      text: "text-amber-800",
+      subtext: "text-amber-600",
     };
   }
   // Default sky blue
   return {
-    bg: 'bg-gradient-to-br from-slate-100 to-slate-200',
-    border: 'border-slate-300',
-    text: 'text-slate-800',
-    subtext: 'text-slate-600',
+    bg: "bg-gradient-to-br from-slate-100 to-slate-200",
+    border: "border-slate-300",
+    text: "text-slate-800",
+    subtext: "text-slate-600",
   };
 };
 
@@ -104,6 +129,9 @@ const Timetable = () => {
 
   // TASK 2: Speed-Search filter state
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Class filter state
+  const [filterClassId, setFilterClassId] = useState("all");
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -142,12 +170,23 @@ const Timetable = () => {
   const classes = classesData?.data || [];
   const teachers = teachersData?.data || [];
 
+  // Filter entries by class
+  const filteredEntries =
+    filterClassId === "all"
+      ? entries
+      : entries.filter((entry: any) => {
+          const entryClassId = entry.classId?._id || entry.classId;
+          return entryClassId === filterClassId;
+        });
+
   // Create mutation
   const createEntryMutation = useMutation({
     mutationFn: timetableApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["timetable"] });
-      toast.success("Entry Created", { description: "Timetable entry added successfully." });
+      toast.success("Entry Created", {
+        description: "Timetable entry added successfully.",
+      });
       resetForm();
       setIsAddModalOpen(false);
     },
@@ -158,7 +197,8 @@ const Timetable = () => {
 
   // Update mutation
   const updateEntryMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => timetableApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      timetableApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["timetable"] });
       toast.success("Entry Updated");
@@ -220,7 +260,14 @@ const Timetable = () => {
   };
 
   const handleSubmitAdd = () => {
-    if (!formClassId || !formTeacherId || !formSubject || !formDay || !formStartTime || !formEndTime) {
+    if (
+      !formClassId ||
+      !formTeacherId ||
+      !formSubject ||
+      !formDay ||
+      !formStartTime ||
+      !formEndTime
+    ) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -253,25 +300,25 @@ const Timetable = () => {
 
   // Group entries by day for grid view
   const getEntriesForDayAndTime = (day: string, timeSlot: string) => {
-    return entries.filter((entry: any) => {
+    return filteredEntries.filter((entry: any) => {
       return entry.day === day && entry.startTime === timeSlot;
     });
   };
 
   // Get class display name
   const getClassDisplay = (entry: any) => {
-    if (entry.classId && typeof entry.classId === 'object') {
+    if (entry.classId && typeof entry.classId === "object") {
       return `${entry.classId.className} - ${entry.classId.section}`;
     }
-    return 'Unknown Class';
+    return "Unknown Class";
   };
 
   // Get teacher display name
   const getTeacherDisplay = (entry: any) => {
-    if (entry.teacherId && typeof entry.teacherId === 'object') {
+    if (entry.teacherId && typeof entry.teacherId === "object") {
       return entry.teacherId.name;
     }
-    return 'Unknown Teacher';
+    return "Unknown Teacher";
   };
 
   // TASK 2: Check if entry matches search term
@@ -281,20 +328,27 @@ const Timetable = () => {
     const term = searchTerm.toLowerCase();
     const teacherName = getTeacherDisplay(entry).toLowerCase();
     const className = getClassDisplay(entry).toLowerCase();
-    const subject = (entry.subject || '').toLowerCase();
+    const subject = (entry.subject || "").toLowerCase();
 
-    return teacherName.includes(term) || className.includes(term) || subject.includes(term);
+    return (
+      teacherName.includes(term) ||
+      className.includes(term) ||
+      subject.includes(term)
+    );
   };
 
   return (
     <DashboardLayout title="Timetable">
       <HeaderBanner
         title="Weekly Timetable"
-        subtitle={`Total Entries: ${entries.length}`}
+        subtitle={`Showing ${filteredEntries.length} of ${entries.length} entries`}
       >
         <Button
           className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-          onClick={() => { resetForm(); setIsAddModalOpen(true); }}
+          onClick={() => {
+            resetForm();
+            setIsAddModalOpen(true);
+          }}
           style={{ borderRadius: "0.75rem" }}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -302,8 +356,24 @@ const Timetable = () => {
         </Button>
       </HeaderBanner>
 
-      {/* TASK 2: Speed-Search Filter */}
+      {/* Class Filter & Speed-Search */}
       <div className="mt-6 flex flex-wrap items-center gap-4">
+        <div className="w-[220px]">
+          <Select value={filterClassId} onValueChange={setFilterClassId}>
+            <SelectTrigger className="bg-card border-border">
+              <SelectValue placeholder="Filter by class" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Classes</SelectItem>
+              {classes.map((cls: any) => (
+                <SelectItem key={cls._id} value={cls._id}>
+                  {cls.classTitle || cls.className} (
+                  {cls.gradeLevel || cls.section})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="relative flex-1 min-w-[280px] max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -315,7 +385,8 @@ const Timetable = () => {
         </div>
         {searchTerm && (
           <p className="text-sm text-muted-foreground">
-            Highlighting: <span className="font-semibold text-amber-600">"{searchTerm}"</span>
+            Highlighting:{" "}
+            <span className="font-semibold text-amber-600">"{searchTerm}"</span>
           </p>
         )}
       </div>
@@ -351,6 +422,17 @@ const Timetable = () => {
           <div className="flex items-center justify-center p-12 bg-card rounded-xl border border-border">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : filteredEntries.length === 0 && filterClassId !== "all" ? (
+          <div className="flex flex-col items-center justify-center p-16 bg-card rounded-xl border border-border text-center">
+            <Clock className="h-12 w-12 text-muted-foreground/40 mb-4" />
+            <p className="text-lg font-semibold text-foreground mb-1">
+              No schedule set for this class yet
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Click "Add Entry" above to create the first timetable entry for
+              this class.
+            </p>
+          </div>
         ) : (
           <div className="min-w-[1000px] rounded-xl border border-border bg-card overflow-hidden">
             {/* Grid Header - Days */}
@@ -360,7 +442,10 @@ const Timetable = () => {
                 Time
               </div>
               {DAYS.map((day) => (
-                <div key={day} className="p-3 text-center font-semibold border-r border-amber-500 last:border-r-0">
+                <div
+                  key={day}
+                  className="p-3 text-center font-semibold border-r border-amber-500 last:border-r-0"
+                >
                   {day}
                 </div>
               ))}
@@ -370,7 +455,7 @@ const Timetable = () => {
             {TIME_SLOTS.map((timeSlot, idx) => (
               <div
                 key={timeSlot}
-                className={`grid grid-cols-7 border-b border-border last:border-b-0 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}`}
+                className={`grid grid-cols-7 border-b border-border last:border-b-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-800/50"}`}
               >
                 {/* Time Column */}
                 <div className="p-3 text-center text-sm font-medium text-muted-foreground border-r border-border bg-slate-100 dark:bg-slate-800">
@@ -382,7 +467,10 @@ const Timetable = () => {
                   const dayEntries = getEntriesForDayAndTime(day, timeSlot);
 
                   return (
-                    <div key={`${day}-${timeSlot}`} className="p-1 min-h-[90px] border-r border-border last:border-r-0">
+                    <div
+                      key={`${day}-${timeSlot}`}
+                      className="p-1 min-h-[90px] border-r border-border last:border-r-0"
+                    >
                       {dayEntries.map((entry: any) => {
                         const styles = getSubjectStyles(entry.subject);
                         const isHighlighted = isEntryHighlighted(entry);
@@ -390,36 +478,47 @@ const Timetable = () => {
                         return (
                           <div
                             key={entry._id}
-                            className={`group relative rounded-lg p-2.5 mb-1 cursor-pointer border transition-all duration-200 hover:shadow-md hover:scale-[1.02] ${styles.bg} ${styles.border} ${!isHighlighted ? 'opacity-30' : ''
-                              }`}
+                            className={`group relative rounded-lg p-2.5 mb-1 cursor-pointer border transition-all duration-200 hover:shadow-md hover:scale-[1.02] ${styles.bg} ${styles.border} ${
+                              !isHighlighted ? "opacity-30" : ""
+                            }`}
                             onClick={() => handleEdit(entry)}
                           >
                             {/* Subject - Bold */}
-                            <div className={`font-bold text-sm truncate ${styles.text}`}>
+                            <div
+                              className={`font-bold text-sm truncate ${styles.text}`}
+                            >
                               {entry.subject}
                             </div>
 
                             {/* Class */}
-                            <div className={`text-xs truncate mt-0.5 ${styles.subtext}`}>
+                            <div
+                              className={`text-xs truncate mt-0.5 ${styles.subtext}`}
+                            >
                               {getClassDisplay(entry)}
                             </div>
 
                             {/* Teacher - Secondary */}
-                            <div className={`text-xs truncate flex items-center gap-1 mt-0.5 ${styles.subtext} opacity-75`}>
+                            <div
+                              className={`text-xs truncate flex items-center gap-1 mt-0.5 ${styles.subtext} opacity-75`}
+                            >
                               <User className="h-3 w-3" />
                               {getTeacherDisplay(entry)}
                             </div>
 
                             {/* Room with Location Icon */}
                             {entry.room && (
-                              <div className={`text-[10px] flex items-center gap-0.5 mt-1 ${styles.subtext} opacity-60`}>
+                              <div
+                                className={`text-[10px] flex items-center gap-0.5 mt-1 ${styles.subtext} opacity-60`}
+                              >
                                 <MapPin className="h-2.5 w-2.5" />
                                 {entry.room}
                               </div>
                             )}
 
                             {/* Time Range */}
-                            <div className={`text-[10px] mt-1 ${styles.subtext} opacity-60`}>
+                            <div
+                              className={`text-[10px] mt-1 ${styles.subtext} opacity-60`}
+                            >
                               {entry.startTime} - {entry.endTime}
                             </div>
 
@@ -745,12 +844,16 @@ const Timetable = () => {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Timetable Entry?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this scheduled class? This action cannot be undone.
+              Are you sure you want to remove this scheduled class? This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -760,7 +863,8 @@ const Timetable = () => {
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                if (selectedEntry?._id) deleteEntryMutation.mutate(selectedEntry._id);
+                if (selectedEntry?._id)
+                  deleteEntryMutation.mutate(selectedEntry._id);
               }}
               disabled={deleteEntryMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

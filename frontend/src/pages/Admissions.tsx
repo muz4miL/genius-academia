@@ -108,6 +108,7 @@ const Admissions = () => {
   // Form state
   const [studentName, setStudentName] = useState("");
   const [fatherName, setFatherName] = useState("");
+  const [gender, setGender] = useState("Male");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [group, setGroup] = useState("");
@@ -115,6 +116,7 @@ const Admissions = () => {
   const [parentCell, setParentCell] = useState("");
   const [studentCell, setStudentCell] = useState("");
   const [address, setAddress] = useState("");
+  const [referralSource, setReferralSource] = useState("");
   const [admissionDate, setAdmissionDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -125,7 +127,7 @@ const Admissions = () => {
   // TASK 4: Custom Fee Toggle (Lump Sum mode)
   const [isCustomFeeMode, setIsCustomFeeMode] = useState(false);
 
-  // WAQAR PROTOCOL V2: Session-Based Pricing
+  // Session-Based Pricing
   const [sessionPrice, setSessionPrice] = useState<number | null>(null);
   const [isSessionPriceMode, setIsSessionPriceMode] = useState(false);
   const [sessionPriceLoading, setSessionPriceLoading] = useState(false);
@@ -161,6 +163,7 @@ const Admissions = () => {
         const draft = JSON.parse(savedDraft);
         setStudentName(draft.studentName || "");
         setFatherName(draft.fatherName || "");
+        setGender(draft.gender || "Male");
         setSelectedClassId(draft.selectedClassId || "");
         setSelectedSessionId(draft.selectedSessionId || "");
         setGroup(draft.group || "");
@@ -168,6 +171,7 @@ const Admissions = () => {
         setParentCell(draft.parentCell || "");
         setStudentCell(draft.studentCell || "");
         setAddress(draft.address || "");
+        setReferralSource(draft.referralSource || "");
         setAdmissionDate(
           draft.admissionDate || new Date().toISOString().split("T")[0],
         );
@@ -192,6 +196,7 @@ const Admissions = () => {
     const draft = {
       studentName,
       fatherName,
+      gender,
       selectedClassId,
       selectedSessionId,
       group,
@@ -199,6 +204,7 @@ const Admissions = () => {
       parentCell,
       studentCell,
       address,
+      referralSource,
       admissionDate,
       totalFee,
       paidAmount,
@@ -244,7 +250,7 @@ const Admissions = () => {
     }
   }, [sessions]);
 
-  // WAQAR PROTOCOL V2: Fetch session price when session changes
+  // Fetch session price when session changes
   useEffect(() => {
     const fetchSessionPrice = async () => {
       // Reset if no session selected
@@ -260,7 +266,7 @@ const Admissions = () => {
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/config/session-price/${selectedSessionId}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
 
         if (response.ok) {
@@ -382,9 +388,16 @@ const Admissions = () => {
       const calculatedFee = calculateSubjectBasedFee();
       setTotalFee(String(calculatedFee));
     }
-  }, [selectedSubjects, selectedClassId, isCustomFeeMode, globalSubjectFees, isSessionPriceMode, sessionPrice]);
+  }, [
+    selectedSubjects,
+    selectedClassId,
+    isCustomFeeMode,
+    globalSubjectFees,
+    isSessionPriceMode,
+    sessionPrice,
+  ]);
 
-  // WAQAR PROTOCOL V2: Calculate Discount when Custom Fee is used
+  // Calculate Discount when Custom Fee is used
   useEffect(() => {
     if (isCustomFeeMode && sessionPrice && sessionPrice > 0) {
       const customFee = Number(totalFee) || 0;
@@ -397,7 +410,12 @@ const Admissions = () => {
 
   // Reset to session rate when custom mode is disabled
   useEffect(() => {
-    if (!isCustomFeeMode && isSessionPriceMode && sessionPrice && sessionPrice > 0) {
+    if (
+      !isCustomFeeMode &&
+      isSessionPriceMode &&
+      sessionPrice &&
+      sessionPrice > 0
+    ) {
       setTotalFee(String(sessionPrice));
       setDiscountAmount(0);
     }
@@ -536,7 +554,7 @@ const Admissions = () => {
     }
 
     // ZERO-FEE PREVENTION: Warn if no payment received (for active students)
-    if (paidAmountNum === 0 && studentStatus === "active") {
+    if (paidAmountNum === 0) {
       toast.error("No Fee Received", {
         description:
           "Active students must have an initial fee payment. Set status to 'inactive' if this is intentional.",
@@ -549,11 +567,16 @@ const Admissions = () => {
 
     // Calculate discount if custom fee mode is active (Session-Based Pricing)
     let calculatedDiscount = 0;
-    if (isCustomFeeMode && isSessionPriceMode && sessionPrice && sessionPrice > 0) {
+    if (
+      isCustomFeeMode &&
+      isSessionPriceMode &&
+      sessionPrice &&
+      sessionPrice > 0
+    ) {
       const customTotal = Number(totalFee);
       calculatedDiscount = Math.max(0, sessionPrice - customTotal);
       console.log(
-        `🎓 Session Discount Calculation: Session Rate ${sessionPrice} - Custom ${customTotal} = ${calculatedDiscount}`
+        `🎓 Session Discount Calculation: Session Rate ${sessionPrice} - Custom ${customTotal} = ${calculatedDiscount}`,
       );
     }
 
@@ -581,17 +604,20 @@ const Admissions = () => {
     const studentData = {
       studentName,
       fatherName,
+      gender,
       class: classTitle,
       group,
       subjects: subjectsWithFees, // Send as array of {name, fee} objects
       parentCell,
       studentCell: studentCell || undefined,
       address: address || undefined,
+      referralSource: referralSource || undefined,
       admissionDate: new Date(admissionDate),
       totalFee: Number(totalFee),
       paidAmount: Number(paidAmount) || 0,
       discountAmount: calculatedDiscount, // Session-based discount
-      sessionRate: isSessionPriceMode && sessionPrice ? sessionPrice : undefined, // Original session rate
+      sessionRate:
+        isSessionPriceMode && sessionPrice ? sessionPrice : undefined, // Original session rate
       classRef: selectedClassId,
       sessionRef: selectedSessionId || undefined,
       photo: photo || undefined,
@@ -647,6 +673,7 @@ const Admissions = () => {
   const handleCancel = () => {
     setStudentName("");
     setFatherName("");
+    setGender("Male");
     setSelectedClassId("");
     setSelectedSessionId("");
     setGroup("");
@@ -654,6 +681,7 @@ const Admissions = () => {
     setParentCell("");
     setStudentCell("");
     setAddress("");
+    setReferralSource("");
     setAdmissionDate(new Date().toISOString().split("T")[0]);
     setTotalFee("");
     setPaidAmount("");
@@ -751,6 +779,33 @@ const Admissions = () => {
                   value={fatherName}
                   onChange={(e) => setFatherName(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender *</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+                {/* Smart Seat Assignment Badge */}
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                    gender === "Female"
+                      ? "bg-pink-50 text-pink-700 border border-pink-200"
+                      : "bg-sky-50 text-sky-700 border border-sky-200"
+                  }`}
+                >
+                  <span>🪑</span>
+                  <span>
+                    Auto-Assigning to {gender === "Female" ? "Left" : "Right"}{" "}
+                    Wing
+                  </span>
+                </div>
               </div>
 
               {/* Session Dropdown - Show All Sessions */}
@@ -852,7 +907,8 @@ const Admissions = () => {
                     <Label>Select Subjects</Label>
                     {selectedSubjects.length > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        {selectedSubjects.length} subject{selectedSubjects.length !== 1 ? 's' : ''} selected
+                        {selectedSubjects.length} subject
+                        {selectedSubjects.length !== 1 ? "s" : ""} selected
                       </span>
                     )}
                   </div>
@@ -865,10 +921,11 @@ const Admissions = () => {
                       return (
                         <div
                           key={subject.name}
-                          className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${isSelected
-                            ? "border-sky-500 bg-sky-50"
-                            : "border-border hover:border-sky-300"
-                            }`}
+                          className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-sky-500 bg-sky-50"
+                              : "border-border hover:border-sky-300"
+                          }`}
                           onClick={() => handleSubjectToggle(subject.name)}
                         >
                           <Checkbox
@@ -887,7 +944,8 @@ const Admissions = () => {
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Select subjects the student will study. Fee is based on session rate.
+                    Select subjects the student will study. Fee is based on
+                    session rate.
                   </p>
                 </div>
               )}
@@ -922,6 +980,49 @@ const Admissions = () => {
                   onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="referralSource">
+                  How did you hear about us?
+                </Label>
+                <Select
+                  value={referralSource}
+                  onValueChange={setReferralSource}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Select a source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="friend_family">
+                      Friend / Family Referral
+                    </SelectItem>
+                    <SelectItem value="current_student">
+                      Current Student
+                    </SelectItem>
+                    <SelectItem value="teacher_referral">
+                      Teacher Referral
+                    </SelectItem>
+                    <SelectItem value="social_media">
+                      Social Media (Facebook, Instagram)
+                    </SelectItem>
+                    <SelectItem value="google">Google Search</SelectItem>
+                    <SelectItem value="banner_poster">
+                      Banner / Poster
+                    </SelectItem>
+                    <SelectItem value="newspaper">Newspaper Ad</SelectItem>
+                    <SelectItem value="walk_in">
+                      Walk-in / Nearby Resident
+                    </SelectItem>
+                    <SelectItem value="school_visit">
+                      School Visit / Seminar
+                    </SelectItem>
+                    <SelectItem value="whatsapp_group">
+                      WhatsApp Group
+                    </SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
@@ -944,16 +1045,21 @@ const Admissions = () => {
                 />
               </div>
 
-              {/* WAQAR PROTOCOL V2: Custom Fee / Scholarship Toggle */}
+              {/* Custom Fee / Scholarship Toggle */}
               {isSessionPriceMode && sessionPrice && sessionPrice > 0 && (
-                <div className={`flex items-center justify-between p-3 rounded-lg border ${isCustomFeeMode
-                  ? "border-amber-400 bg-amber-50"
-                  : "border-border bg-secondary/50"
-                  }`}>
+                <div
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    isCustomFeeMode
+                      ? "border-amber-400 bg-amber-50"
+                      : "border-border bg-secondary/50"
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-amber-600" />
                     <div>
-                      <p className="text-sm font-medium">Apply Discount / Scholarship</p>
+                      <p className="text-sm font-medium">
+                        Apply Discount / Scholarship
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Session Rate: PKR {sessionPrice.toLocaleString()}
                       </p>
@@ -1005,26 +1111,35 @@ const Admissions = () => {
                     placeholder="0"
                     value={totalFee}
                     onChange={(e) => setTotalFee(e.target.value)}
-                    readOnly={!isCustomFeeMode && (selectedSubjects.length > 0 || isSessionPriceMode)}
-                    className={`${isCustomFeeMode
-                      ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200"
-                      : isSessionPriceMode && sessionPrice && sessionPrice > 0
-                        ? "border-emerald-400 bg-emerald-50 cursor-not-allowed font-bold text-emerald-700"
-                        : !isCustomFeeMode && selectedSubjects.length > 0
-                          ? "border-sky-300 bg-sky-50 cursor-not-allowed"
-                          : ""
-                      }`}
+                    readOnly={
+                      !isCustomFeeMode &&
+                      (selectedSubjects.length > 0 || isSessionPriceMode)
+                    }
+                    className={`${
+                      isCustomFeeMode
+                        ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200"
+                        : isSessionPriceMode && sessionPrice && sessionPrice > 0
+                          ? "border-emerald-400 bg-emerald-50 cursor-not-allowed font-bold text-emerald-700"
+                          : !isCustomFeeMode && selectedSubjects.length > 0
+                            ? "border-sky-300 bg-sky-50 cursor-not-allowed"
+                            : ""
+                    }`}
                   />
-                  {!isCustomFeeMode && isSessionPriceMode && sessionPrice && sessionPrice > 0 && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                      <Package className="h-4 w-4 text-emerald-500" />
-                    </div>
-                  )}
-                  {!isCustomFeeMode && !isSessionPriceMode && selectedSubjects.length > 0 && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                      <Lock className="h-4 w-4 text-sky-500" />
-                    </div>
-                  )}
+                  {!isCustomFeeMode &&
+                    isSessionPriceMode &&
+                    sessionPrice &&
+                    sessionPrice > 0 && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <Package className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    )}
+                  {!isCustomFeeMode &&
+                    !isSessionPriceMode &&
+                    selectedSubjects.length > 0 && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <Lock className="h-4 w-4 text-sky-500" />
+                      </div>
+                    )}
                   {isCustomFeeMode && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
                       <Pencil className="h-4 w-4 text-amber-500" />
@@ -1033,21 +1148,32 @@ const Admissions = () => {
                 </div>
                 {/* Session Rate Summary with Discount */}
                 {isSessionPriceMode && sessionPrice && sessionPrice > 0 && (
-                  <div className={`mt-2 p-3 rounded-lg border ${isCustomFeeMode && discountAmount > 0
-                      ? "bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200"
-                      : "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200"
-                    }`}>
+                  <div
+                    className={`mt-2 p-3 rounded-lg border ${
+                      isCustomFeeMode && discountAmount > 0
+                        ? "bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200"
+                        : "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200"
+                    }`}
+                  >
                     <div className="flex items-center gap-2 mb-2">
-                      <Package className={`h-4 w-4 ${isCustomFeeMode && discountAmount > 0 ? "text-amber-600" : "text-emerald-600"}`} />
-                      <p className={`text-sm font-semibold ${isCustomFeeMode && discountAmount > 0 ? "text-amber-800" : "text-emerald-800"}`}>
-                        {isCustomFeeMode && discountAmount > 0 ? "Scholarship / Discount Applied" : "Session-Based Pricing"}
+                      <Package
+                        className={`h-4 w-4 ${isCustomFeeMode && discountAmount > 0 ? "text-amber-600" : "text-emerald-600"}`}
+                      />
+                      <p
+                        className={`text-sm font-semibold ${isCustomFeeMode && discountAmount > 0 ? "text-amber-800" : "text-emerald-800"}`}
+                      >
+                        {isCustomFeeMode && discountAmount > 0
+                          ? "Scholarship / Discount Applied"
+                          : "Session-Based Pricing"}
                       </p>
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-600">Session Rate</span>
-                        <span className={`font-medium ${isCustomFeeMode && discountAmount > 0 ? "line-through text-slate-400" : "text-slate-700"}`}>
+                        <span
+                          className={`font-medium ${isCustomFeeMode && discountAmount > 0 ? "line-through text-slate-400" : "text-slate-700"}`}
+                        >
                           PKR {sessionPrice.toLocaleString()}
                         </span>
                       </div>
@@ -1055,13 +1181,17 @@ const Admissions = () => {
                       {isCustomFeeMode && discountAmount > 0 && (
                         <>
                           <div className="flex justify-between items-center text-xs">
-                            <span className="text-green-600 font-medium">Discount</span>
+                            <span className="text-green-600 font-medium">
+                              Discount
+                            </span>
                             <span className="font-bold text-green-600">
                               -PKR {discountAmount.toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between items-center pt-1.5 border-t border-amber-200">
-                            <span className="text-sm font-semibold text-amber-800">Final Fee</span>
+                            <span className="text-sm font-semibold text-amber-800">
+                              Final Fee
+                            </span>
                             <span className="text-lg font-bold text-amber-700">
                               PKR {Number(totalFee).toLocaleString()}
                             </span>
@@ -1071,7 +1201,9 @@ const Admissions = () => {
 
                       {!isCustomFeeMode && (
                         <div className="flex justify-between items-center pt-1.5 border-t border-emerald-200">
-                          <span className="text-xs font-medium text-emerald-600">Total Fee</span>
+                          <span className="text-xs font-medium text-emerald-600">
+                            Total Fee
+                          </span>
                           <span className="text-lg font-bold text-emerald-700">
                             PKR {sessionPrice.toLocaleString()}
                           </span>
@@ -1082,14 +1214,17 @@ const Admissions = () => {
                 )}
 
                 {/* No Session Price Warning */}
-                {!isSessionPriceMode && selectedSessionId && !sessionPriceLoading && (
-                  <div className="mt-2 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                    <p className="text-xs text-yellow-700">
-                      <strong>Note:</strong> No session rate configured for this session.
-                      Please configure session pricing in Settings → Configuration.
-                    </p>
-                  </div>
-                )}
+                {!isSessionPriceMode &&
+                  selectedSessionId &&
+                  !sessionPriceLoading && (
+                    <div className="mt-2 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                      <p className="text-xs text-yellow-700">
+                        <strong>Note:</strong> No session rate configured for
+                        this session. Please configure session pricing in
+                        Settings → Configuration.
+                      </p>
+                    </div>
+                  )}
               </div>
 
               <div className="space-y-2">
@@ -1140,7 +1275,7 @@ const Admissions = () => {
                   placeholder="0"
                   value={balance}
                   disabled
-                  className="bg-secondary"
+                  className="bg-gray-100 text-foreground font-semibold"
                 />
               </div>
 

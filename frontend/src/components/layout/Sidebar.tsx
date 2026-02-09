@@ -18,6 +18,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
+// Logo: Use src/assets/logo.png if available, fallback to public/logo.png
+const logoSrc = "/logo.png";
+
 // Navigation items with permission keys - SRS 2.0 Compliant
 // KEPT: Dashboard, Admissions, Students, Teachers, Finance, Classes, Timetable, Sessions, Configuration, Payroll
 const navItems = [
@@ -114,7 +117,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex flex-col items-center gap-2">
             <img
-              src="/logo.png"
+              src={logoSrc}
               alt="Genius Islamian's Academy"
               className="h-20 w-auto object-contain"
             />
@@ -125,7 +128,7 @@ export function Sidebar() {
         )}
         {collapsed && (
           <img
-            src="/logo.png"
+            src={logoSrc}
             alt="Genius Islamian's Academy"
             className="mx-auto h-10 w-10 object-contain"
           />
