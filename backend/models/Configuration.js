@@ -63,11 +63,11 @@ const configurationSchema = new mongoose.Schema(
 );
 
 // Pre-save validation
-configurationSchema.pre("save", function (next) {
+configurationSchema.pre("save", async function () {
   const salaryTotal =
     this.salaryConfig.teacherShare + this.salaryConfig.academyShare;
   if (salaryTotal !== 100) {
-    return next(new Error(`Salary split must total 100%, got ${salaryTotal}%`));
+    throw new Error(`Salary split must total 100%, got ${salaryTotal}%`);
   }
 
   // Initialize default subject fees if new document and empty
@@ -86,8 +86,6 @@ configurationSchema.pre("save", function (next) {
       "✅ Initialized configuration with standard subject rates",
     );
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Configuration", configurationSchema);
