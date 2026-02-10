@@ -573,11 +573,21 @@ exports.getTeacherReport = async (req, res) => {
       }
 
       const transactions = await Transaction.find(txQuery)
+        .populate("studentId", "studentName class group")
         .sort({ date: -1 })
         .limit(100)
         .lean();
 
-      incomeTransactions = transactions;
+      incomeTransactions = transactions.map((tx) => ({
+        _id: tx._id,
+        amount: tx.amount,
+        date: tx.date,
+        description: tx.description,
+        studentName: tx.studentId?.studentName || "Unknown",
+        studentClass: tx.studentId?.class || "—",
+        teacherShare: tx.splitDetails?.teacherShare || 0,
+        academyShare: tx.splitDetails?.academyShare || 0,
+      }));
 
       incomeTotals = transactions.reduce(
         (acc, tx) => {

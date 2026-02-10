@@ -149,6 +149,8 @@ export default function Payroll() {
           remainingBalance: data.data.remainingBalance || 0,
           paymentDate: new Date(data.data.voucher.paymentDate),
           description: data.data.voucher.notes || "Teacher payout",
+          sessionName: data.data.voucher.sessionName || "N/A",
+          compensationType: selectedTeacher?.compensation?.type || "percentage",
         });
         setTimeout(() => {
           handlePrintReceipt();
@@ -477,6 +479,8 @@ export default function Payroll() {
           remainingBalance={receiptData.remainingBalance}
           paymentDate={receiptData.paymentDate}
           description={receiptData.description}
+          sessionName={receiptData.sessionName}
+          compensationType={receiptData.compensationType}
         />
       )}
 
@@ -688,6 +692,56 @@ const TeacherReport = ({ teacherId }: { teacherId: string }) => {
             ) : (
               <p className="text-sm text-muted-foreground">
                 No revenue transactions yet for this session.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {report.teacher.compensation?.type === "percentage" && report.incomeTransactions?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Student Fee Breakdown (Session)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Detailed list of fees collected from students showing your share
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Total Fee</TableHead>
+                  <TableHead className="text-right">Your Share</TableHead>
+                  <TableHead className="text-right">Academy Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.incomeTransactions.slice(0, 50).map((tx: any) => (
+                  <TableRow key={tx._id}>
+                    <TableCell className="font-medium">{tx.studentName}</TableCell>
+                    <TableCell>{tx.studentClass}</TableCell>
+                    <TableCell className="text-xs">
+                      {new Date(tx.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      Rs. {tx.amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right text-emerald-700 font-semibold">
+                      Rs. {tx.teacherShare.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right text-blue-700">
+                      Rs. {tx.academyShare.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {report.incomeTransactions.length > 50 && (
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Showing first 50 of {report.incomeTransactions.length} transactions
               </p>
             )}
           </CardContent>

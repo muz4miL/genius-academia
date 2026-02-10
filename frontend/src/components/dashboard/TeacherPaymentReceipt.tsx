@@ -8,6 +8,8 @@ interface TeacherPaymentReceiptProps {
   remainingBalance: number;
   paymentDate: Date;
   description?: string;
+  sessionName?: string;
+  compensationType?: string;
 }
 
 /**
@@ -27,9 +29,12 @@ export const TeacherPaymentReceipt = forwardRef<
       remainingBalance,
       paymentDate,
       description,
+      sessionName,
+      compensationType,
     },
     ref,
   ) => {
+    const balanceBeforePayment = remainingBalance + amountPaid;
     const formatCurrency = (amount: number) => {
       return new Intl.NumberFormat("en-PK", {
         style: "currency",
@@ -285,44 +290,71 @@ export const TeacherPaymentReceipt = forwardRef<
             {/* Amount Section */}
             <div
               style={{
-                textAlign: "center",
-                padding: "20px 0",
+                padding: "16px 0",
                 marginBottom: "16px",
                 borderBottom: "1px dashed #e0e0e0",
               }}
             >
-              <span
+              <div
                 style={{
-                  fontSize: "11px",
-                  color: "#888888",
-                  textTransform: "uppercase",
-                  letterSpacing: "1px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "12px",
                 }}
               >
-                Amount Paid
-              </span>
-              <p
+                <div>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#888888",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    Balance Before
+                  </span>
+                  <p
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#ea580c",
+                      margin: "4px 0 0 0",
+                    }}
+                  >
+                    {formatCurrency(balanceBeforePayment)}
+                  </p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#888888",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    Amount Paid
+                  </span>
+                  <p
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#16a34a",
+                      margin: "4px 0 0 0",
+                    }}
+                  >
+                    {formatCurrency(amountPaid)}
+                  </p>
+                </div>
+              </div>
+              <div
                 style={{
-                  fontSize: "36px",
-                  fontWeight: "800",
-                  color: "#16a34a",
-                  margin: "8px 0 0 0",
-                  letterSpacing: "1px",
+                  textAlign: "center",
+                  padding: "16px 0",
+                  backgroundColor: "#f0fdf4",
+                  borderRadius: "6px",
                 }}
               >
-                {formatCurrency(amountPaid)}
-              </p>
-            </div>
-
-            {/* Remaining Balance */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
                 <span
                   style={{
                     fontSize: "11px",
@@ -335,17 +367,30 @@ export const TeacherPaymentReceipt = forwardRef<
                 </span>
                 <p
                   style={{
-                    fontSize: "16px",
-                    fontWeight: "700",
+                    fontSize: "28px",
+                    fontWeight: "800",
                     color: remainingBalance > 0 ? "#ea580c" : "#16a34a",
-                    margin: "4px 0 0 0",
+                    margin: "8px 0 0 0",
+                    letterSpacing: "1px",
                   }}
                 >
                   {formatCurrency(remainingBalance)}
                 </p>
               </div>
-              {description && (
-                <div style={{ textAlign: "right", maxWidth: "50%" }}>
+            </div>
+
+            {/* Details Row */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
+              {sessionName && (
+                <div style={{ flex: "1 1 45%" }}>
                   <span
                     style={{
                       fontSize: "11px",
@@ -354,7 +399,56 @@ export const TeacherPaymentReceipt = forwardRef<
                       letterSpacing: "1px",
                     }}
                   >
-                    Description
+                    Session
+                  </span>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "#1a1a1a",
+                      margin: "4px 0 0 0",
+                    }}
+                  >
+                    {sessionName}
+                  </p>
+                </div>
+              )}
+              {compensationType && (
+                <div style={{ flex: "1 1 45%" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#888888",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    Compensation Type
+                  </span>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "#1a1a1a",
+                      margin: "4px 0 0 0",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {compensationType}
+                  </p>
+                </div>
+              )}
+              {description && (
+                <div style={{ flex: "1 1 100%" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#888888",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    Payment Notes
                   </span>
                   <p
                     style={{

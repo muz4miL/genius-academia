@@ -292,6 +292,18 @@ exports.getFinanceHistory = async (req, res) => {
       .sort({ expenseDate: -1 })
       .lean();
 
+    // Get teacher payments (payouts)
+    let teacherPaymentQuery = {};
+    if (startDate || endDate) {
+      teacherPaymentQuery.paymentDate = {};
+      if (startDate) teacherPaymentQuery.paymentDate.$gte = new Date(startDate);
+      if (endDate) teacherPaymentQuery.paymentDate.$lte = new Date(endDate);
+    }
+
+    const teacherPayments = await TeacherPayment.find(teacherPaymentQuery)
+      .sort({ paymentDate: -1 })
+      .lean();
+
     // Merge and sort
     const combined = [
       ...transactions.map((t) => ({
@@ -310,6 +322,20 @@ exports.getFinanceHistory = async (req, res) => {
           date: e.expenseDate || e.createdAt,
           sortDate: e.expenseDate || e.createdAt,
           source: "expense",
+        })),
+      ...teacherPayments
+        .filter(() => !type || type === "ALL" || type === "EXPENSE")
+        .map((tp) => ({
+          ...tp,
+          type: "EXPENSE",
+          amount: tp.amountPaid,
+          description: `Teacher Payout: ${tp.teacherName} (${tp.subject}) - ${tp.voucherId}`,
+          category: "Teacher Payout",
+          date: tp.paymentDate,
+          sortDate: tp.paymentDate,
+          source: "teacher-payment",
+          teacherPaymentId: tp._id,
+          voucherId: tp.voucherId,
         })),
     ].sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
 

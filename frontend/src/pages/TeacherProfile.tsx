@@ -124,6 +124,8 @@ export default function TeacherProfile() {
           remainingBalance: data.data.remainingBalance || 0,
           paymentDate: new Date(data.data.voucher.paymentDate),
           description: data.data.voucher.notes || "Teacher payout",
+          sessionName: data.data.voucher.sessionName || "N/A",
+          compensationType: teacher?.compensation?.type || "percentage",
         });
         setTimeout(() => {
           handlePrintReceipt();
@@ -406,6 +408,8 @@ export default function TeacherProfile() {
           remainingBalance={receiptData.remainingBalance}
           paymentDate={receiptData.paymentDate}
           description={receiptData.description}
+          sessionName={receiptData.sessionName}
+          compensationType={receiptData.compensationType}
         />
       )}
     </DashboardLayout>
@@ -544,6 +548,42 @@ const TeacherReport = ({ teacherId }: { teacherId: string }) => {
           ) : (
             <p className="text-sm text-muted-foreground mt-3">
               No revenue transactions yet for this session.
+            </p>
+          )}
+        </div>
+      )}
+
+      {report.teacher.compensation?.type === "percentage" && report.incomeTransactions?.length > 0 && (
+        <div className="rounded-lg border p-4">
+          <p className="text-sm font-medium mb-3">
+            Student Fee Breakdown ({report.incomeTransactions.length} transactions)
+          </p>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {report.incomeTransactions.slice(0, 20).map((tx: any) => (
+              <div
+                key={tx._id}
+                className="flex items-center justify-between text-sm border-b pb-2"
+              >
+                <div>
+                  <p className="font-medium">{tx.studentName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tx.studentClass} • {new Date(tx.date).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-emerald-700">
+                    Rs. {tx.teacherShare.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    of Rs. {tx.amount.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {report.incomeTransactions.length > 20 && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Showing first 20 of {report.incomeTransactions.length} fees
             </p>
           )}
         </div>
