@@ -8,6 +8,8 @@ const {
   approvePayoutRequest,
   rejectPayoutRequest,
   getPayrollDashboard,
+  generateSessionSalaries,
+  getTeacherReport,
 } = require("../controllers/payrollController");
 
 // @route   POST /api/payroll/request
@@ -49,5 +51,25 @@ router.post(
 // @desc    Get payroll dashboard stats
 // @access  Protected (OWNER only)
 router.get("/dashboard", protect, restrictTo("OWNER"), getPayrollDashboard);
+
+// @route   POST /api/payroll/generate-session-salaries
+// @desc    Generate fixed salary accruals for active session
+// @access  Protected (OWNER only)
+router.post(
+  "/generate-session-salaries",
+  protect,
+  restrictTo("OWNER"),
+  generateSessionSalaries,
+);
+
+// @route   GET /api/payroll/teacher-report/:teacherId
+// @desc    Get a teacher payroll report for the active session
+// @access  Protected (OWNER only)
+router.get(
+  "/teacher-report/:teacherId",
+  protect,
+  restrictTo("OWNER"),
+  getTeacherReport,
+);
 
 module.exports = router;

@@ -65,6 +65,29 @@ const TeacherSchema = new mongoose.Schema(
     // Total paid out to teacher (lifetime)
     totalPaid: { type: Number, default: 0 },
 
+    // Fixed-salary accruals by session (to avoid double-crediting)
+    salaryAccruals: [
+      {
+        sessionId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Session",
+        },
+        sessionName: {
+          type: String,
+          trim: true,
+        },
+        amount: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     // Compensation Package (Triple-Mode Support)
     compensation: {
       // Compensation Type: 'percentage', 'fixed', or 'hybrid'

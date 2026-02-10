@@ -35,8 +35,6 @@ import {
   DollarSign,
   Wallet,
   Pencil,
-  Lock,
-  Calculator,
   Package,
   Printer,
 } from "lucide-react";
@@ -57,16 +55,9 @@ const API_BASE_URL =
 // TASK 1: Draft Persistence Key
 const ADMISSION_DRAFT_KEY = "academy_sparkle_admission_draft";
 
-// Type for subject with fee
-interface SubjectWithFee {
+// Subject selector data (pricing handled by session rate)
+interface SubjectItem {
   name: string;
-  fee: number;
-}
-
-// Type for global config subject pricing
-interface GlobalSubjectFee {
-  name: string;
-  fee: number;
 }
 
 const Admissions = () => {
@@ -87,21 +78,6 @@ const Admissions = () => {
     queryFn: () => sessionApi.getAll(), // Fetch ALL sessions (active, upcoming, completed)
   });
 
-  // Fetch Global Config for Master Subject Pricing
-  const { data: configData } = useQuery({
-    queryKey: ["global-config"],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/config`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch config");
-      return response.json();
-    },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  const globalSubjectFees: GlobalSubjectFee[] =
-    configData?.data?.defaultSubjectFees || [];
   const classes = classesData?.data || [];
   const sessions = sessionsData?.data || [];
 
@@ -131,6 +107,10 @@ const Admissions = () => {
   const [sessionPrice, setSessionPrice] = useState<number | null>(null);
   const [isSessionPriceMode, setIsSessionPriceMode] = useState(false);
   const [sessionPriceLoading, setSessionPriceLoading] = useState(false);
+  // Quick Add: Session pricing
+  const [quickSessionPrice, setQuickSessionPrice] = useState<number | null>(
+    null,
+  );
 
   // Discount/Scholarship Calculation
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -301,23 +281,38 @@ const Admissions = () => {
     fetchSessionPrice();
   }, [selectedSessionId]); // Only re-fetch when session changes
 
-  // TASK 2: Dynamic fee sync for Quick Add when class changes
+  // Quick Add: Fetch session price when session changes
   useEffect(() => {
-    if (quickClassId) {
-      const selectedClass = getQuickSelectedClass();
-      if (selectedClass) {
-        // Calculate total from subjects or use baseFee
-        const subjectTotal = (selectedClass.subjects || []).reduce(
-          (sum: number, s: any) => {
-            if (typeof s === "object" && s.fee) return sum + s.fee;
-            return sum;
-          },
-          0,
-        );
-        setQuickTotalFee(String(subjectTotal || selectedClass.baseFee || 0));
+    const fetchQuickSessionPrice = async () => {
+      if (!quickSessionId) {
+        setQuickSessionPrice(null);
+        setQuickTotalFee("");
+        return;
       }
-    }
-  }, [quickClassId, classes]);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/config/session-price/${quickSessionId}`,
+          { credentials: "include" },
+        );
+        if (!response.ok) throw new Error("Failed to fetch session price");
+        const result = await response.json();
+        if (result.success && result.data?.found && result.data?.price > 0) {
+          setQuickSessionPrice(result.data.price);
+          setQuickTotalFee(String(result.data.price));
+        } else {
+          setQuickSessionPrice(null);
+          setQuickTotalFee("");
+        }
+      } catch (error) {
+        console.error("Failed to fetch quick session price:", error);
+        setQuickSessionPrice(null);
+        setQuickTotalFee("");
+      }
+    };
+
+    fetchQuickSessionPrice();
+  }, [quickSessionId]);
 
   // Get selected class
   const getSelectedClass = () =>
@@ -340,62 +335,16 @@ const Admissions = () => {
 
   const filteredClasses = getFilteredClasses();
 
-  // REFACTORED: Get subjects with fees from GLOBAL CONFIG (Master Subject Pricing)
-  const getClassSubjectsWithFees = (): SubjectWithFee[] => {
+  // Subjects list only; pricing is handled by session rate
+  const getClassSubjects = (): SubjectItem[] => {
     const selectedClass = getSelectedClass();
     if (!selectedClass || !selectedClass.subjects) return [];
-
-    return selectedClass.subjects.map((s: any) => {
-      const subjectName = typeof s === "string" ? s : s.name;
-
-      // First try to get fee from class definition
-      let fee = typeof s === "object" ? s.fee : 0;
-
-      // If fee is 0 or undefined, look up from global config
-      if (!fee || fee === 0) {
-        const globalSubject = globalSubjectFees.find(
-          (gs) => gs.name.toLowerCase() === subjectName.toLowerCase(),
-        );
-        fee = globalSubject?.fee || 0;
-      }
-
-      return { name: subjectName, fee };
-    });
+    return selectedClass.subjects.map((s: any) => ({
+      name: typeof s === "string" ? s : s.name,
+    }));
   };
 
-  const classSubjects = getClassSubjectsWithFees();
-
-  // Calculate total fee based on selected subjects
-  const calculateSubjectBasedFee = () => {
-    return classSubjects
-      .filter((s) => selectedSubjects.includes(s.name))
-      .reduce((sum, s) => sum + (s.fee || 0), 0);
-  };
-
-  // Auto-update fee when subjects change (unless in custom mode OR session price mode)
-  useEffect(() => {
-    // Skip if custom fee mode is enabled
-    if (isCustomFeeMode) return;
-
-    // Skip if session price mode is active (session pricing takes precedence)
-    if (isSessionPriceMode && sessionPrice && sessionPrice > 0) {
-      console.log("📊 Using session-based pricing:", sessionPrice);
-      return;
-    }
-
-    // Fall back to subject-based pricing
-    if (selectedClassId && selectedSubjects.length > 0) {
-      const calculatedFee = calculateSubjectBasedFee();
-      setTotalFee(String(calculatedFee));
-    }
-  }, [
-    selectedSubjects,
-    selectedClassId,
-    isCustomFeeMode,
-    globalSubjectFees,
-    isSessionPriceMode,
-    sessionPrice,
-  ]);
+  const classSubjects = getClassSubjects();
 
   // Calculate Discount when Custom Fee is used
   useEffect(() => {
@@ -454,12 +403,6 @@ const Admissions = () => {
         ? prev.filter((id) => id !== subjectName)
         : [...prev, subjectName],
     );
-  };
-
-  // Get fee for a subject
-  const getSubjectFee = (subjectName: string): number => {
-    const subject = classSubjects.find((s) => s.name === subjectName);
-    return subject?.fee || 0;
   };
 
   // Subtle confetti celebration
@@ -581,14 +524,11 @@ const Admissions = () => {
     }
 
     // Prepare student data
-    // TASK 1 FIX: Transform subjects from string array to objects with locked pricing
-    const subjectsWithFees = selectedSubjects.map((subjectName) => {
-      const subject = classSubjects.find((s) => s.name === subjectName);
-      return {
-        name: subjectName,
-        fee: subject?.fee || 0,
-      };
-    });
+    // Transform subjects from string array to objects (pricing handled by session rate)
+    const subjectsWithFees = selectedSubjects.map((subjectName) => ({
+      name: subjectName,
+      fee: 0,
+    }));
 
     // Ensure we have a valid class name
     const classTitle =
@@ -617,7 +557,7 @@ const Admissions = () => {
       paidAmount: Number(paidAmount) || 0,
       discountAmount: calculatedDiscount, // Session-based discount
       sessionRate:
-        isSessionPriceMode && sessionPrice ? sessionPrice : undefined, // Original session rate
+        isSessionPriceMode && sessionPrice ? sessionPrice : undefined,
       classRef: selectedClassId,
       sessionRef: selectedSessionId || undefined,
       photo: photo || undefined,
@@ -632,6 +572,15 @@ const Admissions = () => {
     if (!quickName || !quickClassId || !quickParentCell) {
       toast.error("Missing Information", {
         description: "Please fill in all required fields for quick add",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!quickTotalFee || Number(quickTotalFee) <= 0) {
+      toast.error("Missing Session Price", {
+        description:
+          "Please configure the session rate in Settings → Configuration.",
         duration: 3000,
       });
       return;
@@ -709,8 +658,6 @@ const Admissions = () => {
   };
 
   // Calculated fee display
-  const calculatedFee = calculateSubjectBasedFee();
-
   return (
     <DashboardLayout title="Admissions">
       <HeaderBanner
@@ -1097,11 +1044,6 @@ const Admissions = () => {
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Checking session price...
                     </span>
-                  ) : selectedSubjects.length > 0 ? (
-                    <span className="text-xs text-sky-600 flex items-center gap-1">
-                      <Calculator className="h-3 w-3" />
-                      Auto-calculated
-                    </span>
                   ) : null}
                 </div>
                 <div className="relative">
@@ -1111,17 +1053,14 @@ const Admissions = () => {
                     placeholder="0"
                     value={totalFee}
                     onChange={(e) => setTotalFee(e.target.value)}
-                    readOnly={
-                      !isCustomFeeMode &&
-                      (selectedSubjects.length > 0 || isSessionPriceMode)
-                    }
+                    readOnly={!isCustomFeeMode && !!selectedSessionId}
                     className={`${
                       isCustomFeeMode
                         ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200"
                         : isSessionPriceMode && sessionPrice && sessionPrice > 0
                           ? "border-emerald-400 bg-emerald-50 cursor-not-allowed font-bold text-emerald-700"
-                          : !isCustomFeeMode && selectedSubjects.length > 0
-                            ? "border-sky-300 bg-sky-50 cursor-not-allowed"
+                          : selectedSessionId
+                            ? "border-yellow-300 bg-yellow-50 cursor-not-allowed"
                             : ""
                     }`}
                   />
@@ -1131,13 +1070,6 @@ const Admissions = () => {
                     sessionPrice > 0 && (
                       <div className="absolute right-2 top-1/2 -translate-y-1/2">
                         <Package className="h-4 w-4 text-emerald-500" />
-                      </div>
-                    )}
-                  {!isCustomFeeMode &&
-                    !isSessionPriceMode &&
-                    selectedSubjects.length > 0 && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                        <Lock className="h-4 w-4 text-sky-500" />
                       </div>
                     )}
                   {isCustomFeeMode && (
@@ -1279,35 +1211,7 @@ const Admissions = () => {
                 />
               </div>
 
-              {/* Discount Display - Only show when custom fee is active and there's a discount */}
-              {isCustomFeeMode &&
-                selectedSubjects.length > 0 &&
-                (() => {
-                  const standardTotal = classSubjects
-                    .filter((s) => selectedSubjects.includes(s.name))
-                    .reduce((sum, s) => sum + (s.fee || 0), 0);
-                  const customTotal = Number(totalFee) || 0;
-                  const discount = Math.max(0, standardTotal - customTotal);
-
-                  return discount > 0 ? (
-                    <div className="p-3 rounded-lg border border-green-200 bg-green-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-green-800">
-                            Discount / Scholarship Applied
-                          </span>
-                        </div>
-                        <span className="text-lg font-bold text-green-600">
-                          PKR {discount.toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-green-700 mt-1">
-                        Standard: {standardTotal.toLocaleString()} → Custom:{" "}
-                        {customTotal.toLocaleString()}
-                      </p>
-                    </div>
-                  ) : null;
-                })()}
+              {/* Session discount display handled above (session rate summary) */}
             </div>
           </div>
 
@@ -1468,13 +1372,15 @@ const Admissions = () => {
               />
             </div>
 
-            {/* Fee fields with sync indicator */}
+            {/* Fee fields with session pricing */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Total Fee</Label>
-                  {quickClassId && (
-                    <span className="text-xs text-sky-600">Auto-filled</span>
+                  {quickSessionPrice && (
+                    <span className="text-xs text-emerald-600">
+                      Session Rate
+                    </span>
                   )}
                 </div>
                 <Input
@@ -1482,8 +1388,15 @@ const Admissions = () => {
                   placeholder="0"
                   value={quickTotalFee}
                   onChange={(e) => setQuickTotalFee(e.target.value)}
-                  className="h-9 bg-background"
+                  readOnly={!!quickSessionPrice}
+                  className={`h-9 ${quickSessionPrice ? "bg-emerald-50 border-emerald-200 font-semibold" : "bg-background"}`}
                 />
+                {!quickSessionPrice && quickSessionId && (
+                  <p className="text-xs text-yellow-700">
+                    No session rate configured. Please set a price in
+                    Configuration.
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm">Paid Amount</Label>

@@ -38,7 +38,6 @@ import {
   Building2,
   Tag,
   DollarSign,
-  Calendar,
   Users,
   HelpCircle,
 } from "lucide-react";
@@ -73,7 +72,6 @@ export function AddExpenseDialog({
   const [expenseCategory, setExpenseCategory] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [vendorName, setVendorName] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [paidByType, setPaidByType] = useState("ACADEMY_CASH");
 
   // Create expense mutation
@@ -100,6 +98,10 @@ export function AddExpenseDialog({
         description: `${data.data?.title || "Expense"} - PKR ${data.data?.amount?.toLocaleString() || "0"}`,
       });
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+      }
+
       // Reset form and close dialog
       resetForm();
       onOpenChange(false);
@@ -116,7 +118,6 @@ export function AddExpenseDialog({
     setExpenseCategory("");
     setExpenseAmount("");
     setVendorName("");
-    setDueDate("");
     setPaidByType("ACADEMY_CASH");
   };
 
@@ -125,8 +126,7 @@ export function AddExpenseDialog({
       !expenseTitle ||
       !expenseCategory ||
       !expenseAmount ||
-      !vendorName ||
-      !dueDate
+      !vendorName
     ) {
       toast.error("⚠️ Please fill all required fields");
       return;
@@ -142,7 +142,6 @@ export function AddExpenseDialog({
       category: expenseCategory,
       amount: parseFloat(expenseAmount),
       vendorName,
-      dueDate,
       paidByType,
     });
   };
@@ -216,25 +215,26 @@ export function AddExpenseDialog({
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Generator Fuel/Maintenance">
-                      ⛽ Generator Fuel/Maintenance
+                    <SelectItem value="Generator Fuel">
+                      ⛽ Generator Fuel
                     </SelectItem>
-                    <SelectItem value="WAPDA/Electricity Bill">
-                      💡 WAPDA/Electricity Bill
+                    <SelectItem value="Electricity Bill">
+                      💡 Electricity Bill
                     </SelectItem>
                     <SelectItem value="Staff Tea & Refreshments">
                       ☕ Staff Tea & Refreshments
                     </SelectItem>
-                    <SelectItem value="Marketing">📣 Marketing</SelectItem>
-                    <SelectItem value="Stationery & Printing">
-                      📝 Stationery & Printing
+                    <SelectItem value="Marketing / Ads">
+                      📣 Marketing / Ads
                     </SelectItem>
-                    <SelectItem value="Building Rent">
-                      🏢 Building Rent
+                    <SelectItem value="Stationery">📝 Stationery</SelectItem>
+                    <SelectItem value="Rent">🏢 Rent</SelectItem>
+                    <SelectItem value="Salaries">💵 Salaries</SelectItem>
+                    <SelectItem value="Utilities">💧 Utilities</SelectItem>
+                    <SelectItem value="Equipment/Asset">
+                      🧰 Equipment/Asset
                     </SelectItem>
-                    <SelectItem value="Miscellaneous">
-                      📦 Miscellaneous
-                    </SelectItem>
+                    <SelectItem value="Misc">📦 Misc</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -259,22 +259,7 @@ export function AddExpenseDialog({
             </div>
 
             {/* Row 3: Due Date */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="due-date"
-                className="text-xs font-medium text-gray-700 flex items-center gap-1"
-              >
-                <Calendar className="h-3 w-3 text-gray-500" />
-                Payment Due <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="bg-gray-50 h-10 border-gray-300"
-              />
-            </div>
+
 
             {/* Payment Source */}
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">

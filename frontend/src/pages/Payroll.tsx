@@ -1,16 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Banknote,
-  Clock,
-  CheckCircle,
-  XCircle,
   Users,
   TrendingUp,
   AlertCircle,
   Loader2,
-  Eye,
   Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +33,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { useReactToPrint } from "react-to-print";
+import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -47,9 +46,21 @@ export default function Payroll() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
-  const [notes, setNotes] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payNotes, setPayNotes] = useState("");
+  const [reportTeacher, setReportTeacher] = useState<any>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: receiptData
+      ? `Teacher-Payment-${receiptData.voucherId}`
+      : "Teacher Payment",
+  });
 
   // Redirect non-owners
   if (user?.role !== "OWNER") {
@@ -79,68 +90,83 @@ export default function Payroll() {
     },
   });
 
-  // Approve mutation
-  const approveMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const res = await fetch(`${API_BASE_URL}/payroll/approve/${requestId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ notes }),
-      });
+  const generateSalariesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/payroll/generate-session-salaries`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || "Failed to approve");
+        throw new Error(error.message || "Failed to generate salaries");
       }
       return res.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "Payout Approved!",
+        title: "Session Salaries Generated",
         description: data.message,
       });
-      setSelectedRequest(null);
-      setActionType(null);
-      setNotes("");
       queryClient.invalidateQueries({ queryKey: ["payroll-dashboard"] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Approval Failed",
+        title: "Generation Failed",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  // Reject mutation
-  const rejectMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const res = await fetch(`${API_BASE_URL}/payroll/reject/${requestId}`, {
+  const payTeacherMutation = useMutation({
+    mutationFn: async ({ teacherId, amount, notes }: any) => {
+      const res = await fetch(`${API_BASE_URL}/finance/teacher-payout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ reason: notes }),
+        body: JSON.stringify({ teacherId, amount, notes }),
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || "Failed to reject");
+        throw new Error(error.message || "Failed to process payout");
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Request Rejected",
-        description: "The payout request has been rejected.",
+        title: "Payout Processed",
+        description: data.message,
       });
-      setSelectedRequest(null);
-      setActionType(null);
-      setNotes("");
+      if (data?.data?.voucher) {
+        setReceiptData({
+          voucherId: data.data.voucher.voucherId,
+          teacherName: data.data.voucher.teacherName,
+          subject: data.data.voucher.subject,
+          amountPaid: data.data.voucher.amountPaid,
+          remainingBalance: data.data.remainingBalance || 0,
+          paymentDate: new Date(data.data.voucher.paymentDate),
+          description: data.data.voucher.notes || "Teacher payout",
+        });
+        setTimeout(() => {
+          handlePrintReceipt();
+        }, 400);
+      }
+      setPayDialogOpen(false);
+      setSelectedTeacher(null);
+      setPayAmount("");
+      setPayNotes("");
       queryClient.invalidateQueries({ queryKey: ["payroll-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["finance", "history"] });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+      }
     },
     onError: (error: Error) => {
       toast({
-        title: "Rejection Failed",
+        title: "Payout Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -148,9 +174,8 @@ export default function Payroll() {
   });
 
   const dashboard = dashboardData?.data || {
-    pendingRequests: [],
-    pendingTotal: 0,
-    monthlyApproved: { total: 0, count: 0 },
+    activeSession: null,
+    totalPaidSession: 0,
     teachersWithBalances: [],
     totalTeacherLiability: 0,
   };
@@ -175,48 +200,18 @@ export default function Payroll() {
       <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-yellow-500">
+          <Card className="border-l-4 border-l-amber-500">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    Pending Requests
+                    Active Session
                   </p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {dashboard.pendingRequests.length}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-red-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Amount</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    Rs. {dashboard.pendingTotal.toLocaleString()}
+                  <p className="text-lg font-semibold text-amber-700">
+                    {dashboard.activeSession?.sessionName || "No active session"}
                   </p>
                 </div>
-                <Banknote className="h-8 w-8 text-red-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-green-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    This Month Paid
-                  </p>
-                  <p className="text-2xl font-bold text-green-600">
-                    Rs. {dashboard.monthlyApproved.total.toLocaleString()}
-                  </p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
+                <Calendar className="h-8 w-8 text-amber-500" />
               </div>
             </CardContent>
           </Card>
@@ -236,86 +231,122 @@ export default function Payroll() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Paid This Session
+                  </p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    Rs. {dashboard.totalPaidSession.toLocaleString()}
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-emerald-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-red-500">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Teachers With Payable
+                  </p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {dashboard.teachersWithBalances.filter(
+                      (t: any) => (t.balance?.payable || 0) > 0,
+                    ).length}
+                  </p>
+                </div>
+                <Banknote className="h-8 w-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Pending Requests Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
-              Pending Payout Requests
+              <Users className="h-5 w-5 text-blue-500" />
+              Teachers Payroll
             </CardTitle>
+            <Button
+              variant="outline"
+              onClick={() => generateSalariesMutation.mutate()}
+              disabled={generateSalariesMutation.isPending}
+            >
+              {generateSalariesMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Session Salaries"
+              )}
+            </Button>
           </CardHeader>
           <CardContent>
-            {dashboard.pendingRequests.length === 0 ? (
+            {dashboard.teachersWithBalances.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500 opacity-50" />
-                <p>No pending payout requests!</p>
-                <p className="text-sm">All teacher payouts have been processed.</p>
+                <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No active teachers found</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary/5">
-                    <TableHead>Request ID</TableHead>
                     <TableHead>Teacher</TableHead>
                     <TableHead>Subject</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="text-right">Current Balance</TableHead>
-                    <TableHead>Requested On</TableHead>
+                    <TableHead>Compensation</TableHead>
+                    <TableHead className="text-right">Payable</TableHead>
+                    <TableHead className="text-right">Total Paid</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dashboard.pendingRequests.map((request: any) => (
-                    <TableRow key={request._id} className="hover:bg-muted/50">
-                      <TableCell className="font-mono text-sm">
-                        {request.requestId}
-                      </TableCell>
+                  {dashboard.teachersWithBalances.map((teacher: any) => (
+                    <TableRow key={teacher._id} className="hover:bg-muted/50">
                       <TableCell className="font-medium">
-                        {request.teacherName}
+                        {teacher.name}
                       </TableCell>
                       <TableCell className="capitalize">
-                        {request.teacherId?.subject || "-"}
+                        {teacher.subject || "-"}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {teacher.compensation?.type || "percentage"}
                       </TableCell>
                       <TableCell className="text-right font-bold text-green-600">
-                        Rs. {request.amount.toLocaleString()}
+                        Rs. {(teacher.balance?.payable || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        Rs.{" "}
-                        {(
-                          request.teacherId?.balance?.verified || 0
-                        ).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(request.requestDate).toLocaleDateString()}
-                        </div>
+                        Rs. {(teacher.totalPaid || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700"
+                            variant="outline"
                             onClick={() => {
-                              setSelectedRequest(request);
-                              setActionType("approve");
+                              setReportTeacher(teacher);
+                              setReportOpen(true);
                             }}
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
+                            Report
                           </Button>
                           <Button
                             size="sm"
-                            variant="destructive"
+                            className="bg-green-600 hover:bg-green-700"
                             onClick={() => {
-                              setSelectedRequest(request);
-                              setActionType("reject");
+                              setSelectedTeacher(teacher);
+                              setPayDialogOpen(true);
                             }}
+                            disabled={(teacher.balance?.payable || 0) <= 0}
                           >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Reject
+                            Pay
                           </Button>
                         </div>
                       </TableCell>
@@ -327,143 +358,375 @@ export default function Payroll() {
           </CardContent>
         </Card>
 
-        {/* Teachers with Balances */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-500" />
-              Teachers with Outstanding Balances
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+              Teacher Profiles
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {dashboard.teachersWithBalances.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No outstanding teacher balances</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dashboard.teachersWithBalances.map((teacher: any) => (
-                  <div
-                    key={teacher._id}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/teachers/${teacher._id}`)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{teacher.name}</span>
-                      <Badge className="capitalize">{teacher.subject}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Verified Balance
-                      </span>
-                      <span className="text-lg font-bold text-green-600">
-                        Rs. {(teacher.balance?.verified || 0).toLocaleString()}
-                      </span>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dashboard.teachersWithBalances.map((teacher: any) => (
+                <div
+                  key={teacher._id}
+                  className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/teachers/${teacher._id}`)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium">{teacher.name}</span>
+                    <Badge className="capitalize">{teacher.subject}</Badge>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Payable</span>
+                    <span className="font-semibold text-green-600">
+                      Rs. {(teacher.balance?.payable || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Approve/Reject Dialog */}
+      {/* Pay Teacher Dialog */}
       <Dialog
-        open={!!selectedRequest && !!actionType}
-        onOpenChange={() => {
-          setSelectedRequest(null);
-          setActionType(null);
-          setNotes("");
+        open={payDialogOpen}
+        onOpenChange={(open) => {
+          setPayDialogOpen(open);
+          if (!open) {
+            setSelectedTeacher(null);
+            setPayAmount("");
+            setPayNotes("");
+          }
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {actionType === "approve" ? "Approve Payout" : "Reject Payout"}
-            </DialogTitle>
+            <DialogTitle>Pay Teacher</DialogTitle>
             <DialogDescription>
-              {actionType === "approve"
-                ? `Approve Rs. ${selectedRequest?.amount.toLocaleString()} payout to ${selectedRequest?.teacherName}?`
-                : `Reject payout request from ${selectedRequest?.teacherName}?`}
+              {selectedTeacher
+                ? `Pay ${selectedTeacher.name} (Available: Rs. ${(selectedTeacher.balance?.payable || 0).toLocaleString()})`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {actionType === "approve" && (
-              <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  ✅ This will:
-                </p>
-                <ul className="text-sm text-green-600 dark:text-green-400 list-disc list-inside mt-2">
-                  <li>Deduct Rs. {selectedRequest?.amount.toLocaleString()} from teacher's balance</li>
-                  <li>Record as SALARY expense in transactions</li>
-                  <li>Split expense among partners based on configuration</li>
-                </ul>
-              </div>
-            )}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {actionType === "approve" ? "Notes (optional)" : "Reason for rejection"}
-              </label>
+              <label className="text-sm font-medium">Amount (PKR)</label>
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes (Optional)</label>
               <Textarea
-                placeholder={actionType === "approve" ? "Any notes..." : "Please provide a reason..."}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Cash payment, bank transfer, etc."
+                value={payNotes}
+                onChange={(e) => setPayNotes(e.target.value)}
               />
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setSelectedRequest(null);
-                setActionType(null);
-                setNotes("");
-              }}
+              onClick={() => setPayDialogOpen(false)}
             >
               Cancel
             </Button>
-            {actionType === "approve" ? (
-              <Button
-                className="bg-green-600 hover:bg-green-700"
-                onClick={() => approveMutation.mutate(selectedRequest._id)}
-                disabled={approveMutation.isPending}
-              >
-                {approveMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Approve Payout
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                variant="destructive"
-                onClick={() => rejectMutation.mutate(selectedRequest._id)}
-                disabled={rejectMutation.isPending || !notes}
-              >
-                {rejectMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Reject Request
-                  </>
-                )}
-              </Button>
-            )}
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() =>
+                payTeacherMutation.mutate({
+                  teacherId: selectedTeacher?._id,
+                  amount: Number(payAmount),
+                  notes: payNotes,
+                })
+              }
+              disabled={
+                !selectedTeacher ||
+                !payAmount ||
+                Number(payAmount) <= 0 ||
+                Number(payAmount) > (selectedTeacher.balance?.payable || 0) ||
+                payTeacherMutation.isPending
+              }
+            >
+              {payTeacherMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Pay Now"
+              )}
+            </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {receiptData && (
+        <TeacherPaymentReceipt
+          ref={receiptRef}
+          voucherId={receiptData.voucherId}
+          teacherName={receiptData.teacherName}
+          subject={receiptData.subject}
+          amountPaid={receiptData.amountPaid}
+          remainingBalance={receiptData.remainingBalance}
+          paymentDate={receiptData.paymentDate}
+          description={receiptData.description}
+        />
+      )}
+
+      {/* Teacher Report Dialog */}
+      <Dialog
+        open={reportOpen}
+        onOpenChange={(open) => {
+          setReportOpen(open);
+          if (!open) setReportTeacher(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Teacher Payroll Report</DialogTitle>
+            <DialogDescription>
+              {reportTeacher ? `${reportTeacher.name} (${reportTeacher.subject})` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {reportTeacher && (
+            <TeacherReport teacherId={reportTeacher._id} />
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
   );
 }
+
+const TeacherReport = ({ teacherId }: { teacherId: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["teacher-report", teacherId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/payroll/teacher-report/${teacherId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load report");
+      return res.json();
+    },
+    enabled: !!teacherId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="py-6">
+        <Skeleton className="h-6 w-1/3 mb-4" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  const report = data?.data;
+  if (!report) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Payable Balance</p>
+            <p className="text-xl font-bold text-emerald-600">
+              Rs. {report.balances.payable.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Paid This Session</p>
+            <p className="text-xl font-bold text-blue-600">
+              Rs. {report.payouts.totalPaidSession.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Session</p>
+            <p className="text-sm font-medium">
+              {report.session?.sessionName || "No active session"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {report.teacher.compensation?.type === "percentage" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Split (Session)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Teacher Share</p>
+              <p className="text-lg font-semibold text-emerald-700">
+                Rs. {report.incomeTotals.teacherShare.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Academy Share</p>
+              <p className="text-lg font-semibold text-blue-700">
+                Rs. {report.incomeTotals.academyShare.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <p className="text-lg font-semibold">
+                Rs. {report.incomeTotals.totalRevenue.toLocaleString()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Fixed Salary (Session)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Accrued Amount</p>
+            <p className="text-lg font-semibold text-emerald-700">
+              Rs. {report.fixedSalaryAccrual?.amount?.toLocaleString() || 0}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Classes & Students (Session)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Classes</p>
+              <p className="text-lg font-semibold">
+                {report.classSummary?.totalClasses || 0}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Students</p>
+              <p className="text-lg font-semibold">
+                {report.classSummary?.totalStudents || 0}
+              </p>
+            </div>
+          </div>
+          {report.classes?.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Group</TableHead>
+                  <TableHead>Shift</TableHead>
+                  <TableHead className="text-right">Students</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.classes.map((c: any) => (
+                  <TableRow key={c._id}>
+                    <TableCell>{c.classTitle}</TableCell>
+                    <TableCell>{c.group || "—"}</TableCell>
+                    <TableCell>{c.shift || "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {c.studentCount || 0}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No classes linked to this teacher for the active session.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {report.teacher.compensation?.type === "percentage" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue by Class (Session)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {report.classRevenueBreakdown?.length ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Class</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Teacher</TableHead>
+                    <TableHead className="text-right">Academy</TableHead>
+                    <TableHead className="text-right">Transactions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.classRevenueBreakdown.map((row: any) => (
+                    <TableRow key={row.classId || row.classTitle}>
+                      <TableCell>{row.classTitle || "Unknown"}</TableCell>
+                      <TableCell className="text-right">
+                        Rs. {row.totalRevenue.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-700">
+                        Rs. {row.teacherShare.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-700">
+                        Rs. {row.academyShare.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {row.transactionCount}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No revenue transactions yet for this session.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Payouts (Session)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {report.payouts.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No payouts yet</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.payouts.items.map((p: any) => (
+                  <TableRow key={p._id}>
+                    <TableCell>
+                      {new Date(p.paymentDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-semibold text-emerald-700">
+                      Rs. {p.amountPaid.toLocaleString()}
+                    </TableCell>
+                    <TableCell>{p.notes || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

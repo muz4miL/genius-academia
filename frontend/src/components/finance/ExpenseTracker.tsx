@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Calendar,
   DollarSign,
   Building2,
   Tag,
@@ -112,7 +111,6 @@ export const ExpenseTracker = ({
   const [expenseCategory, setExpenseCategory] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [vendorName, setVendorName] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [paidByType, setPaidByType] = useState("ACADEMY_CASH"); // NEW: Who paid for this expense
 
   // Create expense mutation
@@ -121,6 +119,7 @@ export const ExpenseTracker = ({
       const response = await fetch(`${API_BASE_URL}/api/expenses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(expenseData),
       });
       if (!response.ok) throw new Error("Failed to create expense");
@@ -143,12 +142,15 @@ export const ExpenseTracker = ({
         toast.success("✅ Expense added successfully!");
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+      }
+
       // Reset form
       setExpenseTitle("");
       setExpenseCategory("");
       setExpenseAmount("");
       setVendorName("");
-      setDueDate("");
       setPaidByType("ACADEMY_CASH");
     },
     onError: () => {
@@ -163,6 +165,7 @@ export const ExpenseTracker = ({
         `${API_BASE_URL}/api/expenses/${expenseId}/mark-paid`,
         {
           method: "PATCH",
+          credentials: "include",
         },
       );
       if (!response.ok) throw new Error("Failed to mark as paid");
@@ -185,6 +188,7 @@ export const ExpenseTracker = ({
         `${API_BASE_URL}/api/expenses/${expenseId}`,
         {
           method: "DELETE",
+          credentials: "include",
         },
       );
       if (!response.ok) throw new Error("Failed to delete expense");
@@ -205,8 +209,7 @@ export const ExpenseTracker = ({
       !expenseTitle ||
       !expenseCategory ||
       !expenseAmount ||
-      !vendorName ||
-      !dueDate
+      !vendorName
     ) {
       toast.error("⚠️ Please fill all required fields marked with *");
       return;
@@ -222,7 +225,6 @@ export const ExpenseTracker = ({
       category: expenseCategory,
       amount: parseFloat(expenseAmount),
       vendorName,
-      dueDate,
       paidByType, // NEW: Send who paid for this expense
     });
   };
@@ -233,7 +235,6 @@ export const ExpenseTracker = ({
     setExpenseCategory("");
     setExpenseAmount("");
     setVendorName("");
-    setDueDate("");
     setPaidByType("ACADEMY_CASH");
   };
 
@@ -340,7 +341,7 @@ export const ExpenseTracker = ({
           Add New Expense
         </h4>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label
               htmlFor="expense-title"
@@ -388,16 +389,24 @@ export const ExpenseTracker = ({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Utilities">
-                  💡 Utilities (PESCO, Gas)
+                <SelectItem value="Generator Fuel">
+                  ⛽ Generator Fuel
                 </SelectItem>
-                <SelectItem value="Rent">🏢 Rent/Lease</SelectItem>
-                <SelectItem value="Salaries">💵 Salaries & Wages</SelectItem>
-                <SelectItem value="Stationery">
-                  📚 Stationery & Books
+                <SelectItem value="Electricity Bill">
+                  💡 Electricity Bill
                 </SelectItem>
-                <SelectItem value="Marketing">📣 Marketing & Ads</SelectItem>
-                <SelectItem value="Misc">📦 Miscellaneous</SelectItem>
+                <SelectItem value="Staff Tea & Refreshments">
+                  ☕ Staff Tea & Refreshments
+                </SelectItem>
+                <SelectItem value="Marketing / Ads">📣 Marketing / Ads</SelectItem>
+                <SelectItem value="Stationery">📚 Stationery</SelectItem>
+                <SelectItem value="Rent">🏢 Rent</SelectItem>
+                <SelectItem value="Salaries">💵 Salaries</SelectItem>
+                <SelectItem value="Utilities">💧 Utilities</SelectItem>
+                <SelectItem value="Equipment/Asset">
+                  🧰 Equipment/Asset
+                </SelectItem>
+                <SelectItem value="Misc">📦 Misc</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -420,22 +429,6 @@ export const ExpenseTracker = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="due-date"
-              className="text-xs font-semibold flex items-center gap-1"
-            >
-              <Calendar className="h-3 w-3 text-red-600" />
-              Payment Due <span className="text-red-600">*</span>
-            </Label>
-            <Input
-              id="due-date"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="bg-background h-10 border-2 focus:border-red-500"
-            />
-          </div>
         </div>
 
         {/* Paid By Dropdown - Financial Sovereignty Feature */}

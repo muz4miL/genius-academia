@@ -8,7 +8,7 @@ const Notification = require("../models/Notification");
 const User = require("../models/User");
 
 // Minimal revenue helper inline to avoid import errors
-const calculateRevenueSplit = async ({ fee, teacherRole, config }) => {
+const calculateRevenueSplit = async ({ fee, teacherRole, teacher, config }) => {
   const isOwner = teacherRole === "OWNER";
   const staffShare = config?.salaryConfig?.teacherShare || 70;
 
@@ -24,18 +24,35 @@ const calculateRevenueSplit = async ({ fee, teacherRole, config }) => {
     };
   }
 
-  // Staff teachers: 70% teacher, 30% academy
-  const teacherAmt = Math.round((fee * staffShare) / 100);
+  const compType = teacher?.compensation?.type || "percentage";
+  if (compType === "fixed") {
+    return {
+      teacherRevenue: 0,
+      poolRevenue: fee,
+      isPartner: false,
+      isOwner: false,
+      stream: "STAFF_TUITION",
+      splitType: "FIXED_SALARY",
+      config: {
+        staffTeacherShare: 0,
+        staffAcademyShare: 100,
+      },
+    };
+  }
+
+  const teacherSharePct =
+    teacher?.compensation?.teacherShare ?? staffShare;
+  const teacherAmt = Math.round((fee * teacherSharePct) / 100);
   return {
     teacherRevenue: teacherAmt,
     poolRevenue: fee - teacherAmt,
     isPartner: false,
     isOwner: false,
     stream: "STAFF_TUITION",
-    splitType: "STAFF_70_30",
+    splitType: "STAFF_SPLIT",
     config: {
-      staffTeacherShare: staffShare,
-      staffAcademyShare: 100 - staffShare,
+      staffTeacherShare: teacherSharePct,
+      staffAcademyShare: 100 - teacherSharePct,
     },
   };
 };
@@ -182,6 +199,7 @@ exports.collectFee = async (req, res) => {
     const split = await calculateRevenueSplit({
       fee: Number(amount),
       teacherRole,
+      teacher,
       config,
     });
 

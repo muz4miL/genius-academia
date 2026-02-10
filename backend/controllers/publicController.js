@@ -2,6 +2,7 @@ const Student = require("../models/Student");
 const Class = require("../models/Class");
 const Session = require("../models/Session");
 const Lead = require("../models/Lead");
+const Configuration = require("../models/Configuration");
 
 /**
  * Public Registration Controller
@@ -104,6 +105,19 @@ exports.publicRegister = async (req, res) => {
       });
     }
 
+    // Get active session
+    const activeSession = await Session.findOne({ status: "active" }).lean();
+
+    // Session-based pricing lookup
+    let sessionRate = 0;
+    if (activeSession?._id) {
+      const config = await Configuration.findOne().lean();
+      const sessionPrice = config?.sessionPrices?.find(
+        (sp) => sp.sessionId?.toString() === activeSession._id.toString(),
+      );
+      sessionRate = Number(sessionPrice?.price) || 0;
+    }
+
     // Find the class by ID (frontend sends _id)
     const classDoc = await Class.findById(classId).lean();
     let totalFee = 0;
@@ -122,24 +136,21 @@ exports.publicRegister = async (req, res) => {
     className = classDoc.classTitle || classDoc.name || "Unassigned";
 
     if (classDoc) {
-      // Calculate total fee from selected subjects
+      // Keep subjects as enrollment tracking only
       if (subjects && subjects.length > 0) {
-        subjectsWithFees = subjects.map((subName) => {
-          const classSubject = classDoc.subjects?.find(
-            (s) => (typeof s === "string" ? s : s.name) === subName,
-          );
-          const fee = classSubject?.fee || classDoc.baseFee || 0;
-          return { name: subName, fee };
-        });
-        totalFee = subjectsWithFees.reduce((sum, s) => sum + s.fee, 0);
+        subjectsWithFees = subjects.map((subName) => ({
+          name: subName,
+          fee: 0,
+        }));
+      }
+
+      // Session pricing takes precedence, fallback to class base if missing
+      if (sessionRate > 0) {
+        totalFee = sessionRate;
       } else {
-        // Use base fee if no subjects selected
         totalFee = classDoc.baseFee || 0;
       }
     }
-
-    // Get active session
-    const activeSession = await Session.findOne({ isActive: true }).lean();
 
     // Create student with Pending status (NO PASSWORD YET - Generated on approval)
     const student = await Student.create({
@@ -154,6 +165,7 @@ exports.publicRegister = async (req, res) => {
       group: group || "General", // Default to "General" if not provided
       subjects: subjectsWithFees,
       totalFee,
+      sessionRate,
       paidAmount: 0,
       feeStatus: "pending",
       studentStatus: "Pending", // Key: Pending approval
@@ -239,25 +251,42 @@ exports.approveRegistration = async (req, res) => {
     // If classId provided, update the student's class assignment and get fee info
     let classDoc = null;
     let standardTotal = 0;
+    let sessionRate = 0;
     if (classId) {
       classDoc = await require("../models/Class").findById(classId);
       if (classDoc) {
         student.classRef = classDoc._id;
         student.class = classDoc.classTitle || classDoc.name;
 
-        // Calculate standard total fee from class subjects
-        if (classDoc.subjects && classDoc.subjects.length > 0) {
-          standardTotal = classDoc.subjects.reduce((sum, s) => {
-            const fee = typeof s === "object" ? s.fee || 0 : 0;
-            return sum + fee;
-          }, 0);
-        }
-        standardTotal = standardTotal || classDoc.baseFee || 0;
-
-        // Copy subjects from class
-        student.subjects = classDoc.subjects || [];
+        // Copy subjects from class (pricing handled by session rate)
+        student.subjects = (classDoc.subjects || []).map((s) => ({
+          name: typeof s === "string" ? s : s.name,
+          fee: 0,
+        }));
         student.group = classDoc.group || student.group;
       }
+    }
+
+    // Session-based pricing lookup (sessionRef or class session)
+    const sessionId = student.sessionRef || classDoc?.session;
+    if (sessionId) {
+      const config = await Configuration.findOne().lean();
+      const sessionPrice = config?.sessionPrices?.find(
+        (sp) => sp.sessionId?.toString() === sessionId.toString(),
+      );
+      sessionRate = Number(sessionPrice?.price) || 0;
+    }
+
+    if (sessionRate > 0) {
+      standardTotal = sessionRate;
+    } else if (classDoc?.subjects && classDoc.subjects.length > 0) {
+      standardTotal = classDoc.subjects.reduce((sum, s) => {
+        const fee = typeof s === "object" ? s.fee || 0 : 0;
+        return sum + fee;
+      }, 0);
+      standardTotal = standardTotal || classDoc.baseFee || 0;
+    } else {
+      standardTotal = classDoc?.baseFee || 0;
     }
 
     // Calculate discount if custom fee is applied
@@ -275,6 +304,7 @@ exports.approveRegistration = async (req, res) => {
 
     student.totalFee = finalTotalFee;
     student.discountAmount = discountAmount;
+    student.sessionRate = sessionRate;
 
     // Generate numeric barcode ID (for barcode scanner compatibility)
     const numericId = await generateNumericStudentId();
@@ -348,6 +378,7 @@ exports.approveRegistration = async (req, res) => {
         group: student.group,
         subjects: student.subjects,
         totalFee: student.totalFee,
+        sessionRate: student.sessionRate,
         paidAmount: student.paidAmount,
         discountAmount: student.discountAmount,
         feeStatus: student.feeStatus,

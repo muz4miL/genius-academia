@@ -367,6 +367,7 @@ export interface StudentPDFData {
   parentCell?: string;
   studentCell?: string;
   totalFee: number;
+  sessionRate?: number;
   paidAmount: number;
   discountAmount?: number;
   feeStatus: string;
@@ -585,21 +586,42 @@ export const ReceiptPDF = ({
 
                 {/* Fee Details */}
                 <View style={styles.feeDetails}>
-                  <View style={styles.feeRow}>
-                    <Text style={styles.feeRowLabel}>Total Fee:</Text>
-                    <Text style={styles.feeRowValue}>
-                      {formatCurrency(student.totalFee)}
-                    </Text>
-                  </View>
+                  {student.sessionRate && student.sessionRate > 0 ? (
+                    <>
+                      <View style={styles.feeRow}>
+                        <Text style={styles.feeRowLabel}>Session Rate:</Text>
+                        <Text style={styles.feeRowValue}>
+                          {formatCurrency(student.sessionRate)}
+                        </Text>
+                      </View>
 
-                  {/* Discount Row (if applicable) */}
-                  {student.discountAmount && student.discountAmount > 0 && (
+                      {student.discountAmount && student.discountAmount > 0 && (
+                        <View style={styles.feeRow}>
+                          <Text
+                            style={[styles.feeRowLabel, styles.discountText]}
+                          >
+                            Discount:
+                          </Text>
+                          <Text
+                            style={[styles.feeRowValue, styles.discountText]}
+                          >
+                            -{formatCurrency(student.discountAmount)}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.feeRow}>
+                        <Text style={styles.feeRowLabel}>Net Payable:</Text>
+                        <Text style={styles.feeRowValue}>
+                          {formatCurrency(student.totalFee)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
                     <View style={styles.feeRow}>
-                      <Text style={[styles.feeRowLabel, styles.discountText]}>
-                        Discount:
-                      </Text>
-                      <Text style={[styles.feeRowValue, styles.discountText]}>
-                        -{formatCurrency(student.discountAmount)}
+                      <Text style={styles.feeRowLabel}>Total Fee:</Text>
+                      <Text style={styles.feeRowValue}>
+                        {formatCurrency(student.totalFee)}
                       </Text>
                     </View>
                   )}

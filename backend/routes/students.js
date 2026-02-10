@@ -1,6 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
+const Class = require("../models/Class");
+const Teacher = require("../models/Teacher");
+const Configuration = require("../models/Configuration");
+const FeeRecord = require("../models/FeeRecord");
+const Transaction = require("../models/Transaction");
+const Notification = require("../models/Notification");
 const { protect } = require("../middleware/authMiddleware");
 const { handlePhotoUpload } = require("../middleware/upload");
 const {
@@ -260,6 +266,12 @@ router.post("/", async (req, res) => {
       sanitizedData.paidAmount = Number(sanitizedData.paidAmount);
       console.log("🔧 Cast paidAmount to Number:", sanitizedData.paidAmount);
     }
+    if (sanitizedData.sessionRate !== undefined) {
+      sanitizedData.sessionRate = Number(sanitizedData.sessionRate) || 0;
+    }
+    if (sanitizedData.discountAmount !== undefined) {
+      sanitizedData.discountAmount = Number(sanitizedData.discountAmount) || 0;
+    }
 
     // ✨ TASK 3: CONTROLLER SAFETY - Never let frontend send studentId
     // Delete it from the request to let the pre-save hook handle it
@@ -289,6 +301,42 @@ router.post("/", async (req, res) => {
       sanitizedData.studentStatus = "Active";
     }
 
+    // Auto-attach class teacher if missing
+    let classDoc = null;
+    if (sanitizedData.classRef) {
+      classDoc = await Class.findById(sanitizedData.classRef)
+        .select("assignedTeacher teacherName")
+        .lean();
+      if (classDoc && !sanitizedData.assignedTeacher) {
+        sanitizedData.assignedTeacher = classDoc.assignedTeacher;
+        sanitizedData.assignedTeacherName = classDoc.teacherName;
+      }
+    }
+
+    // If session rate not provided, try to fetch from config
+    if (sanitizedData.sessionRef && !sanitizedData.sessionRate) {
+      const config = await Configuration.findOne().lean();
+      const sessionPrice = config?.sessionPrices?.find(
+        (sp) => sp.sessionId?.toString() === sanitizedData.sessionRef.toString(),
+      );
+      if (sessionPrice?.price) {
+        sanitizedData.sessionRate = Number(sessionPrice.price) || 0;
+      }
+    }
+
+    // Calculate discount if missing and session rate is present
+    if (
+      sanitizedData.sessionRate &&
+      sanitizedData.sessionRate > 0 &&
+      (sanitizedData.discountAmount === undefined || sanitizedData.discountAmount === 0)
+    ) {
+      const netTotal = Number(sanitizedData.totalFee) || 0;
+      sanitizedData.discountAmount = Math.max(
+        0,
+        Number(sanitizedData.sessionRate) - netTotal,
+      );
+    }
+
     console.log("\n✅ Sanitized Data:", JSON.stringify(sanitizedData, null, 2));
 
     const newStudent = new Student(sanitizedData);
@@ -300,6 +348,100 @@ router.post("/", async (req, res) => {
       savedStudent.studentId,
     );
     console.log("✅ Fee Status:", savedStudent.feeStatus);
+
+    // Record admission payment into finance if paidAmount > 0
+    const paidAmount = Number(savedStudent.paidAmount) || 0;
+    if (paidAmount > 0) {
+      const config = await Configuration.findOne().lean();
+
+      let teacher = null;
+      if (savedStudent.assignedTeacher) {
+        teacher = await Teacher.findById(savedStudent.assignedTeacher);
+      }
+
+      const compType = teacher?.compensation?.type || "percentage";
+      const teacherSharePct =
+        compType === "fixed"
+          ? 0
+          : teacher?.compensation?.teacherShare ?? config?.salaryConfig?.teacherShare ?? 70;
+      const academySharePct = 100 - teacherSharePct;
+
+      const teacherShare = teacher
+        ? Math.round((paidAmount * teacherSharePct) / 100)
+        : 0;
+      const academyShare = paidAmount - teacherShare;
+
+      const monthLabel = new Date().toLocaleString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+
+      const feeRecord = await FeeRecord.create({
+        student: savedStudent._id,
+        studentName: savedStudent.studentName,
+        class: savedStudent.classRef,
+        className: savedStudent.class,
+        subject: "Session Admission",
+        amount: paidAmount,
+        discountAmount: savedStudent.discountAmount || 0,
+        sessionRate: savedStudent.sessionRate || 0,
+        month: monthLabel,
+        status: "PAID",
+        collectedBy: req.user?._id,
+        collectedByName: req.user?.fullName || "Staff",
+        teacher: teacher?._id,
+        teacherName: teacher?.name,
+        isPartnerTeacher: false,
+        splitBreakdown: {
+          teacherShare,
+          academyShare,
+          teacherPercentage: teacher ? teacherSharePct : 0,
+          academyPercentage: teacher ? academySharePct : 100,
+        },
+        paymentMethod: "CASH",
+        notes: "Admission payment",
+        revenueSource: compType === "fixed" ? "fixed-salary" : "standard-split",
+      });
+
+      await Transaction.create({
+        type: "INCOME",
+        category: "Tuition",
+        stream: teacher ? "STAFF_TUITION" : "ACADEMY_POOL",
+        amount: paidAmount,
+        description: `Admission fee: ${savedStudent.studentName} - ${monthLabel}`,
+        collectedBy: req.user?._id,
+        status: teacher && compType !== "fixed" ? "FLOATING" : "VERIFIED",
+        studentId: savedStudent._id,
+        splitDetails: {
+          teacherShare,
+          academyShare,
+          teacherPercentage: teacher ? teacherSharePct : 0,
+          academyPercentage: teacher ? academySharePct : 100,
+          teacherId: teacher?._id,
+          teacherName: teacher?.name,
+        },
+      });
+
+      if (teacher && teacherShare > 0) {
+        if (!teacher.balance) {
+          teacher.balance = { floating: 0, verified: 0, pending: 0 };
+        }
+        teacher.balance.floating =
+          (teacher.balance.floating || 0) + teacherShare;
+        await teacher.save();
+      }
+
+      try {
+        await Notification.create({
+          recipientRole: "OWNER",
+          message: `Admission payment received: ${savedStudent.studentName} — PKR ${paidAmount.toLocaleString()}`,
+          type: "FINANCE",
+          relatedId: feeRecord._id.toString(),
+        });
+      } catch (e) {
+        console.log("Notification skipped:", e.message);
+      }
+    }
 
     // Include credentials in response for admin display
     const responseData = savedStudent.toObject();

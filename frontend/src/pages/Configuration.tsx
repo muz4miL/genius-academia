@@ -18,12 +18,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Save,
   Loader2,
   ShieldAlert,
@@ -32,7 +26,6 @@ import {
   CheckCircle2,
   Banknote,
   Plus,
-  Edit,
   Trash2,
   Lock,
   Calendar,
@@ -68,7 +61,6 @@ const Configuration = () => {
     Array<{ name: string; fee: number }>
   >([]);
   const [newSubjectName, setNewSubjectName] = useState("");
-  const [newSubjectFee, setNewSubjectFee] = useState("");
 
   // --- Session Rate Master ---
   const [sessionPrices, setSessionPrices] = useState<
@@ -79,14 +71,7 @@ const Configuration = () => {
   >([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
 
-  // Edit dialog state
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<{
-    name: string;
-    fee: number;
-    index: number;
-  } | null>(null);
-  const [editFeeValue, setEditFeeValue] = useState("");
+  // Edit dialog removed (session-based pricing, subjects are name-only)
 
   // --- Staff Access Management ---
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -307,6 +292,7 @@ const Configuration = () => {
   // --- Instant Save Helper ---
   const saveConfigToBackend = async (
     subjects: Array<{ name: string; fee: number }>,
+    sessionPricesOverride?: Array<{ sessionId: string; sessionName: string; price: number }>,
   ) => {
     try {
       const settingsData = {
@@ -314,7 +300,7 @@ const Configuration = () => {
         academyAddress,
         academyPhone,
         defaultSubjectFees: subjects,
-        sessionPrices,
+        sessionPrices: sessionPricesOverride || sessionPrices,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/config`, {
@@ -338,21 +324,29 @@ const Configuration = () => {
   };
 
   // --- Update Session Price ---
+  const buildSessionPrices = (
+    sessionId: string,
+    sessionName: string,
+    price: number,
+    current: Array<{ sessionId: string; sessionName: string; price: number }>,
+  ) => {
+    const existingIndex = current.findIndex((sp) => sp.sessionId === sessionId);
+    if (existingIndex >= 0) {
+      const updated = [...current];
+      updated[existingIndex] = { sessionId, sessionName, price };
+      return updated;
+    }
+    return [...current, { sessionId, sessionName, price }];
+  };
+
   const updateSessionPrice = (
     sessionId: string,
     sessionName: string,
     price: number,
   ) => {
-    setSessionPrices((prev) => {
-      const existingIndex = prev.findIndex((sp) => sp.sessionId === sessionId);
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = { sessionId, sessionName, price };
-        return updated;
-      } else {
-        return [...prev, { sessionId, sessionName, price }];
-      }
-    });
+    setSessionPrices((prev) =>
+      buildSessionPrices(sessionId, sessionName, price, prev),
+    );
   };
 
   // --- Save Settings Handler ---
@@ -591,6 +585,29 @@ const Configuration = () => {
                                       newPrice,
                                     );
                                   }}
+                                  onBlur={async (e) => {
+                                    const newPrice =
+                                      Number(e.target.value) || 0;
+                                    const nextSessionPrices = buildSessionPrices(
+                                      session._id,
+                                      session.sessionName,
+                                      newPrice,
+                                      sessionPrices,
+                                    );
+                                    try {
+                                      await saveConfigToBackend(
+                                        defaultSubjectFees,
+                                        nextSessionPrices,
+                                      );
+                                    } catch (error) {
+                                      toast({
+                                        title: "Save Failed",
+                                        description:
+                                          "Could not save session pricing. Please try again.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
                                   placeholder="0"
                                   className="h-10 pl-10 pr-2 text-right font-bold"
                                 />
@@ -614,10 +631,10 @@ const Configuration = () => {
                   </div>
                   <div>
                     <CardTitle className="text-lg">
-                      Master Subject Pricing
+                      Master Subjects
                     </CardTitle>
                     <CardDescription>
-                      Global fee structure for all subjects
+                      Global subject list for admissions and classes
                     </CardDescription>
                   </div>
                 </div>
@@ -631,24 +648,12 @@ const Configuration = () => {
                     onChange={(e) => setNewSubjectName(e.target.value)}
                     className="flex-1 h-10"
                   />
-                  <div className="relative w-32">
-                    <Input
-                      type="number"
-                      placeholder="Fee"
-                      value={newSubjectFee}
-                      onChange={(e) => setNewSubjectFee(e.target.value)}
-                      className="h-10 pr-8"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                      PKR
-                    </span>
-                  </div>
                   <Button
                     onClick={async () => {
-                      if (!newSubjectName.trim() || !newSubjectFee) {
+                      if (!newSubjectName.trim()) {
                         toast({
                           title: "Missing Information",
-                          description: "Enter both name and fee",
+                          description: "Enter a subject name",
                           variant: "destructive",
                         });
                         return;
@@ -671,13 +676,12 @@ const Configuration = () => {
                         ...defaultSubjectFees,
                         {
                           name: newSubjectName.trim(),
-                          fee: Number(newSubjectFee),
+                          fee: 0,
                         },
                       ];
                       setDefaultSubjectFees(newSubjects);
                       const subjectName = newSubjectName.trim();
                       setNewSubjectName("");
-                      setNewSubjectFee("");
                       try {
                         await saveConfigToBackend(newSubjects);
                         toast({
@@ -687,7 +691,6 @@ const Configuration = () => {
                       } catch (error) {
                         setDefaultSubjectFees(defaultSubjectFees);
                         setNewSubjectName(subjectName);
-                        setNewSubjectFee(String(Number(newSubjectFee)));
                         toast({
                           title: "Error",
                           description: "Failed to save",
@@ -711,23 +714,9 @@ const Configuration = () => {
                     >
                       <div>
                         <p className="font-semibold text-sm">{subject.name}</p>
-                        <p className="text-xs text-gray-500">
-                          PKR {subject.fee.toLocaleString()}
-                        </p>
+                        <p className="text-xs text-gray-500">Included</p>
                       </div>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setEditingSubject({ ...subject, index });
-                            setEditFeeValue(String(subject.fee));
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1044,79 +1033,7 @@ const Configuration = () => {
           </div>
         )}
 
-        {/* Edit Subject Fee Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Edit Subject Fee</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label>Subject</Label>
-                <Input
-                  value={editingSubject?.name || ""}
-                  disabled
-                  className="bg-gray-50"
-                />
-              </div>
-              <div>
-                <Label>Fee (PKR)</Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={editFeeValue}
-                    onChange={(e) => setEditFeeValue(e.target.value)}
-                    className="pr-8"
-                    autoFocus
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                    PKR
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setEditDialogOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={async () => {
-                  const newFee = Number(editFeeValue);
-                  if (!isNaN(newFee) && newFee >= 0 && editingSubject) {
-                    const newSubjects = defaultSubjectFees.map((s, i) =>
-                      i === editingSubject.index ? { ...s, fee: newFee } : s,
-                    );
-                    setDefaultSubjectFees(newSubjects);
-                    const subjectName = editingSubject.name;
-                    setEditDialogOpen(false);
-                    try {
-                      await saveConfigToBackend(newSubjects);
-                      toast({
-                        title: "Saved",
-                        description: `${subjectName} updated`,
-                      });
-                    } catch (error) {
-                      setDefaultSubjectFees(defaultSubjectFees);
-                      setEditDialogOpen(true);
-                      toast({
-                        title: "Error",
-                        description: "Failed to save",
-                        variant: "destructive",
-                      });
-                    }
-                  }
-                }}
-                className="flex-1 bg-primary hover:bg-primary/90"
-              >
-                Save
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Subject editing removed for session-based pricing */}
       </div>
     </DashboardLayout>
   );

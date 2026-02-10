@@ -173,6 +173,12 @@ const studentSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    // Official session rate at time of admission
+    sessionRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     paidAmount: {
       type: Number,
       default: 0,
@@ -395,6 +401,8 @@ studentSchema.methods.getStudentProfile = function () {
     studentStatus: this.studentStatus,
     feeStatus: this.feeStatus,
     totalFee: this.totalFee,
+    sessionRate: this.sessionRate,
+    discountAmount: this.discountAmount,
     paidAmount: this.paidAmount,
     balance: this.balance,
     session: this.sessionRef,

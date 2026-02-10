@@ -6,6 +6,9 @@ import Barcode from "react-barcode";
  *
  * Matches the academy's yellow slip format with added barcode for Smart Gate.
  * Designed for thermal or standard printers (8.5" x 4" landscape).
+                  {/* Subjects */}
+                  {student.subjects && student.subjects.length > 0 && (
+                    <div style={{ marginTop: "8px" }}>
  */
 
 interface StudentData {
@@ -18,7 +21,9 @@ interface StudentData {
   parentCell?: string;
   studentCell?: string;
   totalFee: number;
+  sessionRate?: number;
   paidAmount: number;
+  discountAmount?: number;
   feeStatus: string;
   admissionDate?: string | Date;
   subjects?: Array<{ name: string; fee: number }>;
@@ -415,14 +420,45 @@ const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
                 }}
               >
                 <tbody>
-                  <tr>
-                    <td style={{ textAlign: "left", padding: "2px 0" }}>
-                      Total:
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: "bold" }}>
-                      {formatCurrency(student.totalFee)}
-                    </td>
-                  </tr>
+                  {student.sessionRate && student.sessionRate > 0 ? (
+                    <>
+                      <tr>
+                        <td style={{ textAlign: "left", padding: "2px 0" }}>
+                          Session Rate:
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: "bold" }}>
+                          {formatCurrency(student.sessionRate)}
+                        </td>
+                      </tr>
+                      {student.discountAmount && student.discountAmount > 0 && (
+                        <tr>
+                          <td style={{ textAlign: "left", padding: "2px 0", color: "#16a34a" }}>
+                            Discount:
+                          </td>
+                          <td style={{ textAlign: "right", color: "#16a34a" }}>
+                            -{formatCurrency(student.discountAmount)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td style={{ textAlign: "left", padding: "2px 0" }}>
+                          Net Payable:
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: "bold" }}>
+                          {formatCurrency(student.totalFee)}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td style={{ textAlign: "left", padding: "2px 0" }}>
+                        Total:
+                      </td>
+                      <td style={{ textAlign: "right", fontWeight: "bold" }}>
+                        {formatCurrency(student.totalFee)}
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td style={{ textAlign: "left", padding: "2px 0" }}>Paid:</td>
                     <td style={{ textAlign: "right", color: "#38a169" }}>

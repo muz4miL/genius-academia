@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,13 +67,26 @@ interface Expense {
   title: string;
   category: string;
   amount: number;
+  vendorName: string;
+  dueDate: string;
   expenseDate: string;
   description?: string;
-  recordedBy?: {
+  paidBy?: {
     fullName?: string;
     username?: string;
   };
   createdAt: string;
+}
+
+interface FinanceHistoryItem {
+  _id: string;
+  type: string;
+  category: string;
+  amount: number;
+  description?: string;
+  date?: string;
+  createdAt?: string;
+  source?: "transaction" | "expense";
 }
 
 // ==================== HELPERS ====================
@@ -99,6 +112,50 @@ function formatCurrency(amount: number): string {
 
 // ==================== FINANCE OVERVIEW TAB ====================
 const FinanceOverview = () => {
+  const [search, setSearch] = useState("");
+
+  const { data: statsData } = useQuery({
+    queryKey: ["finance", "stats"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/finance/stats/overview`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load finance stats");
+      return res.json();
+    },
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ["finance", "history"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/finance/history?limit=200`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load finance history");
+      return res.json();
+    },
+  });
+
+  const stats = statsData?.data;
+  const history: FinanceHistoryItem[] = historyData?.data || [];
+
+  const filteredHistory = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return history;
+    return history.filter((item) => {
+      const haystack = [
+        item.type,
+        item.category,
+        item.description,
+        item.source,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [history, search]);
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -107,7 +164,9 @@ const FinanceOverview = () => {
             <p className="text-sm font-medium text-muted-foreground">
               Fee Collections
             </p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">—</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">
+              {formatCurrency(stats?.totalIncome || 0)}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">This month</p>
           </CardContent>
         </Card>
@@ -116,7 +175,9 @@ const FinanceOverview = () => {
             <p className="text-sm font-medium text-muted-foreground">
               Expenses
             </p>
-            <p className="text-2xl font-bold text-red-700 mt-1">—</p>
+            <p className="text-2xl font-bold text-red-700 mt-1">
+              {formatCurrency(stats?.totalExpenses || 0)}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">This month</p>
           </CardContent>
         </Card>
@@ -125,7 +186,9 @@ const FinanceOverview = () => {
             <p className="text-sm font-medium text-muted-foreground">
               Net Balance
             </p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">—</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">
+              {formatCurrency(stats?.netProfit || 0)}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               Revenue - Expenses
             </p>
@@ -152,6 +215,100 @@ const FinanceOverview = () => {
               Use the sidebar to manage expenses and payroll individually.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-red-600" />
+              Finance Ledger
+            </CardTitle>
+            <CardDescription>
+              All income and expense transactions in one scrollable log
+            </CardDescription>
+          </div>
+          <div className="w-64">
+            <Input
+              placeholder="Search by type, category, or description"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+              <span className="ml-3 text-muted-foreground">
+                Loading transactions...
+              </span>
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Receipt className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">No transactions yet</p>
+              <p className="text-sm mt-1">
+                Admissions and expenses will appear here automatically.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary hover:bg-secondary">
+                    <TableHead className="font-semibold">Date</TableHead>
+                    <TableHead className="font-semibold">Type</TableHead>
+                    <TableHead className="font-semibold">Category</TableHead>
+                    <TableHead className="font-semibold">Description</TableHead>
+                    <TableHead className="font-semibold text-right">
+                      Amount (PKR)
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredHistory.map((item) => (
+                    <TableRow key={item._id}>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(item.date || item.createdAt || Date.now())
+                          .toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            item.type === "EXPENSE"
+                              ? "text-red-600"
+                              : "text-emerald-600"
+                          }
+                        >
+                          {item.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{item.category || "—"}</TableCell>
+                      <TableCell className="font-medium">
+                        {item.description || "—"}
+                      </TableCell>
+                      <TableCell
+                        className={
+                          item.type === "EXPENSE"
+                            ? "text-right font-bold text-red-600"
+                            : "text-right font-bold text-emerald-700"
+                        }
+                      >
+                        {formatCurrency(item.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -515,6 +672,7 @@ const DailyExpenses = () => {
   const [expenseCategory, setExpenseCategory] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDescription, setExpenseDescription] = useState("");
+  const [expenseVendor, setExpenseVendor] = useState("");
 
   // Peshawar-specific expense categories
   const EXPENSE_CATEGORIES = [
@@ -530,23 +688,15 @@ const DailyExpenses = () => {
     "Misc",
   ];
 
-  // Fetch expenses (Note: Backend GET endpoint may not exist yet, show empty for now)
+  // Fetch expenses
   const { data: expensesData, isLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/finance/expenses`, {
-          credentials: "include",
-        });
-        if (!res.ok) {
-          // If no GET endpoint exists yet, return empty array
-          return { data: [] };
-        }
-        return res.json();
-      } catch (err) {
-        // Return empty array if endpoint doesn't exist
-        return { data: [] };
-      }
+      const res = await fetch(`${API_BASE_URL}/api/expenses`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load expenses");
+      return res.json();
     },
   });
 
@@ -555,15 +705,12 @@ const DailyExpenses = () => {
   // Create expense mutation
   const createExpenseMutation = useMutation({
     mutationFn: async (expenseData: any) => {
-      const res = await fetch(
-        `${API_BASE_URL}/api/finance/record-transaction`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(expenseData),
-        },
-      );
+      const res = await fetch(`${API_BASE_URL}/api/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(expenseData),
+      });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Failed to record expense");
@@ -575,10 +722,14 @@ const DailyExpenses = () => {
       toast.success("Expense Recorded", {
         description: "Expense has been added to the daily log.",
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+      }
       setExpenseTitle("");
       setExpenseCategory("");
       setExpenseAmount("");
       setExpenseDescription("");
+      setExpenseVendor("");
       setShowExpenseDialog(false);
     },
     onError: (error: any) => {
@@ -589,16 +740,21 @@ const DailyExpenses = () => {
   });
 
   const handleAddExpense = () => {
-    if (!expenseTitle || !expenseCategory || !expenseAmount) {
+    if (
+      !expenseTitle ||
+      !expenseCategory ||
+      !expenseAmount ||
+      !expenseVendor
+    ) {
       toast.error("Please fill all required fields");
       return;
     }
     createExpenseMutation.mutate({
-      type: "expense",
+      title: expenseTitle,
       category: expenseCategory,
       amount: Number(expenseAmount),
-      description:
-        expenseTitle + (expenseDescription ? ` - ${expenseDescription}` : ""),
+      vendorName: expenseVendor,
+      description: expenseDescription || undefined,
     });
   };
 
@@ -676,8 +832,8 @@ const DailyExpenses = () => {
                       {formatCurrency(expense.amount)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {expense.recordedBy?.fullName ||
-                        expense.recordedBy?.username ||
+                      {expense.paidBy?.fullName ||
+                        expense.paidBy?.username ||
                         "System"}
                     </TableCell>
                   </TableRow>
@@ -734,6 +890,14 @@ const DailyExpenses = () => {
                 placeholder="0"
                 value={expenseAmount}
                 onChange={(e) => setExpenseAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Vendor/Supplier *</Label>
+              <Input
+                placeholder="e.g. PESCO, SNGPL"
+                value={expenseVendor}
+                onChange={(e) => setExpenseVendor(e.target.value)}
               />
             </div>
             <div className="space-y-2">

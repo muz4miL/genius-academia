@@ -22,7 +22,9 @@ interface StudentData {
   parentCell?: string;
   studentCell?: string;
   totalFee: number;
+  sessionRate?: number;
   paidAmount: number;
+  discountAmount?: number;
   feeStatus: string;
   admissionDate?: string | Date;
   subjects?: Array<{ name: string; fee: number }>;

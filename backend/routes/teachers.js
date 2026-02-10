@@ -195,6 +195,10 @@ router.post("/payout", async (req, res) => {
     }
 
     // Create payment record
+    const Session = require("../models/Session");
+    const activeSession = await Session.findOne({ status: "active" })
+      .sort({ startDate: -1 })
+      .lean();
     console.log("💾 Creating payment record...");
 
     // MANUALLY GENERATE VOUCHER ID (bypass broken pre-save hook)
@@ -213,6 +217,8 @@ router.post("/payout", async (req, res) => {
       year,
       paymentMethod: "cash",
       status: "paid",
+      sessionId: activeSession?._id,
+      sessionName: activeSession?.sessionName,
     });
 
     await payment.save();
@@ -390,6 +396,7 @@ router.post("/:id/wallet/debit", async (req, res) => {
     const Notification = require("../models/Notification");
     const Expense = require("../models/Expense");
     const User = require("../models/User");
+    const Session = require("../models/Session");
     const { amount, description } = req.body;
 
     if (!amount || amount <= 0) {
@@ -427,6 +434,10 @@ router.post("/:id/wallet/debit", async (req, res) => {
     const voucherId = `TP-${year}${String(now.getMonth() + 1).padStart(2, "0")}-${String(paymentCount + 1).padStart(4, "0")}`;
 
     // Create payment record
+    const activeSession = await Session.findOne({ status: "active" })
+      .sort({ startDate: -1 })
+      .lean();
+
     const payment = new TeacherPayment({
       voucherId: voucherId,
       teacherId: teacher._id,
@@ -439,6 +450,8 @@ router.post("/:id/wallet/debit", async (req, res) => {
       paymentMethod: "cash",
       status: "paid",
       notes: description || "Wallet Payment",
+      sessionId: activeSession?._id,
+      sessionName: activeSession?.sessionName,
     });
 
     await payment.save();

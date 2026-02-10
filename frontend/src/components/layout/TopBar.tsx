@@ -83,7 +83,12 @@ export function TopBar({ title }: TopBarProps) {
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    const handleRefresh = () => fetchNotifications();
+    window.addEventListener("notifications:refresh", handleRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications:refresh", handleRefresh);
+    };
   }, []);
 
   // Close dropdown when clicking outside

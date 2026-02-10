@@ -9,8 +9,8 @@
 
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { ArrowLeft, User, Loader2, Send, Crown, Banknote } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, User, Loader2, Crown, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,8 @@ import {
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { useReactToPrint } from "react-to-print";
+import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
 
 // Modular Components
 import {
@@ -45,14 +47,21 @@ export default function TeacherProfile() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Payout request state (for teacher self-request)
-  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
-  const [payoutAmount, setPayoutAmount] = useState("");
-
   // Process Payout state (for owner to pay teacher)
   const [processPayoutDialogOpen, setProcessPayoutDialogOpen] = useState(false);
   const [processPayoutAmount, setProcessPayoutAmount] = useState("");
   const [processPayoutNotes, setProcessPayoutNotes] = useState("");
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: receiptData
+      ? `Teacher-Payment-${receiptData.voucherId}`
+      : "Teacher Payment",
+  });
 
   // Fetch teacher details (now includes debtToOwner for partners)
   const { data: teacherData, isLoading: teacherLoading } = useQuery({
@@ -78,53 +87,6 @@ export default function TeacherProfile() {
       return res.json();
     },
     enabled: !!id,
-  });
-
-  // Fetch existing payout requests to check for pending
-  const { data: payoutRequestsData } = useQuery({
-    queryKey: ["teacher-payouts", id],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/payroll/my-requests/${id}`, {
-        credentials: "include",
-      });
-      if (!res.ok) return { data: [] };
-      return res.json();
-    },
-    enabled: !!id,
-  });
-
-  // Payout request mutation (teacher self-request)
-  const payoutMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const res = await fetch(`${API_BASE_URL}/payroll/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ teacherId: id, amount }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to submit request");
-      }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Request Submitted!",
-        description: data.message,
-      });
-      setPayoutDialogOpen(false);
-      setPayoutAmount("");
-      queryClient.invalidateQueries({ queryKey: ["teacher", id] });
-      queryClient.invalidateQueries({ queryKey: ["teacher-payouts", id] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Request Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   // Process Payout mutation (owner pays teacher directly)
@@ -153,11 +115,28 @@ export default function TeacherProfile() {
         title: "Payout Processed!",
         description: data.message,
       });
+      if (data?.data?.voucher) {
+        setReceiptData({
+          voucherId: data.data.voucher.voucherId,
+          teacherName: data.data.voucher.teacherName,
+          subject: data.data.voucher.subject,
+          amountPaid: data.data.voucher.amountPaid,
+          remainingBalance: data.data.remainingBalance || 0,
+          paymentDate: new Date(data.data.voucher.paymentDate),
+          description: data.data.voucher.notes || "Teacher payout",
+        });
+        setTimeout(() => {
+          handlePrintReceipt();
+        }, 400);
+      }
       setProcessPayoutDialogOpen(false);
       setProcessPayoutAmount("");
       setProcessPayoutNotes("");
       queryClient.invalidateQueries({ queryKey: ["teacher", id] });
       queryClient.invalidateQueries({ queryKey: ["teacher-payouts", id] });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"));
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -170,12 +149,11 @@ export default function TeacherProfile() {
 
   const teacher = teacherData?.data;
   const revenue = revenueData?.data || { totalRevenue: 0, teacherShare: 0 };
-  const payoutRequests = payoutRequestsData?.data || [];
-  const teacherBalance = teacher?.balance?.verified || 0;
-  const pendingBalance = teacher?.balance?.pending || 0;
-  const hasPendingRequest = payoutRequests.some(
-    (r: any) => r.status === "PENDING",
-  );
+  const compType = teacher?.compensation?.type || "percentage";
+  const pendingBalance =
+    compType === "fixed"
+      ? teacher?.balance?.pending || 0
+      : (teacher?.balance?.verified || 0) + (teacher?.balance?.floating || 0);
 
   // Single-owner system: no partner distinction
   const isPartner = false;
@@ -272,23 +250,21 @@ export default function TeacherProfile() {
           </div>
           <div className="flex items-center gap-2">
             {getStatusBadge(teacher.status)}
-            {!isPartner && teacherBalance > 0 && !hasPendingRequest && (
-              <Button
-                onClick={() => setPayoutDialogOpen(true)}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Request Payout
-              </Button>
-            )}
-            {/* Owner can process payouts for Staff teachers with pending balance */}
             {isOwner && !isPartner && pendingBalance > 0 && (
               <Button
                 onClick={() => setProcessPayoutDialogOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Banknote className="mr-2 h-4 w-4" />
-                Process Payout
+                Pay Teacher
+              </Button>
+            )}
+            {isOwner && (
+              <Button
+                variant="outline"
+                onClick={() => setReportOpen(true)}
+              >
+                Create Report
               </Button>
             )}
           </div>
@@ -318,71 +294,6 @@ export default function TeacherProfile() {
         <TeacherPayoutHistory teacherId={id!} />
       </div>
 
-      {/* Payout Request Dialog */}
-      <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Cash Payout</DialogTitle>
-            <DialogDescription>
-              Available Balance: Rs. {teacherBalance.toLocaleString()}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount (PKR)</label>
-              <Input
-                type="number"
-                placeholder="Enter amount"
-                value={payoutAmount}
-                onChange={(e) => setPayoutAmount(e.target.value)}
-                max={teacherBalance}
-              />
-              {Number(payoutAmount) > teacherBalance && (
-                <p className="text-xs text-red-500">
-                  Amount cannot exceed available balance
-                </p>
-              )}
-            </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm">
-              <p className="text-blue-700 dark:text-blue-300">
-                ℹ️ Your request will be sent to the Owner for approval. Once
-                approved, you can collect your cash.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPayoutDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => payoutMutation.mutate(Number(payoutAmount))}
-              disabled={
-                !payoutAmount ||
-                Number(payoutAmount) <= 0 ||
-                Number(payoutAmount) > teacherBalance ||
-                payoutMutation.isPending
-              }
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {payoutMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Submit Request
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Process Payout Dialog (Owner Only) */}
       <Dialog
         open={processPayoutDialogOpen}
@@ -392,17 +303,16 @@ export default function TeacherProfile() {
           <DialogHeader>
             <DialogTitle>Process Teacher Payout</DialogTitle>
             <DialogDescription>
-              Pay {teacher.name}'s pending commission
+              Pay {teacher.name} from payable balance
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
               <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                Pending Balance: Rs. {pendingBalance.toLocaleString()}
+                Payable Balance: Rs. {pendingBalance.toLocaleString()}
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                This is the commission owed to this teacher from student
-                admissions.
+                This is the amount available to pay for this teacher.
               </p>
             </div>
             <div className="space-y-2">
@@ -416,7 +326,7 @@ export default function TeacherProfile() {
               />
               {Number(processPayoutAmount) > pendingBalance && (
                 <p className="text-xs text-red-500">
-                  Amount cannot exceed pending balance
+                  Amount cannot exceed payable balance
                 </p>
               )}
             </div>
@@ -431,8 +341,8 @@ export default function TeacherProfile() {
             </div>
             <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm">
               <p className="text-blue-700 dark:text-blue-300">
-                ℹ️ This will deduct from the teacher's pending balance and
-                record an expense transaction.
+                ℹ️ This will deduct from the teacher's payable balance and
+                record a payout transaction.
               </p>
             </div>
           </div>
@@ -466,13 +376,178 @@ export default function TeacherProfile() {
               ) : (
                 <>
                   <Banknote className="mr-2 h-4 w-4" />
-                  Process Payout
+                  Pay Now
                 </>
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Teacher Payroll Report</DialogTitle>
+            <DialogDescription>
+              {teacher.name} ({teacher.subject})
+            </DialogDescription>
+          </DialogHeader>
+          <TeacherReport teacherId={id!} />
+        </DialogContent>
+      </Dialog>
+
+      {receiptData && (
+        <TeacherPaymentReceipt
+          ref={receiptRef}
+          voucherId={receiptData.voucherId}
+          teacherName={receiptData.teacherName}
+          subject={receiptData.subject}
+          amountPaid={receiptData.amountPaid}
+          remainingBalance={receiptData.remainingBalance}
+          paymentDate={receiptData.paymentDate}
+          description={receiptData.description}
+        />
+      )}
     </DashboardLayout>
   );
 }
+
+const TeacherReport = ({ teacherId }: { teacherId: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["teacher-report", teacherId],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/payroll/teacher-report/${teacherId}`,
+        {
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to load report");
+      return res.json();
+    },
+    enabled: !!teacherId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="py-6">
+        <Skeleton className="h-6 w-1/3 mb-4" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  const report = data?.data;
+  if (!report) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Payable Balance</p>
+          <p className="text-xl font-bold text-emerald-600">
+            Rs. {report.balances.payable.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Paid This Session</p>
+          <p className="text-xl font-bold text-blue-600">
+            Rs. {report.payouts.totalPaidSession.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Session</p>
+          <p className="text-sm font-medium">
+            {report.session?.sessionName || "No active session"}
+          </p>
+        </div>
+      </div>
+
+      {report.teacher.compensation?.type === "percentage" ? (
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Teacher Share (Session)</p>
+          <p className="text-lg font-semibold text-emerald-700">
+            Rs. {report.incomeTotals.teacherShare.toLocaleString()}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Fixed Salary (Session)</p>
+          <p className="text-lg font-semibold text-emerald-700">
+            Rs. {report.fixedSalaryAccrual?.amount?.toLocaleString() || 0}
+          </p>
+        </div>
+      )}
+
+      <div className="rounded-lg border p-4">
+        <p className="text-sm text-muted-foreground">Classes & Students</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Total Classes</p>
+            <p className="text-lg font-semibold">
+              {report.classSummary?.totalClasses || 0}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total Students</p>
+            <p className="text-lg font-semibold">
+              {report.classSummary?.totalStudents || 0}
+            </p>
+          </div>
+        </div>
+        {report.classes?.length ? (
+          <div className="mt-4 space-y-2">
+            {report.classes.map((c: any) => (
+              <div
+                key={c._id}
+                className="flex items-center justify-between text-sm border-b pb-2"
+              >
+                <div>
+                  <p className="font-medium">{c.classTitle}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.group || "—"} {c.shift ? `• ${c.shift}` : ""}
+                  </p>
+                </div>
+                <div className="font-semibold">{c.studentCount || 0}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-3">
+            No classes linked to this teacher for the active session.
+          </p>
+        )}
+      </div>
+
+      {report.teacher.compensation?.type === "percentage" && (
+        <div className="rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">Revenue by Class</p>
+          {report.classRevenueBreakdown?.length ? (
+            <div className="mt-3 space-y-2">
+              {report.classRevenueBreakdown.map((row: any) => (
+                <div
+                  key={row.classId || row.classTitle}
+                  className="flex items-center justify-between text-sm border-b pb-2"
+                >
+                  <div>
+                    <p className="font-medium">{row.classTitle || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Teacher: Rs. {row.teacherShare.toLocaleString()} • Academy: Rs. {row.academyShare.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="font-semibold">
+                    Rs. {row.totalRevenue.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-3">
+              No revenue transactions yet for this session.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

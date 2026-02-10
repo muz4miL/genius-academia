@@ -5,6 +5,10 @@ const Expense = require("../models/Expense");
 const Configuration = require("../models/Configuration");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+const Session = require("../models/Session");
+const Student = require("../models/Student");
+const TeacherPayment = require("../models/TeacherPayment");
+const Class = require("../models/Class");
 
 // @desc    Teacher requests a cash payout
 // @route   POST /api/payroll/request
@@ -334,47 +338,55 @@ exports.rejectPayoutRequest = async (req, res) => {
 // @access  Protected (OWNER only)
 exports.getPayrollDashboard = async (req, res) => {
   try {
-    // Pending requests summary
-    const pendingRequests = await PayoutRequest.find({ status: "PENDING" })
-      .populate("teacherId", "name phone subject balance")
-      .sort({ requestDate: -1 });
+    const activeSession = await Session.findOne({ status: "active" })
+      .sort({ startDate: -1 })
+      .lean();
 
-    const pendingTotal = pendingRequests.reduce((sum, r) => sum + r.amount, 0);
+    const teachers = await Teacher.find({ status: "active" }).select(
+      "name subject balance totalPaid compensation salaryAccruals",
+    );
 
-    // This month's approved payouts
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const teachersWithBalances = teachers.map((teacher) => {
+      const compType = teacher.compensation?.type || "percentage";
+      const floating = teacher.balance?.floating || 0;
+      const verified = teacher.balance?.verified || 0;
+      const pending = teacher.balance?.pending || 0;
+      const payableBalance =
+        compType === "fixed" ? pending : verified + floating;
 
-    const monthlyApproved = await PayoutRequest.aggregate([
-      {
-        $match: {
-          status: "APPROVED",
-          approvedAt: { $gte: startOfMonth },
+      return {
+        _id: teacher._id,
+        name: teacher.name,
+        subject: teacher.subject,
+        compensation: teacher.compensation,
+        balance: {
+          floating,
+          verified,
+          pending,
+          total: floating + verified + pending,
+          payable: payableBalance,
         },
-      },
-      { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
-    ]);
-
-    // All teachers with balances
-    const teachersWithBalances = await Teacher.find({
-      "balance.verified": { $gt: 0 },
-    }).select("name subject balance");
+        totalPaid: teacher.totalPaid || 0,
+      };
+    });
 
     const totalTeacherLiability = teachersWithBalances.reduce(
-      (sum, t) => sum + (t.balance?.verified || 0),
+      (sum, t) => sum + (t.balance?.payable || 0),
       0,
     );
+
+    const totalPaidSession = activeSession
+      ? await TeacherPayment.aggregate([
+          { $match: { sessionId: activeSession._id } },
+          { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+        ])
+      : [];
 
     return res.status(200).json({
       success: true,
       data: {
-        pendingRequests,
-        pendingTotal,
-        monthlyApproved: {
-          total: monthlyApproved[0]?.total || 0,
-          count: monthlyApproved[0]?.count || 0,
-        },
+        activeSession,
+        totalPaidSession: totalPaidSession[0]?.total || 0,
         teachersWithBalances,
         totalTeacherLiability,
       },
@@ -384,6 +396,308 @@ exports.getPayrollDashboard = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while fetching payroll dashboard",
+      error: error.message,
+    });
+  }
+};
+
+const getActiveSession = async () => {
+  return Session.findOne({ status: "active" }).sort({ startDate: -1 }).lean();
+};
+
+// @desc    Generate fixed salary accruals for active session
+// @route   POST /api/payroll/generate-session-salaries
+// @access  Protected (OWNER only)
+exports.generateSessionSalaries = async (req, res) => {
+  try {
+    const activeSession = await getActiveSession();
+    if (!activeSession) {
+      return res.status(400).json({
+        success: false,
+        message: "No active session found to generate salaries.",
+      });
+    }
+
+    const fixedTeachers = await Teacher.find({
+      status: "active",
+      "compensation.type": "fixed",
+    });
+
+    let createdCount = 0;
+    const created = [];
+
+    for (const teacher of fixedTeachers) {
+      const salary = teacher.compensation?.fixedSalary || 0;
+      if (salary <= 0) continue;
+
+      const alreadyAccrued = (teacher.salaryAccruals || []).some(
+        (entry) => entry.sessionId?.toString() === activeSession._id.toString(),
+      );
+
+      if (alreadyAccrued) continue;
+
+      teacher.salaryAccruals = teacher.salaryAccruals || [];
+      teacher.salaryAccruals.push({
+        sessionId: activeSession._id,
+        sessionName: activeSession.sessionName,
+        amount: salary,
+        createdAt: new Date(),
+      });
+
+      if (!teacher.balance) {
+        teacher.balance = { floating: 0, verified: 0, pending: 0 };
+      }
+      teacher.balance.pending = (teacher.balance.pending || 0) + salary;
+
+      await teacher.save();
+
+      createdCount += 1;
+      created.push({
+        teacherId: teacher._id,
+        teacherName: teacher.name,
+        amount: salary,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Generated salary accruals for ${createdCount} teacher(s).`,
+      data: {
+        session: activeSession,
+        createdCount,
+        created,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in generateSessionSalaries:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while generating salaries",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get teacher payout report (earnings, payouts, balance)
+// @route   GET /api/payroll/teacher-report/:teacherId
+// @access  Protected (OWNER only)
+exports.getTeacherReport = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const teacher = await Teacher.findById(teacherId).lean();
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    const activeSession = await getActiveSession();
+
+    const compType = teacher.compensation?.type || "percentage";
+    const balance = teacher.balance || { floating: 0, verified: 0, pending: 0 };
+    const payableBalance =
+      compType === "fixed"
+        ? balance.pending || 0
+        : (balance.verified || 0) + (balance.floating || 0);
+
+    let incomeTotals = {
+      teacherShare: 0,
+      academyShare: 0,
+      totalRevenue: 0,
+    };
+
+    let incomeTransactions = [];
+    let classRevenueBreakdown = [];
+
+    const classQuery = { status: "active", $or: [] };
+    if (activeSession?._id) {
+      classQuery.session = activeSession._id;
+    }
+    classQuery.$or.push({ assignedTeacher: teacher._id });
+    classQuery.$or.push({ "subjectTeachers.teacherId": teacher._id });
+
+    const classesTaught = await Class.find(classQuery)
+      .select("classTitle gradeLevel group shift session")
+      .lean();
+
+    const classIds = classesTaught.map((c) => c._id);
+
+    const classStudentCounts = classIds.length
+      ? await Student.aggregate([
+          {
+            $match: {
+              classRef: { $in: classIds },
+              status: "active",
+              ...(activeSession?._id ? { sessionRef: activeSession._id } : {}),
+            },
+          },
+          { $group: { _id: "$classRef", count: { $sum: 1 } } },
+        ])
+      : [];
+
+    const classCountMap = new Map(
+      classStudentCounts.map((c) => [c._id.toString(), c.count]),
+    );
+
+    const classesWithCounts = classesTaught.map((c) => ({
+      _id: c._id,
+      classTitle: c.classTitle,
+      gradeLevel: c.gradeLevel,
+      group: c.group,
+      shift: c.shift,
+      studentCount: classCountMap.get(c._id.toString()) || 0,
+    }));
+
+    const totalStudents = classesWithCounts.reduce(
+      (sum, c) => sum + (c.studentCount || 0),
+      0,
+    );
+
+    if (compType === "percentage") {
+      let studentIds = [];
+      if (activeSession?._id) {
+        const students = await Student.find({ sessionRef: activeSession._id })
+          .select("_id")
+          .lean();
+        studentIds = students.map((s) => s._id);
+      }
+
+      const txQuery = {
+        type: "INCOME",
+        "splitDetails.teacherId": teacher._id,
+      };
+      if (studentIds.length > 0) {
+        txQuery.studentId = { $in: studentIds };
+      }
+
+      const transactions = await Transaction.find(txQuery)
+        .sort({ date: -1 })
+        .limit(100)
+        .lean();
+
+      incomeTransactions = transactions;
+
+      incomeTotals = transactions.reduce(
+        (acc, tx) => {
+          const teacherShare = tx.splitDetails?.teacherShare || 0;
+          const academyShare = tx.splitDetails?.academyShare || 0;
+          acc.teacherShare += teacherShare;
+          acc.academyShare += academyShare;
+          acc.totalRevenue += tx.amount || 0;
+          return acc;
+        },
+        { teacherShare: 0, academyShare: 0, totalRevenue: 0 },
+      );
+
+      const txStudentIds = transactions
+        .map((tx) => tx.studentId)
+        .filter(Boolean);
+
+      const students = txStudentIds.length
+        ? await Student.find({ _id: { $in: txStudentIds } })
+            .select("_id classRef class")
+            .lean()
+        : [];
+
+      const studentMap = new Map(
+        students.map((s) => [s._id.toString(), s]),
+      );
+
+      const classInfoMap = new Map(
+        classesWithCounts.map((c) => [c._id.toString(), c]),
+      );
+
+      const classRevenueMap = new Map();
+      transactions.forEach((tx) => {
+        const student = tx.studentId
+          ? studentMap.get(tx.studentId.toString())
+          : null;
+        const classId = student?.classRef?.toString() || null;
+        const classKey = classId || `unknown:${student?.class || "Unknown"}`;
+        const existing = classRevenueMap.get(classKey) || {
+          classId,
+          classTitle: classId
+            ? classInfoMap.get(classId)?.classTitle
+            : student?.class || "Unknown",
+          gradeLevel: classId ? classInfoMap.get(classId)?.gradeLevel : null,
+          group: classId ? classInfoMap.get(classId)?.group : null,
+          shift: classId ? classInfoMap.get(classId)?.shift : null,
+          studentCount: classId ? classCountMap.get(classId) || 0 : 0,
+          totalRevenue: 0,
+          teacherShare: 0,
+          academyShare: 0,
+          transactionCount: 0,
+        };
+
+        existing.totalRevenue += tx.amount || 0;
+        existing.teacherShare += tx.splitDetails?.teacherShare || 0;
+        existing.academyShare += tx.splitDetails?.academyShare || 0;
+        existing.transactionCount += 1;
+        classRevenueMap.set(classKey, existing);
+      });
+
+      classRevenueBreakdown = Array.from(classRevenueMap.values()).sort(
+        (a, b) => b.totalRevenue - a.totalRevenue,
+      );
+    }
+
+    const payoutQuery = { teacherId: teacher._id };
+    if (activeSession?._id) {
+      payoutQuery.sessionId = activeSession._id;
+    }
+    const payouts = await TeacherPayment.find(payoutQuery)
+      .sort({ paymentDate: -1 })
+      .limit(100)
+      .lean();
+
+    const totalPaidSession = payouts.reduce(
+      (sum, p) => sum + (p.amountPaid || 0),
+      0,
+    );
+
+    const activeSessionAccrual = (teacher.salaryAccruals || []).find(
+      (entry) => entry.sessionId?.toString() === activeSession?._id?.toString(),
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        teacher: {
+          _id: teacher._id,
+          name: teacher.name,
+          subject: teacher.subject,
+          compensation: teacher.compensation,
+          totalPaid: teacher.totalPaid || 0,
+        },
+        session: activeSession || null,
+        balances: {
+          floating: balance.floating || 0,
+          verified: balance.verified || 0,
+          pending: balance.pending || 0,
+          payable: payableBalance,
+        },
+        incomeTotals,
+        fixedSalaryAccrual: activeSessionAccrual || null,
+        payouts: {
+          totalPaidSession,
+          items: payouts,
+        },
+        incomeTransactions,
+        classes: classesWithCounts,
+        classSummary: {
+          totalClasses: classesWithCounts.length,
+          totalStudents,
+        },
+        classRevenueBreakdown,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in getTeacherReport:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while generating report",
       error: error.message,
     });
   }

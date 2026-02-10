@@ -47,6 +47,12 @@ const feeRecordSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Official session rate at time of payment (if applicable)
+    sessionRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // Month for which the fee is paid (e.g., "January 2026")
     month: {
       type: String,

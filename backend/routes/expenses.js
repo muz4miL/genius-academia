@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Expense = require("../models/Expense");
 const Notification = require("../models/Notification");
+const Transaction = require("../models/Transaction");
 const { protect } = require("../middleware/authMiddleware");
 
 // @route   GET /api/expenses
@@ -26,6 +27,7 @@ router.get("/", async (req, res) => {
     }
 
     const expenses = await Expense.find(query)
+      .populate("paidBy", "fullName username")
       .sort({ expenseDate: -1 })
       .limit(limit ? parseInt(limit) : 100);
 
@@ -55,7 +57,10 @@ router.get("/", async (req, res) => {
 // @access  Public
 router.get("/:id", async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findById(req.params.id).populate(
+      "paidBy",
+      "fullName username",
+    );
 
     if (!expense) {
       return res.status(404).json({
@@ -94,11 +99,10 @@ router.post("/", protect, async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!title || !category || !amount || !vendorName || !dueDate) {
+    if (!title || !category || !amount || !vendorName) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide title, category, amount, vendor name, and due date",
+        message: "Please provide title, category, amount, and vendor name",
       });
     }
 
@@ -109,13 +113,23 @@ router.post("/", protect, async (req, res) => {
       category,
       amount: parsedAmount,
       vendorName,
-      dueDate: new Date(dueDate),
+      dueDate: dueDate ? new Date(dueDate) : null,
       expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
       description,
       billNumber,
       status: "pending",
       paidByType: "ACADEMY_CASH",
       paidBy: req.user._id,
+    });
+
+    await Transaction.create({
+      type: "EXPENSE",
+      category,
+      amount: parsedAmount,
+      description: `Expense: ${title}${description ? ` — ${description}` : ""}`,
+      date: expense.expenseDate || new Date(),
+      collectedBy: req.user._id,
+      status: "VERIFIED",
     });
 
     // Optional: notify owner

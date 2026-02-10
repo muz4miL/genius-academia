@@ -17,6 +17,8 @@ const User = require("../models/User");
 const Teacher = require("../models/Teacher");
 const Student = require("../models/Student");
 const FeeRecord = require("../models/FeeRecord");
+const Session = require("../models/Session");
+const TeacherPayment = require("../models/TeacherPayment");
 
 // =====================================================================
 // CLOSE DAY — Lock floating cash into verified balance
@@ -347,32 +349,77 @@ exports.processTeacherPayout = async (req, res) => {
     }
 
     const payoutAmount = Number(amount);
-    const availableBalance =
-      (teacher.balance?.verified || 0) + (teacher.balance?.floating || 0);
+    const compType = teacher.compensation?.type || "percentage";
 
-    if (payoutAmount > availableBalance && availableBalance > 0) {
+    const verifiedBal = teacher.balance?.verified || 0;
+    const floatingBal = teacher.balance?.floating || 0;
+    const pendingBal = teacher.balance?.pending || 0;
+
+    const availableBalance =
+      compType === "fixed"
+        ? pendingBal
+        : verifiedBal + floatingBal;
+
+    if (payoutAmount > availableBalance) {
       return res.status(400).json({
         success: false,
         message: `Insufficient balance. Available: PKR ${availableBalance}`,
       });
     }
 
-    // Deduct from verified first, then floating
-    let remaining = payoutAmount;
-    const verifiedBal = teacher.balance?.verified || 0;
-    if (remaining <= verifiedBal) {
-      teacher.balance.verified -= remaining;
+    const originalBalance = {
+      verified: verifiedBal,
+      floating: floatingBal,
+      pending: pendingBal,
+    };
+    const originalTotalPaid = teacher.totalPaid || 0;
+
+    if (compType === "fixed") {
+      teacher.balance.pending = pendingBal - payoutAmount;
     } else {
-      remaining -= verifiedBal;
-      teacher.balance.verified = 0;
-      teacher.balance.floating = Math.max(
-        0,
-        (teacher.balance.floating || 0) - remaining
-      );
+      // Deduct from verified first, then floating
+      let remaining = payoutAmount;
+      if (remaining <= verifiedBal) {
+        teacher.balance.verified = verifiedBal - remaining;
+      } else {
+        remaining -= verifiedBal;
+        teacher.balance.verified = 0;
+        teacher.balance.floating = Math.max(0, floatingBal - remaining);
+      }
     }
 
-    teacher.totalPaid = (teacher.totalPaid || 0) + payoutAmount;
+    teacher.totalPaid = originalTotalPaid + payoutAmount;
     await teacher.save();
+
+    const activeSession = await Session.findOne({ status: "active" })
+      .sort({ startDate: -1 })
+      .lean();
+
+    let paymentRecord;
+    try {
+      paymentRecord = await TeacherPayment.create({
+        teacherId: teacher._id,
+        teacherName: teacher.name,
+        subject: teacher.subject,
+        amountPaid: payoutAmount,
+        compensationType: compType,
+        month: new Date().toLocaleString("en-US", { month: "long" }),
+        year: new Date().getFullYear(),
+        paymentMethod: "cash",
+        status: "paid",
+        notes: notes || "Teacher payout",
+        sessionId: activeSession?._id,
+        sessionName: activeSession?.sessionName,
+      });
+    } catch (paymentError) {
+      // Roll back teacher balances if payment creation fails
+      teacher.balance.verified = originalBalance.verified;
+      teacher.balance.floating = originalBalance.floating;
+      teacher.balance.pending = originalBalance.pending;
+      teacher.totalPaid = originalTotalPaid;
+      await teacher.save();
+      throw paymentError;
+    }
 
     // Record payout transaction
     await Transaction.create({
@@ -396,6 +443,12 @@ exports.processTeacherPayout = async (req, res) => {
         message: `Payout received: PKR ${payoutAmount}`,
         type: "FINANCE",
       });
+
+      await Notification.create({
+        recipient: req.user._id,
+        message: `PKR ${payoutAmount} paid to ${teacher.name}.`,
+        type: "FINANCE",
+      });
     } catch (e) {
       /* non-critical */
     }
@@ -406,8 +459,21 @@ exports.processTeacherPayout = async (req, res) => {
       data: {
         teacher: teacher.name,
         paid: payoutAmount,
+        voucher: {
+          voucherId: paymentRecord.voucherId,
+          teacherName: paymentRecord.teacherName,
+          subject: paymentRecord.subject,
+          amountPaid: paymentRecord.amountPaid,
+          paymentDate: paymentRecord.paymentDate,
+          paymentMethod: paymentRecord.paymentMethod,
+          notes: paymentRecord.notes,
+          sessionName: paymentRecord.sessionName,
+        },
         remainingBalance:
-          (teacher.balance?.verified || 0) + (teacher.balance?.floating || 0),
+          compType === "fixed"
+            ? teacher.balance?.pending || 0
+            : (teacher.balance?.verified || 0) +
+              (teacher.balance?.floating || 0),
       },
     });
   } catch (error) {
@@ -552,6 +618,10 @@ exports.getTeacherPayrollData = async (req, res) => {
           (t.balance?.floating || 0) +
           (t.balance?.verified || 0) +
           (t.balance?.pending || 0),
+        payable:
+          t.compensation?.type === "fixed"
+            ? t.balance?.pending || 0
+            : (t.balance?.floating || 0) + (t.balance?.verified || 0),
       },
       totalPaid: t.totalPaid || 0,
     }));

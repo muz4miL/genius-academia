@@ -9,6 +9,8 @@ interface AdmissionSlipProps {
         group: string;
         subjects?: Array<{ name: string; fee: number }>;
         totalFee: number;
+        sessionRate?: number;
+        discountAmount?: number;
         paidAmount: number;
         admissionDate: string;
         sessionRef?: any;
@@ -166,14 +168,14 @@ export const AdmissionSlip = ({ student, session }: AdmissionSlipProps) => {
                                         <thead>
                                             <tr className="hairline border-b border-gray-200">
                                                 <th className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wide pb-2">Subject</th>
-                                                <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wide pb-2">Fee (PKR)</th>
+                                                <th className="text-right text-xs font-semibold text-gray-600 uppercase tracking-wide pb-2">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {student.subjects.map((subject, index) => (
                                                 <tr key={index} className={`hairline border-b border-gray-100 ${index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}>
                                                     <td className="py-2 text-sm text-gray-800">{subject.name}</td>
-                                                    <td className="py-2 text-sm text-right font-semibold text-gray-900">{subject.fee.toLocaleString()}</td>
+                                                    <td className="py-2 text-sm text-right font-semibold text-gray-900">Included</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -191,10 +193,29 @@ export const AdmissionSlip = ({ student, session }: AdmissionSlipProps) => {
                             </div>
                             <div className="p-4">
                                 <div className="space-y-3">
-                                    <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
-                                        <span className="text-sm text-gray-600 font-medium">Total Fee</span>
-                                        <span className="text-lg font-bold text-gray-900">{student.totalFee.toLocaleString()} PKR</span>
-                                    </div>
+                                    {student.sessionRate && student.sessionRate > 0 ? (
+                                        <>
+                                            <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
+                                                <span className="text-sm text-gray-600 font-medium">Session Rate</span>
+                                                <span className="text-lg font-bold text-gray-900">{student.sessionRate.toLocaleString()} PKR</span>
+                                            </div>
+                                            {student.discountAmount && student.discountAmount > 0 && (
+                                                <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
+                                                    <span className="text-sm text-green-700 font-medium">Discount</span>
+                                                    <span className="text-lg font-bold text-green-700">-{student.discountAmount.toLocaleString()} PKR</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
+                                                <span className="text-sm text-gray-600 font-medium">Net Payable</span>
+                                                <span className="text-lg font-bold text-gray-900">{student.totalFee.toLocaleString()} PKR</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
+                                            <span className="text-sm text-gray-600 font-medium">Total Fee</span>
+                                            <span className="text-lg font-bold text-gray-900">{student.totalFee.toLocaleString()} PKR</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between items-center pb-3 hairline border-b border-gray-200">
                                         <span className="text-sm text-gray-600 font-medium">Amount Paid</span>
                                         <span className="text-lg font-bold text-green-600">{student.paidAmount.toLocaleString()} PKR</span>
