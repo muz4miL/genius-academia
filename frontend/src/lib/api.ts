@@ -424,7 +424,7 @@ export const timetableApi = {
         if (filters?.status) queryParams.append('status', filters.status);
 
         const url = `${API_BASE_URL}/timetable${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        const response = await fetch(url);
+        const response = await fetch(url, { credentials: 'include' });
         const data = await response.json();
         if (!data.success) {
             throw new Error(data.message || 'Failed to fetch timetable');
@@ -434,7 +434,7 @@ export const timetableApi = {
 
     // Get single entry by ID
     getById: async (id: string) => {
-        const response = await fetch(`${API_BASE_URL}/timetable/${id}`);
+        const response = await fetch(`${API_BASE_URL}/timetable/${id}`, { credentials: 'include' });
         const data = await response.json();
         if (!data.success) {
             throw new Error(data.message || 'Failed to fetch timetable entry');
@@ -447,6 +447,7 @@ export const timetableApi = {
         const response = await fetch(`${API_BASE_URL}/timetable`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify(entryData),
         });
         const data = await response.json();
@@ -461,6 +462,7 @@ export const timetableApi = {
         const response = await fetch(`${API_BASE_URL}/timetable/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify(entryData),
         });
         const data = await response.json();
@@ -474,6 +476,7 @@ export const timetableApi = {
     delete: async (id: string) => {
         const response = await fetch(`${API_BASE_URL}/timetable/${id}`, {
             method: 'DELETE',
+            credentials: 'include',
         });
         const data = await response.json();
         if (!data.success) {

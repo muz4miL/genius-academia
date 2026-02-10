@@ -35,38 +35,10 @@ exports.updateConfig = async (req, res) => {
   if (req.user.role !== "OWNER")
     return res.status(403).json({ success: false });
 
-  const { expenseSplit, defaultSubjectFees, tuitionPoolSplit, eteaPoolSplit, sessionPrices } =
+  const { defaultSubjectFees, sessionPrices } =
     req.body;
 
-  if (
-    expenseSplit &&
-    expenseSplit.waqar + expenseSplit.zahid + expenseSplit.saud !== 100
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Expense splits must total 100%" });
-  }
-
-  // Waqar's Protocol: Validate Tuition Pool Split (50/30/20)
-  if (
-    tuitionPoolSplit &&
-    tuitionPoolSplit.waqar + tuitionPoolSplit.zahid + tuitionPoolSplit.saud !==
-    100
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Tuition pool splits must total 100%" });
-  }
-
-  // Waqar's Protocol: Validate ETEA Pool Split (40/30/30)
-  if (
-    eteaPoolSplit &&
-    eteaPoolSplit.waqar + eteaPoolSplit.zahid + eteaPoolSplit.saud !== 100
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: "ETEA pool splits must total 100%" });
-  }
+  // Legacy partner splits no longer validated (single-owner model)
 
   try {
     // 💾 DEBUG: Log incoming data
@@ -102,7 +74,7 @@ exports.updateConfig = async (req, res) => {
 };
 
 // ========================================
-// SESSION PRICE LOOKUP (Waqar Protocol v2)
+// SESSION PRICE LOOKUP
 // ========================================
 // Returns the fee for a specific session
 exports.getSessionPrice = async (req, res) => {

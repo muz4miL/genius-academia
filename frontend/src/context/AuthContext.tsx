@@ -22,6 +22,7 @@ export interface User {
   profileImage?: string;
   isActive: boolean;
   lastLogin?: string;
+  teacherId?: string; // Link to Teacher document
 }
 
 // Context type

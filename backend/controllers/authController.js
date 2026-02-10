@@ -264,3 +264,66 @@ exports.toggleStaffStatus = async (req, res) => {
         });
     }
 };
+
+// ========================================
+// @route   POST /api/auth/reset-password
+// @desc    Reset a user's password (OWNER only)
+// @access  Private (OWNER)
+// ========================================
+exports.resetPassword = async (req, res) => {
+    try {
+        const { userId, newPassword } = req.body;
+
+        if (!userId || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide userId and newPassword.',
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters.',
+            });
+        }
+
+        // Find user by any identifier (userId, username, or _id)
+        const user = await User.findOne({
+            $or: [
+                { userId: userId },
+                { username: userId },
+                { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : undefined },
+            ].filter(q => q !== undefined && Object.values(q)[0] !== undefined),
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: '❌ User not found.',
+            });
+        }
+
+        // Set new password (will be hashed by pre-save hook)
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: `✅ Password reset successfully for ${user.fullName}.`,
+            user: {
+                userId: user.userId,
+                username: user.username,
+                fullName: user.fullName,
+                role: user.role,
+            },
+        });
+    } catch (error) {
+        console.error('Reset Password Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error resetting password.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        });
+    }
+};

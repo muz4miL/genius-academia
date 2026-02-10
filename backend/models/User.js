@@ -229,8 +229,8 @@ userSchema.methods.getPublicProfile = function () {
       "lectures",
     ];
   } else if (this.role === "TEACHER") {
-    // Teachers get dashboard and lectures by default
-    permissions = ["dashboard", "lectures"];
+    // Teachers get dashboard and timetable by default
+    permissions = ["dashboard", "timetable"];
   }
 
   return {
@@ -248,6 +248,8 @@ userSchema.methods.getPublicProfile = function () {
     isActive: this.isActive,
     lastLogin: this.lastLogin,
     profileImage: this.profileImage,
+    // Teacher-specific: link to Teacher document for timetable etc.
+    teacherId: this.teacherId || null,
   };
 };
 

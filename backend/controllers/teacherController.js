@@ -45,24 +45,18 @@ exports.getTeacherById = async (req, res) => {
     // Convert to plain object to add extra fields
     const teacherData = teacher.toObject();
 
-    // Try to find associated User record for debtToOwner
-    // Match by name (partners like Dr. Zahid, Sir Saud)
-    const partnerNames = ["waqar", "zahid", "saud"];
-    const teacherNameLower = teacher.name?.toLowerCase() || "";
-    const isPartner = partnerNames.some((name) =>
-      teacherNameLower.includes(name),
-    );
-
-    if (isPartner) {
-      // Find User with matching name
-      const user = await User.findOne({
-        fullName: { $regex: teacher.name, $options: "i" },
-      }).select("debtToOwner walletBalance");
-
-      if (user) {
-        teacherData.debtToOwner = user.debtToOwner || 0;
-        teacherData.walletBalance = user.walletBalance || 0;
+    // Try to find associated User record for balance info
+    // Check if teacher is linked to a User with OWNER role
+    let isOwnerTeacher = false;
+    if (teacher.userId) {
+      const linkedUser = await User.findById(teacher.userId).select("role debtToOwner walletBalance");
+      if (linkedUser) {
+        teacherData.debtToOwner = linkedUser.debtToOwner || 0;
+        teacherData.walletBalance = linkedUser.walletBalance || 0;
+        isOwnerTeacher = linkedUser.role === "OWNER";
       }
+    } else if (teacher.role === "OWNER") {
+      isOwnerTeacher = true;
     }
 
     res.status(200).json({

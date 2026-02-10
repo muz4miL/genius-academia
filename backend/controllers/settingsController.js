@@ -58,18 +58,7 @@ exports.updateSettings = async (req, res) => {
             });
         }
 
-        // VALIDATION: If expenseSplit is being updated, ensure it adds to 100%
-        if (req.body.expenseSplit) {
-            const { waqar, zahid, saud } = req.body.expenseSplit;
-            const total = (Number(waqar) || 0) + (Number(zahid) || 0) + (Number(saud) || 0);
-            
-            if (total !== 100) {
-                return res.status(400).json({
-                    success: false,
-                    message: `❌ Partnership split must equal 100%. Current total: ${total}%`,
-                });
-            }
-        }
+        // VALIDATION: Legacy partner split validation removed (single-owner model)
 
         // Find the first settings document
         let settings = await Settings.findOne();

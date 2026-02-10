@@ -24,7 +24,7 @@ router.get('/', protect, async (req, res) => {
             }
         } else if (user.role === 'TEACHER') {
             // Teachers only see their own sessions
-            query.teacherId = user.teacherProfile?._id || user._id;
+            query.teacherId = user.teacherId || user.teacherProfile?._id || user._id;
         } else if (user.role === 'PARTNER') {
             // Partners see their sessions + general view if needed, 
             // but usually specific teaching sessions.
@@ -92,8 +92,8 @@ router.get('/:id', async (req, res) => {
 
 // @route   POST /api/timetable
 // @desc    Create a new timetable entry
-// @access  Public
-router.post('/', async (req, res) => {
+// @access  Protected (OWNER, STAFF)
+router.post('/', protect, async (req, res) => {
     try {
         console.log('📥 Creating timetable entry:', JSON.stringify(req.body, null, 2));
 
@@ -127,8 +127,8 @@ router.post('/', async (req, res) => {
 
 // @route   PUT /api/timetable/:id
 // @desc    Update a timetable entry
-// @access  Public
-router.put('/:id', async (req, res) => {
+// @access  Protected (OWNER, STAFF)
+router.put('/:id', protect, async (req, res) => {
     try {
         const entry = await Timetable.findById(req.params.id);
 
@@ -171,8 +171,8 @@ router.put('/:id', async (req, res) => {
 
 // @route   DELETE /api/timetable/:id
 // @desc    Delete a timetable entry
-// @access  Public
-router.delete('/:id', async (req, res) => {
+// @access  Protected (OWNER, STAFF)
+router.delete('/:id', protect, async (req, res) => {
     try {
         const deletedEntry = await Timetable.findByIdAndDelete(req.params.id);
 

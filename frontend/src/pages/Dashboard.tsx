@@ -41,7 +41,35 @@ import {
   TrendingUp,
   HelpCircle,
   UserPlus,
+  Clock,
+  BookOpen,
+  CalendarDays,
+  MapPin,
+  BarChart3,
+  Download,
+  Printer,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  Area,
+  AreaChart,
+} from "recharts";
 
 // API Base URL - Auto-detect Codespaces
 const getApiBaseUrl = () => {
@@ -60,6 +88,8 @@ const API_BASE_URL = getApiBaseUrl();
 // ========================================
 // 👑 OWNER DASHBOARD COMPONENT
 // ========================================
+const CHART_COLORS = ["#0EA5E9", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
+
 const OwnerDashboard = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -76,6 +106,16 @@ const OwnerDashboard = () => {
     ownerNetRevenue: 0,
   });
 
+  // Analytics data
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  // Report modal
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<any>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportPeriod, setReportPeriod] = useState("");
+
   // Fetch dashboard stats
   const fetchStats = async () => {
     try {
@@ -89,6 +129,121 @@ const OwnerDashboard = () => {
     } catch (err) {
       console.error("Error fetching stats:", err);
     }
+  };
+
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const res = await fetch(`${API_BASE_URL}/finance/analytics-dashboard`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAnalytics(data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching analytics:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  // Generate report
+  const generateReport = async (period: string) => {
+    try {
+      setReportPeriod(period);
+      setReportLoading(true);
+      setReportOpen(true);
+      const res = await fetch(
+        `${API_BASE_URL}/finance/generate-report?period=${period}`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setReportData(data.data);
+      }
+    } catch (err) {
+      console.error("Error generating report:", err);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  // Print report
+  const printReport = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow || !reportData) return;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${reportData.period} Financial Report — Genius Islamian's Academy</title>
+        <style>
+          body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1e293b; }
+          h1 { color: #0f172a; border-bottom: 3px solid #0EA5E9; padding-bottom: 12px; }
+          h2 { color: #334155; margin-top: 30px; }
+          .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+          .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
+          .stat-box .label { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+          .stat-box .value { font-size: 24px; font-weight: 700; }
+          .revenue { color: #059669; }
+          .expense { color: #dc2626; }
+          .profit { color: #0EA5E9; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+          th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+          th { background: #f1f5f9; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .footer { margin-top: 40px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <h1>📊 ${reportData.period} Financial Report</h1>
+        <p style="color: #64748b;">Genius Islamian's Academy — Generated on ${new Date(reportData.generatedAt).toLocaleString()}</p>
+        
+        <div class="summary">
+          <div class="stat-box">
+            <div class="label">Total Revenue</div>
+            <div class="value revenue">PKR ${reportData.totalRevenue?.toLocaleString()}</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Total Expenses</div>
+            <div class="value expense">PKR ${reportData.totalExpenses?.toLocaleString()}</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Net Profit</div>
+            <div class="value profit">PKR ${reportData.netProfit?.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <h2>Revenue Breakdown</h2>
+        <table>
+          <thead><tr><th>Category</th><th>Amount (PKR)</th><th>Transactions</th></tr></thead>
+          <tbody>
+            ${reportData.revenueByCategory?.map((r: any) => `<tr><td>${r.category}</td><td>${r.amount?.toLocaleString()}</td><td>${r.transactions}</td></tr>`).join("") || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;">No revenue data</td></tr>'}
+          </tbody>
+        </table>
+
+        <h2>Expense Breakdown</h2>
+        <table>
+          <thead><tr><th>Category</th><th>Amount (PKR)</th><th>Transactions</th></tr></thead>
+          <tbody>
+            ${reportData.expenseByCategory?.map((e: any) => `<tr><td>${e.category}</td><td>${e.amount?.toLocaleString()}</td><td>${e.transactions}</td></tr>`).join("") || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;">No expense data</td></tr>'}
+          </tbody>
+        </table>
+
+        <h2>Fee Collection</h2>
+        <p>Total Fees Collected: <strong>PKR ${reportData.feesCollected?.total?.toLocaleString() || 0}</strong> (${reportData.feesCollected?.count || 0} records)</p>
+
+        <div class="footer">
+          <p>Genius Islamian's Academy — Confidential Financial Report</p>
+        </div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   useEffect(() => {
@@ -107,6 +262,9 @@ const OwnerDashboard = () => {
 
         // Fetch financial stats
         await fetchStats();
+
+        // Fetch analytics
+        await fetchAnalytics();
 
         setLoading(false);
       } catch (err) {
@@ -149,7 +307,7 @@ const OwnerDashboard = () => {
               <span className="text-red-400">{user?.fullName || "Owner"}</span>
             </h1>
             <p className="text-slate-300 text-lg">
-              Genius Islamian's Academy - Management Dashboard
+              Genius Islamian's Academy — Management Dashboard
             </p>
           </div>
         </div>
@@ -193,112 +351,341 @@ const OwnerDashboard = () => {
           </div>
         )}
 
-        {/* Owner KPI Cards */}
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
-          <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-red-500">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-sm font-medium text-slate-600">
-                    Net Revenue
-                  </p>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="text-slate-400 hover:text-slate-600"
-                        aria-label="More information about Net Revenue"
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="text-sm">
-                        Total fees collected minus expenses
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <p className="text-4xl font-bold text-slate-900 mb-1">
-                  PKR{" "}
-                  {stats.ownerNetRevenue > 0
-                    ? Math.round(stats.ownerNetRevenue / 1000)
-                    : 0}
-                  K
+        {/* Quick Stats Row */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-red-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Revenue</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  PKR {(analytics?.quickStats?.monthlyRevenue || stats.ownerNetRevenue || 0).toLocaleString()}
                 </p>
-                <p className="text-xs text-slate-500">
-                  Academy earnings this period
-                </p>
+                <p className="text-xs text-slate-400 mt-1">This month</p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg">
-                <Wallet className="h-7 w-7" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg">
+                <Wallet className="h-6 w-6" />
               </div>
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-slate-800">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-600 mb-2">
-                  Total Enrolled
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-sky-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today's Revenue</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  PKR {(analytics?.quickStats?.todayRevenue || 0).toLocaleString()}
                 </p>
-                <p className="text-4xl font-bold text-slate-900 mb-1">
-                  {activeStudents > 0 ? activeStudents : "0"}
-                </p>
-                <p className="text-xs text-slate-500">Active students</p>
+                <p className="text-xs text-slate-400 mt-1">Today so far</p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-lg">
-                <Users className="h-7 w-7" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-lg">
+                <DollarSign className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-emerald-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Students</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  {analytics?.quickStats?.totalStudents || activeStudents || 0}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Enrolled</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                <GraduationCap className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-violet-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Teachers</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  {analytics?.quickStats?.totalTeachers || 0}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">On payroll</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-lg">
+                <Users className="h-6 w-6" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Financial Summary Card */}
-        <Card className="mt-8 border-slate-200 bg-white/95 backdrop-blur-sm shadow-xl">
+        {/* Charts Section */}
+        {analyticsLoading ? (
+          <div className="mt-8 flex items-center justify-center h-64">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-sky-500 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Loading analytics...</p>
+            </div>
+          </div>
+        ) : analytics ? (
+          <>
+            {/* Revenue vs Expenses Chart */}
+            <div className="mt-8 grid gap-6 lg:grid-cols-2">
+              <Card className="border-slate-200 bg-white shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                    <BarChart3 className="h-5 w-5 text-sky-500" />
+                    Revenue vs Expenses
+                  </CardTitle>
+                  <CardDescription>Last 6 months comparison</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.revenueVsExpenses} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                        <YAxis tick={{ fontSize: 12, fill: "#64748b" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                        <RechartsTooltip
+                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                          formatter={(value: number) => [`PKR ${value.toLocaleString()}`, undefined]}
+                        />
+                        <Legend />
+                        <Bar dataKey="revenue" name="Revenue" fill="#10B981" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Student Growth Chart */}
+              <Card className="border-slate-200 bg-white shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                    Student Growth
+                  </CardTitle>
+                  <CardDescription>Enrollment over 6 months</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={analytics.enrollmentData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                        <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                        <RechartsTooltip
+                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                        />
+                        <Legend />
+                        <Area type="monotone" dataKey="totalStudents" name="Total Students" stroke="#0EA5E9" fill="url(#colorStudents)" strokeWidth={2} />
+                        <Bar dataKey="newStudents" name="New Enrollments" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Profit Trend + Fee Collection + Expense Breakdown */}
+            <div className="mt-6 grid gap-6 lg:grid-cols-3">
+              {/* Profit Trend */}
+              <Card className="border-slate-200 bg-white shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                    <Activity className="h-5 w-5 text-violet-500" />
+                    Profit Trend
+                  </CardTitle>
+                  <CardDescription>Monthly net income</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={analytics.revenueVsExpenses} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                        <RechartsTooltip
+                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }}
+                          formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Profit"]}
+                        />
+                        <Line type="monotone" dataKey="profit" name="Profit" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: "#8B5CF6", r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Fee Collection Status */}
+              <Card className="border-slate-200 bg-white shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                    <CreditCard className="h-5 w-5 text-sky-500" />
+                    Fee Collection
+                  </CardTitle>
+                  <CardDescription>Current month status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 mt-2">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+                        <span className="text-sm font-medium text-emerald-800">Paid</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-emerald-900">PKR {(analytics.feeCollection?.paid?.amount || 0).toLocaleString()}</p>
+                        <p className="text-xs text-emerald-600">{analytics.feeCollection?.paid?.count || 0} students</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 w-3 rounded-full bg-amber-500"></div>
+                        <span className="text-sm font-medium text-amber-800">Pending</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-amber-900">PKR {(analytics.feeCollection?.pending?.amount || 0).toLocaleString()}</p>
+                        <p className="text-xs text-amber-600">{analytics.feeCollection?.pending?.count || 0} students</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                        <span className="text-sm font-medium text-red-800">Overdue</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-red-900">PKR {(analytics.feeCollection?.overdue?.amount || 0).toLocaleString()}</p>
+                        <p className="text-xs text-red-600">{analytics.feeCollection?.overdue?.count || 0} students</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Expense Breakdown */}
+              <Card className="border-slate-200 bg-white shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                    <PieChart className="h-5 w-5 text-amber-500" />
+                    Expense Breakdown
+                  </CardTitle>
+                  <CardDescription>This month by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analytics.expenseCategories && analytics.expenseCategories.length > 0 ? (
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={analytics.expenseCategories}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={75}
+                            dataKey="amount"
+                            nameKey="category"
+                            paddingAngle={3}
+                          >
+                            {analytics.expenseCategories.map((_: any, idx: number) => (
+                              <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }}
+                            formatter={(value: number) => [`PKR ${value.toLocaleString()}`, undefined]}
+                          />
+                          <Legend wrapperStyle={{ fontSize: "12px" }} />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-56 flex items-center justify-center text-sm text-slate-400">
+                      No expenses recorded this month
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        ) : null}
+
+        {/* Financial Reports Section */}
+        <Card className="mt-6 border-slate-200 bg-white shadow-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl text-slate-900">
-              <TrendingUp className="h-6 w-6 text-red-600" />
-              Financial Summary
+            <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+              <FileText className="h-6 w-6 text-red-600" />
+              Generate Financial Reports
             </CardTitle>
             <CardDescription className="text-slate-600">
-              Revenue vs Expenses — This Month
+              One-click reports for any period — printable & downloadable
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-                <p className="text-sm font-medium text-emerald-700">
-                  Total Revenue
-                </p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">
-                  PKR{" "}
-                  {(
-                    stats.ownerNetRevenue + (stats.pendingReimbursements || 0)
-                  ).toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
-                <p className="text-sm font-medium text-red-700">Expenses</p>
-                <p className="text-2xl font-bold text-red-900 mt-1">
-                  PKR {(stats.pendingReimbursements || 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
-                <p className="text-sm font-medium text-slate-700">
-                  Net Balance
-                </p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">
-                  PKR {(stats.ownerNetRevenue || 0).toLocaleString()}
-                </p>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Button
+                size="lg"
+                className="h-16 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-lg hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300"
+                onClick={() => generateReport("today")}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Today's Sale</span>
+                  </div>
+                  <span className="text-xs opacity-80">Daily Report</span>
+                </div>
+              </Button>
+
+              <Button
+                size="lg"
+                className="h-16 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 text-white font-semibold shadow-lg hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300"
+                onClick={() => generateReport("week")}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    <span>Week's Sale</span>
+                  </div>
+                  <span className="text-xs opacity-80">Weekly Report</span>
+                </div>
+              </Button>
+
+              <Button
+                size="lg"
+                className="h-16 bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-lg hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300"
+                onClick={() => generateReport("month")}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Month's Sale</span>
+                  </div>
+                  <span className="text-xs opacity-80">Monthly Report</span>
+                </div>
+              </Button>
+
+              <Button
+                size="lg"
+                className="h-16 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-semibold shadow-lg hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300"
+                onClick={() => (window.location.href = "/finance")}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Full Finance</span>
+                  </div>
+                  <span className="text-xs opacity-80">Detailed Ledger</span>
+                </div>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Owner Quick Actions */}
-        <Card className="mt-6 border-slate-200 bg-white/95 backdrop-blur-sm shadow-xl">
+        {/* Quick Actions */}
+        <Card className="mt-6 border-slate-200 bg-white shadow-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl text-slate-900">
+            <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
               <ClipboardCheck className="h-6 w-6 text-red-600" />
               Quick Actions
             </CardTitle>
@@ -307,7 +694,7 @@ const OwnerDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Button
                 size="lg"
                 className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-lg hover:-translate-y-1 hover:shadow-2xl transition-all duration-300"
@@ -326,23 +713,135 @@ const OwnerDashboard = () => {
                 <UserPlus className="mr-2 h-5 w-5" />
                 New Admission
               </Button>
+
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full h-14 border-2 border-violet-500 text-violet-600 font-semibold hover:bg-violet-50 hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                onClick={() => (window.location.href = "/payroll")}
+              >
+                <HandCoins className="mr-2 h-5 w-5" />
+                Payroll
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {error && (
-          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  Demo Data Active
-                </p>
-                <p className="text-sm text-yellow-700">{error}</p>
+        {/* Report Modal */}
+        <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <FileText className="h-5 w-5 text-sky-500" />
+                {reportData?.period || "Financial"} Report
+              </DialogTitle>
+              <DialogDescription>
+                {reportData
+                  ? `Generated on ${new Date(reportData.generatedAt).toLocaleString()}`
+                  : "Generating report..."}
+              </DialogDescription>
+            </DialogHeader>
+
+            {reportLoading ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-sky-500 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Crunching numbers...</p>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            ) : reportData ? (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+                    <p className="text-xs font-semibold text-emerald-600 uppercase">Revenue</p>
+                    <p className="text-xl font-bold text-emerald-900 mt-1">
+                      PKR {reportData.totalRevenue?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-center">
+                    <p className="text-xs font-semibold text-red-600 uppercase">Expenses</p>
+                    <p className="text-xl font-bold text-red-900 mt-1">
+                      PKR {reportData.totalExpenses?.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-sky-50 border border-sky-200 p-4 text-center">
+                    <p className="text-xs font-semibold text-sky-600 uppercase">Net Profit</p>
+                    <p className={`text-xl font-bold mt-1 ${reportData.netProfit >= 0 ? "text-emerald-900" : "text-red-900"}`}>
+                      PKR {reportData.netProfit?.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Revenue Breakdown */}
+                {reportData.revenueByCategory?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                      <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                      Revenue Breakdown
+                    </h3>
+                    <div className="space-y-2">
+                      {reportData.revenueByCategory.map((r: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+                          <span className="text-sm text-slate-700">{r.category}</span>
+                          <div className="text-right">
+                            <span className="text-sm font-semibold text-emerald-700">PKR {r.amount?.toLocaleString()}</span>
+                            <span className="text-xs text-slate-400 ml-2">({r.transactions} txn)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expense Breakdown */}
+                {reportData.expenseByCategory?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                      <ArrowDownRight className="h-4 w-4 text-red-500" />
+                      Expense Breakdown
+                    </h3>
+                    <div className="space-y-2">
+                      {reportData.expenseByCategory.map((e: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+                          <span className="text-sm text-slate-700">{e.category}</span>
+                          <div className="text-right">
+                            <span className="text-sm font-semibold text-red-700">PKR {e.amount?.toLocaleString()}</span>
+                            <span className="text-xs text-slate-400 ml-2">({e.transactions} txn)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Fee Collection */}
+                <div className="rounded-xl bg-sky-50 border border-sky-200 p-4">
+                  <h3 className="text-sm font-semibold text-sky-800 mb-1">Fee Collection</h3>
+                  <p className="text-sm text-sky-700">
+                    Collected <strong>PKR {reportData.feesCollected?.total?.toLocaleString() || 0}</strong> from{" "}
+                    <strong>{reportData.feesCollected?.count || 0}</strong> fee records
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <DialogFooter className="gap-2 mt-4">
+              <Button variant="outline" onClick={() => setReportOpen(false)}>
+                Close
+              </Button>
+              {reportData && (
+                <Button
+                  className="bg-sky-600 hover:bg-sky-700 text-white"
+                  onClick={printReport}
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Report
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </TooltipProvider>
   );
@@ -754,6 +1253,301 @@ const PartnerDashboard = () => {
 };
 
 // ========================================
+// 🧑‍🏫 TEACHER DASHBOARD COMPONENT
+// ========================================
+const TeacherDashboard = () => {
+  const { user } = useAuth();
+  const [teacherProfile, setTeacherProfile] = useState<any>(null);
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  useEffect(() => {
+    const fetchTeacherData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch teacher profile details
+        if (user?.teacherId) {
+          const profileRes = await fetch(`${API_BASE_URL}/teachers/${user.teacherId}`, {
+            credentials: "include",
+          });
+          const profileData = await profileRes.json();
+          if (profileData.success) {
+            setTeacherProfile(profileData.data);
+          }
+        }
+
+        // Fetch timetable (auto-filtered by backend for TEACHER role)
+        const ttRes = await fetch(`${API_BASE_URL}/timetable`, {
+          credentials: "include",
+        });
+        const ttData = await ttRes.json();
+        if (ttData.success) {
+          // Sort by day order then by time
+          const sorted = (ttData.data || []).sort((a: any, b: any) => {
+            const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+            if (dayDiff !== 0) return dayDiff;
+            return (a.startTime || "").localeCompare(b.startTime || "");
+          });
+          setTimetable(sorted);
+        }
+      } catch (err) {
+        console.error("Error fetching teacher data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTeacherData();
+  }, [user]);
+
+  const capitalizeSubject = (s: string) => {
+    const map: Record<string, string> = {
+      biology: "Biology", chemistry: "Chemistry", physics: "Physics",
+      math: "Mathematics", english: "English", urdu: "Urdu",
+      islamiat: "Islamiat", computer: "Computer Science",
+    };
+    return map[s?.toLowerCase()] || (s ? s.charAt(0).toUpperCase() + s.slice(1) : "N/A");
+  };
+
+  // Get today's day name
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  const todayClasses = timetable.filter((t: any) => t.day === today);
+
+  // Group timetable by day
+  const groupedByDay = timetable.reduce((acc: any, entry: any) => {
+    if (!acc[entry.day]) acc[entry.day] = [];
+    acc[entry.day].push(entry);
+    return acc;
+  }, {});
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Teacher Dashboard">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout title="Teacher Dashboard">
+      {/* Hero Header with Teacher Info */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-900 p-8 shadow-2xl border-b-4 border-emerald-500">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE2djRoNHYtNGgtNHptMC0yaDZ2Nmgtdi02eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+        <div className="relative z-10 flex items-center gap-6">
+          {/* Teacher Avatar */}
+          <div className="flex-shrink-0">
+            {teacherProfile?.profileImage || user?.profileImage ? (
+              <img
+                src={teacherProfile?.profileImage || user?.profileImage}
+                alt={user?.fullName}
+                className="h-24 w-24 rounded-2xl object-cover border-4 border-emerald-400/50 shadow-xl"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center border-4 border-emerald-400/50 shadow-xl">
+                <span className="text-3xl font-bold text-white">
+                  {user?.fullName?.charAt(0) || "T"}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Teacher Info */}
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-white mb-1">
+              Welcome, <span className="text-emerald-400">{user?.fullName || "Teacher"}</span>
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-medium border border-emerald-500/30">
+                <BookOpen className="h-4 w-4" />
+                {capitalizeSubject(teacherProfile?.subject || "")}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/20 text-slate-300 text-sm font-medium border border-slate-500/30">
+                <GraduationCap className="h-4 w-4" />
+                {teacherProfile?.status === "active" ? "Active Teacher" : "Teacher"}
+              </span>
+              {user?.phone && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/20 text-slate-300 text-sm font-medium border border-slate-500/30">
+                  📞 {user.phone}
+                </span>
+              )}
+            </div>
+            <p className="text-slate-400 text-sm mt-2">
+              Genius Islamian's Academy — {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-emerald-500">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-2">Today's Classes</p>
+              <p className="text-4xl font-bold text-slate-900">{todayClasses.length}</p>
+              <p className="text-xs text-slate-500 mt-1">{today}</p>
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+              <CalendarDays className="h-7 w-7" />
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-blue-500">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-2">Total Weekly Classes</p>
+              <p className="text-4xl font-bold text-slate-900">{timetable.length}</p>
+              <p className="text-xs text-slate-500 mt-1">Classes per week</p>
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+              <Clock className="h-7 w-7" />
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-purple-500">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-2">Subject</p>
+              <p className="text-2xl font-bold text-slate-900">{capitalizeSubject(teacherProfile?.subject || "")}</p>
+              <p className="text-xs text-slate-500 mt-1">Assigned subject</p>
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
+              <BookOpen className="h-7 w-7" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Today's Schedule - Highlighted */}
+      {todayClasses.length > 0 && (
+        <Card className="mt-8 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              Today's Schedule — {today}
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              Your classes for today
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {todayClasses.map((entry: any, idx: number) => (
+                <div
+                  key={entry._id || idx}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 font-bold text-lg">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900">
+                      {entry.classId?.className || entry.subject || "Class"}
+                      {entry.classId?.section ? ` — ${entry.classId.section}` : ""}
+                    </p>
+                    <p className="text-sm text-slate-500">{capitalizeSubject(entry.subject)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-emerald-700">
+                      {entry.startTime} — {entry.endTime}
+                    </p>
+                    {entry.room && (
+                      <p className="text-xs text-slate-500 flex items-center justify-end gap-1 mt-1">
+                        <MapPin className="h-3 w-3" /> {entry.room}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Full Week Timetable */}
+      <Card className="mt-8 border-slate-200 bg-white/95 backdrop-blur-sm shadow-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white">
+              <Clock className="h-5 w-5" />
+            </div>
+            Weekly Timetable
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            Your complete teaching schedule
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {timetable.length === 0 ? (
+            <div className="text-center py-12">
+              <CalendarDays className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">No Timetable Set</h3>
+              <p className="text-slate-500">Your timetable hasn't been assigned yet. Please contact the admin.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {dayOrder.filter(day => groupedByDay[day]).map((day) => (
+                <div key={day}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className={`text-sm font-bold uppercase tracking-wider ${day === today ? "text-emerald-600" : "text-slate-500"}`}>
+                      {day}
+                    </h3>
+                    {day === today && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
+                        Today
+                      </span>
+                    )}
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {groupedByDay[day].map((entry: any, idx: number) => (
+                      <div
+                        key={entry._id || idx}
+                        className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
+                          day === today
+                            ? "bg-emerald-50 border-emerald-200"
+                            : "bg-slate-50 border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`text-sm font-bold ${day === today ? "text-emerald-700" : "text-slate-700"}`}>
+                            {entry.startTime} — {entry.endTime}
+                          </span>
+                          {entry.room && (
+                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                              <MapPin className="h-3 w-3" /> {entry.room}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-medium text-slate-900">
+                          {entry.classId?.className || "Class"}
+                          {entry.classId?.section ? ` (${entry.classId.section})` : ""}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">{capitalizeSubject(entry.subject)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </DashboardLayout>
+  );
+};
+
+// ========================================
 // 👨‍💼 STAFF DASHBOARD COMPONENT (Fallback)
 // ========================================
 const StaffDashboard = () => {
@@ -807,6 +1601,10 @@ const Dashboard = () => {
 
   if (user.role === "PARTNER") {
     return <PartnerDashboard />;
+  }
+
+  if (user.role === "TEACHER") {
+    return <TeacherDashboard />;
   }
 
   // Fallback for STAFF or other roles

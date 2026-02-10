@@ -32,6 +32,7 @@ import {
   Printer,
 } from "lucide-react";
 // Import the Modals and API
+import { Input } from "@/components/ui/input";
 import { AddTeacherModal } from "@/components/dashboard/AddTeacherModal";
 import { ViewEditTeacherModal } from "@/components/dashboard/ViewEditTeacherModal";
 import { DeleteTeacherDialog } from "@/components/dashboard/DeleteTeacherDialog";
@@ -71,6 +72,9 @@ const Teachers = () => {
   const [credentialTeacher, setCredentialTeacher] = useState<any | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedCredField, setCopiedCredField] = useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   // Fetch teachers from MongoDB using React Query
   const { data: teachersResponse, isLoading } = useQuery({
@@ -142,6 +146,8 @@ const Teachers = () => {
     setCredentialTeacher(teacher);
     setShowPassword(false);
     setCopiedCredField(null);
+    setResetPasswordValue("");
+    setResetSuccess(false);
     setIsCredentialModalOpen(true);
   };
 
@@ -149,6 +155,35 @@ const Teachers = () => {
     await navigator.clipboard.writeText(text);
     setCopiedCredField(field);
     setTimeout(() => setCopiedCredField(null), 2000);
+  };
+
+  const handleResetPassword = async () => {
+    if (!credentialTeacher || !resetPasswordValue || resetPasswordValue.length < 6) {
+      toast({ title: "Invalid Password", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    try {
+      setIsResettingPassword(true);
+      const username = `teacher.${credentialTeacher.subject || "staff"}`;
+      const res = await fetch(`http://localhost:5000/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: username, newPassword: resetPasswordValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetSuccess(true);
+        setCredentialTeacher({ ...credentialTeacher, plainPassword: resetPasswordValue });
+        toast({ title: "\u2705 Password Reset", description: `Password updated for ${credentialTeacher.name}. You can now print the updated slip.`, className: "bg-green-50 border-green-200" });
+      } else {
+        toast({ title: "\u274c Reset Failed", description: data.message || "Failed to reset password.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "\u274c Error", description: err.message || "Server error.", variant: "destructive" });
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   const handlePrintLoginSlip = () => {
@@ -622,6 +657,37 @@ const Teachers = () => {
                   Password was shown once at creation time. Contact admin to
                   reset.
                 </p>
+              )}
+            </div>
+
+            {/* Reset Password */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Reset Password
+              </Label>
+              {resetSuccess ? (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-700 font-medium">Password updated successfully!</span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter new password (min 6 chars)"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleResetPassword}
+                    disabled={isResettingPassword || resetPasswordValue.length < 6}
+                    className="bg-amber-600 hover:bg-amber-700 text-white h-auto px-4"
+                  >
+                    {isResettingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset"}
+                  </Button>
+                </div>
               )}
             </div>
 

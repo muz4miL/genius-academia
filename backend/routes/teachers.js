@@ -485,7 +485,7 @@ router.post("/:id/wallet/debit", async (req, res) => {
       // Get current user from request (if authenticated) or use system
       const performedBy = req.user?.name || "System";
 
-      // Find owner user (waqar)
+      // Find owner user
       const ownerUser = await User.findOne({
         role: { $in: ["owner", "OWNER"] },
       });

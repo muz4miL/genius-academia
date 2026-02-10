@@ -9,28 +9,26 @@ const User = require("../models/User");
 
 // Minimal revenue helper inline to avoid import errors
 const calculateRevenueSplit = async ({ fee, teacherRole, config }) => {
-  const isOwner = teacherRole === "OWNER";
+  const isPartner = teacherRole === "OWNER" || teacherRole === "PARTNER";
   const staffShare = config?.salaryConfig?.teacherShare || 70;
 
-  if (isOwner) {
-    // Owner keeps 100% of their own class fees
+  if (isPartner) {
     return {
       teacherRevenue: fee,
       poolRevenue: 0,
-      isPartner: false,
-      isOwner: true,
-      stream: "OWNER_DIRECT",
-      splitType: "OWNER_100",
+      isPartner: true,
+      isETEA: false,
+      stream: teacherRole === "OWNER" ? "OWNER_CHEMISTRY" : "PARTNER_BIO",
+      splitType: "PARTNER_100",
     };
   }
 
-  // Staff teachers: 70% teacher, 30% academy
   const teacherAmt = Math.round((fee * staffShare) / 100);
   return {
     teacherRevenue: teacherAmt,
     poolRevenue: fee - teacherAmt,
     isPartner: false,
-    isOwner: false,
+    isETEA: false,
     stream: "STAFF_TUITION",
     splitType: "STAFF_70_30",
     config: {
@@ -42,24 +40,29 @@ const calculateRevenueSplit = async ({ fee, teacherRole, config }) => {
 
 const getTeacherRole = async (teacher) => {
   if (!teacher) return "STAFF";
-  // Check the teacher's own role field first
   if (teacher.role === "OWNER") return "OWNER";
   if (teacher.role === "PARTNER") return "PARTNER";
-  // Check if teacher is linked to a User with an elevated role
-  if (teacher.userId) {
-    try {
-      const linkedUser = await User.findById(teacher.userId).select("role").lean();
-      if (linkedUser?.role === "OWNER") return "OWNER";
-    } catch (_) { /* fallthrough */ }
-  }
+
+  const name = (teacher.name || "").toLowerCase();
+  if (name.includes("waqar")) return "OWNER";
+  if (name.includes("zahid") || name.includes("saud")) return "PARTNER";
   return "STAFF";
 };
 
-// Academy's 30% pool share is retained by the owner (single-owner model)
-// No multi-partner distribution needed
-const distributePoolRevenue = async ({ poolAmount }) => {
-  // In single-owner mode, the academy share stays with the academy
-  return { academyShare: poolAmount };
+const distributePoolRevenue = async ({ poolAmount, isETEA }) => {
+  // Simplified - actually implement your full logic later
+  const split = isETEA
+    ? { waqar: 40, zahid: 30, saud: 30 }
+    : { waqar: 50, zahid: 30, saud: 20 };
+  return {
+    waqarShare: Math.round((poolAmount * split.waqar) / 100),
+    zahidShare: Math.round((poolAmount * split.zahid) / 100),
+    saudShare:
+      poolAmount -
+      Math.round((poolAmount * split.waqar) / 100) -
+      Math.round((poolAmount * split.zahid) / 100),
+    protocol: isETEA ? "ETEA" : "TUITION",
+  };
 };
 
 // GET all students
@@ -198,13 +201,13 @@ exports.collectFee = async (req, res) => {
       collectedByName: req.user?.fullName || "Staff",
       teacher: teacher?._id,
       teacherName: teacher?.name,
-      isPartnerTeacher: split.isOwner || false,
+      isPartnerTeacher: split.isPartner,
       revenueSource: split.splitType,
       splitBreakdown: {
         teacherShare: split.teacherRevenue,
         academyShare: split.poolRevenue,
-        teacherPercentage: split.isOwner ? 100 : (split.config?.staffTeacherShare || 70),
-        academyPercentage: split.isOwner ? 0 : (split.config?.staffAcademyShare || 30),
+        teacherPercentage: split.isPartner ? 100 : 70,
+        academyPercentage: split.isPartner ? 0 : 30,
       },
       paymentMethod: paymentMethod || "CASH",
       notes,
@@ -223,12 +226,10 @@ exports.collectFee = async (req, res) => {
       if (!teacher.balance)
         teacher.balance = { floating: 0, verified: 0, pending: 0 };
 
-      if (split.isOwner) {
-        // Owner's earnings are immediately verified
+      if (split.isPartner) {
         teacher.balance.verified =
           (teacher.balance.verified || 0) + split.teacherRevenue;
       } else {
-        // Staff teachers earn floating until day close
         teacher.balance.floating =
           (teacher.balance.floating || 0) + split.teacherRevenue;
       }
@@ -255,7 +256,7 @@ exports.collectFee = async (req, res) => {
       amount: Number(amount),
       description: `Fee: ${student.studentName} - ${month}`,
       collectedBy: req.user?._id,
-      status: split.isOwner ? "VERIFIED" : "FLOATING",
+      status: split.isPartner ? "VERIFIED" : "FLOATING",
       studentId: student._id,
       splitDetails: {
         teacherShare: split.teacherRevenue,
@@ -265,11 +266,12 @@ exports.collectFee = async (req, res) => {
       },
     });
 
-    // Update collector's totalCash tracking
-    if (req.user?._id && !split.isOwner) {
+    // Update collector's totalCash for partner retention system
+    if (req.user?._id && !split.isPartner) {
+      // Only for non-partner teachers (FLOATING status)
       try {
         const collector = await User.findById(req.user._id);
-        if (collector) {
+        if (collector && collector.role === "PARTNER") {
           collector.totalCash = (collector.totalCash || 0) + Number(amount);
           await collector.save();
         }
@@ -278,9 +280,17 @@ exports.collectFee = async (req, res) => {
       }
     }
 
-    // Academy's share is retained automatically (single-owner model)
-    if (split.poolRevenue > 0) {
-      console.log(`Academy retains PKR ${split.poolRevenue} (30% of ${amount})`);
+    // Handle pool distribution if academy gets share
+    if (split.poolRevenue > 0 && !split.isPartner) {
+      try {
+        const distribution = await distributePoolRevenue({
+          poolAmount: split.poolRevenue,
+          isETEA: false,
+        });
+        console.log("Pool distributed:", distribution);
+      } catch (e) {
+        console.log("Pool distribution skipped:", e.message);
+      }
     }
 
     res.status(201).json({

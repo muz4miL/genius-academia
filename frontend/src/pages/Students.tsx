@@ -113,6 +113,9 @@ const Students = () => {
   const [credentialStudent, setCredentialStudent] = useState<any | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedCredField, setCopiedCredField] = useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   // TASK 4: Fetch all sessions for filter dropdown
   const { data: sessionsData } = useQuery({
@@ -334,6 +337,8 @@ const Students = () => {
     setCredentialStudent(student);
     setShowPassword(false);
     setCopiedCredField(null);
+    setResetPasswordValue("");
+    setResetSuccess(false);
     setIsCredentialModalOpen(true);
   };
 
@@ -341,6 +346,35 @@ const Students = () => {
     await navigator.clipboard.writeText(text);
     setCopiedCredField(field);
     setTimeout(() => setCopiedCredField(null), 2000);
+  };
+
+  const handleResetStudentPassword = async () => {
+    if (!credentialStudent || !resetPasswordValue || resetPasswordValue.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    try {
+      setIsResettingPassword(true);
+      const username = credentialStudent.studentId || credentialStudent.username;
+      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: username, newPassword: resetPasswordValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetSuccess(true);
+        setCredentialStudent({ ...credentialStudent, plainPassword: resetPasswordValue });
+        toast.success(`Password updated for ${credentialStudent.studentName}. You can now print the updated slip.`);
+      } else {
+        toast.error(data.message || "Failed to reset password.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Server error.");
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   const handlePrintLoginSlip = () => {
@@ -1006,6 +1040,37 @@ const Students = () => {
                   )}
                 </Button>
               </div>
+            </div>
+
+            {/* Reset Password */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Reset Password
+              </Label>
+              {resetSuccess ? (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-700 font-medium">Password updated successfully!</span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter new password (min 6 chars)"
+                    value={resetPasswordValue}
+                    onChange={(e: any) => setResetPasswordValue(e.target.value)}
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleResetStudentPassword}
+                    disabled={isResettingPassword || resetPasswordValue.length < 6}
+                    className="bg-amber-600 hover:bg-amber-700 text-white h-auto px-4"
+                  >
+                    {isResettingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Role */}
