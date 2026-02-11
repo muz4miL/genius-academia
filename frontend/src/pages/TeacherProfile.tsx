@@ -26,7 +26,6 @@ import {
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { useReactToPrint } from "react-to-print";
 import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
 import { useTeacherPaymentPDF } from "@/hooks/useTeacherPaymentPDF";
 
@@ -56,24 +55,7 @@ export default function TeacherProfile() {
   const [reportOpen, setReportOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
 
-  const receiptRef = useRef<HTMLDivElement>(null);
   const { generateVoucherPDF, isGenerating } = useTeacherPaymentPDF();
-  
-  // We'll keep the ref for potential use, but won't use react-to-print for PDF generation
-  const handlePrintReceipt = async () => {
-    if (receiptData) {
-      try {
-        await generateVoucherPDF(receiptData);
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        toast({
-          title: 'PDF Generation Failed',
-          description: 'Failed to generate receipt PDF',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
 
   // Fetch teacher details (now includes debtToOwner for partners)
   const { data: teacherData, isLoading: teacherLoading } = useQuery({
@@ -122,7 +104,7 @@ export default function TeacherProfile() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    async onSuccess(data) {
       toast({
         title: "Payout Processed!",
         description: data.message,
@@ -141,18 +123,16 @@ export default function TeacherProfile() {
         };
         setReceiptData(receiptDataForPDF);
         // Generate PDF immediately with the data we just created
-        setTimeout(async () => {
-          try {
-            await generateVoucherPDF(receiptDataForPDF);
-          } catch (error) {
-            console.error('Error generating PDF:', error);
-            toast({
-              title: 'PDF Generation Failed',
-              description: 'Failed to generate receipt PDF',
-              variant: 'destructive',
-            });
-          }
-        }, 100);
+        try {
+          await generateVoucherPDF(receiptDataForPDF);
+        } catch (error) {
+          console.error('Error generating PDF:', error);
+          toast({
+            title: 'PDF Generation Failed',
+            description: 'Failed to generate receipt PDF',
+            variant: 'destructive',
+          });
+        }
       }
       setProcessPayoutDialogOpen(false);
       setProcessPayoutAmount("");
@@ -423,7 +403,6 @@ export default function TeacherProfile() {
 
       {receiptData && (
         <TeacherPaymentReceipt
-          ref={receiptRef}
           voucherId={receiptData.voucherId}
           teacherName={receiptData.teacherName}
           subject={receiptData.subject}
