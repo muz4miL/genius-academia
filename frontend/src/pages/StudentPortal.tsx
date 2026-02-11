@@ -47,6 +47,9 @@ import {
   ArrowRight,
   FileQuestion,
   Armchair,
+  FileText,
+  CheckCircle2,
+  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,19 +89,7 @@ interface TimetableEntry {
   };
 }
 
-interface VideoItem {
-  _id: string;
-  title: string;
-  description?: string;
-  url: string;
-  thumbnail?: string;
-  provider: string;
-  duration?: number;
-  subjectName: string;
-  teacherName?: string;
-  viewCount: number;
-  formattedDuration?: string;
-}
+
 
 // Subject color mapping with gradients
 const SUBJECT_COLORS: Record<
@@ -178,7 +169,6 @@ export function StudentPortal() {
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
 
   // Mouse position for spotlight effect
@@ -225,28 +215,9 @@ export function StudentPortal() {
     },
   });
 
-  // Fetch videos
-  const { data: videosData, isLoading: videosLoading } = useQuery({
-    queryKey: ["student-videos", activeSubject, token],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (activeSubject) params.append("subject", activeSubject);
-
-      const res = await fetch(
-        `${API_BASE_URL}/api/student-portal/videos?${params}`,
-        {
-          credentials: "include",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (!res.ok) throw new Error("Failed to fetch videos");
-      return res.json();
-    },
-    enabled: isLoggedIn && !!token,
-  });
-
-  const videos: VideoItem[] = videosData?.data || [];
-  const videosBySubject = videosData?.bySubject || {};
+  const videos = [];
+  const videosBySubject = {};
+  const videosLoading = false;
 
   // Fetch student schedule/timetable (Role-Based — filtered by student's class)
   const studentClassId = profile?.classRef?._id || profile?.classRef;
@@ -341,17 +312,6 @@ export function StudentPortal() {
   );
   const pastExams = exams.filter((e: any) => new Date() > new Date(e.endTime));
 
-  // Record video view
-  const viewMutation = useMutation({
-    mutationFn: async (videoId: string) => {
-      await fetch(`${API_BASE_URL}/api/student-portal/videos/${videoId}/view`, {
-        method: "POST",
-        credentials: "include",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-  });
-
   // Handle login
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -370,7 +330,7 @@ export function StudentPortal() {
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {}
+    } catch { }
     setIsLoggedIn(false);
     setToken(null);
     setProfile(null);
@@ -398,24 +358,7 @@ export function StudentPortal() {
     }
   };
 
-  // Handle video play
-  const handlePlayVideo = (video: VideoItem) => {
-    setSelectedVideo(video);
-    viewMutation.mutate(video._id);
-  };
 
-  // Get video embed URL
-  const getEmbedUrl = (video: VideoItem) => {
-    if (video.provider === "youtube") {
-      const match = video.url.match(
-        /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/,
-      );
-      if (match) {
-        return `https://www.youtube.com/embed/${match[1]}`;
-      }
-    }
-    return video.url;
-  };
 
   // --- UI HELPERS ---
   const MagneticWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -477,8 +420,8 @@ export function StudentPortal() {
                 >
                   <img
                     src="/logo.png"
-                    alt="Logo"
-                    className="h-12 w-12 brightness-0 invert"
+                    alt="Genius Islamian's Academy"
+                    className="h-16 w-16 object-contain drop-shadow-[0_0_10px_rgba(180,83,9,0.3)]"
                   />
                 </motion.div>
                 <div>
@@ -680,9 +623,9 @@ export function StudentPortal() {
     );
   }
 
-  // Calculate fee percentage
-  const feePercentage = profile
-    ? Math.round((profile.paidAmount / profile.totalFee) * 100)
+  // Calculate fee percentage (cap at 100% to prevent overpayment display issues)
+  const feePercentage = profile && profile.totalFee > 0
+    ? Math.min(100, Math.round((profile.paidAmount / profile.totalFee) * 100))
     : 0;
 
   // MAIN DASHBOARD - LUXURY ACADEMIC AESTHETIC
@@ -707,7 +650,7 @@ export function StudentPortal() {
               <img
                 src="/logo.png"
                 alt="Genius Islamian's Academy"
-                className="h-10 w-auto object-contain brightness-0 invert"
+                className="h-10 w-auto object-contain drop-shadow-[0_0_8px_rgba(180,83,9,0.3)]"
               />
             </div>
             <div className="hidden sm:block">
@@ -1018,7 +961,7 @@ export function StudentPortal() {
               </Card>
             </motion.div>
 
-            {/* Progress Widget */}
+            {/* Student Profile Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1026,194 +969,76 @@ export function StudentPortal() {
             >
               <Card className="glass-ethereal border-white/10 rounded-[2rem] overflow-hidden">
                 <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-8">
+                  <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 rounded-lg bg-brand-gold/10">
-                      <TrendingUp className="h-4 w-4 text-brand-gold" />
+                      <UserCircle className="h-4 w-4 text-brand-gold" />
                     </div>
                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                      Learning Velocity
+                      Student Profile
                     </h3>
                   </div>
 
-                  <div className="space-y-8">
-                    <div>
-                      <div className="flex justify-between items-end mb-3">
-                        <span className="text-xs font-bold text-slate-400">
-                          Lectures Completed
-                        </span>
-                        <span className="text-xl font-serif font-bold text-white">
-                          {videos.length}{" "}
-                          <span className="text-xs text-slate-500 font-sans">
-                            / 100
-                          </span>
-                        </span>
-                      </div>
-                      <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: `${Math.min(videos.length * 10, 100)}%`,
-                          }}
-                          className="h-full bg-gradient-to-r from-brand-gold to-brand-gold/60 rounded-full shadow-[0_0_15px_rgba(180,83,9,0.4)]"
+                  {/* Profile Photo */}
+                  <div className="flex flex-col items-center mb-6">
+                    <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden border-2 border-brand-gold/30 shadow-xl shadow-brand-gold/10 mb-4">
+                      {profile?.photo ? (
+                        <img
+                          src={profile.photo.startsWith('http') ? profile.photo : `${API_BASE_URL}${profile.photo}`}
+                          alt={profile.name}
+                          className="w-full h-full object-cover"
                         />
-                      </div>
+                      ) : (
+                        <img
+                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.studentId}`}
+                          alt={profile?.name}
+                          className="w-full h-full object-cover bg-brand-gold/5"
+                        />
+                      )}
                     </div>
+                    <p className="text-lg font-serif font-bold text-white text-center">
+                      {profile?.name}
+                    </p>
+                    <p className="text-[10px] font-black text-brand-gold/70 uppercase tracking-widest mt-1 font-mono">
+                      {profile?.barcodeId || profile?.studentId}
+                    </p>
+                  </div>
 
-                    <div className="bg-brand-gold/10 border border-brand-gold/20 rounded-2xl p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em] mb-1">
-                            Current Tier
-                          </p>
-                          <p className="text-2xl font-serif font-bold text-white">
-                            Executive Scholar
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-xl bg-brand-gold/20 border border-brand-gold/30 flex items-center justify-center">
-                          <GraduationCap className="h-6 w-6 text-brand-gold" />
-                        </div>
+                  {/* Quick Info */}
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Father</span>
+                      <span className="text-xs font-bold text-slate-300">{profile?.fatherName}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Session</span>
+                      <span className="text-xs font-bold text-slate-300">{profile?.session?.name || "Not Assigned"}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</span>
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-400">{profile?.studentStatus}</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Admission Slip Button */}
+                  <Button
+                    onClick={() => {
+                      toast.info("Admission Slip", {
+                        description: "Please visit the administration office or contact your class coordinator to obtain your official admission slip.",
+                      });
+                    }}
+                    className="w-full h-12 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/20 text-brand-gold font-black uppercase tracking-widest text-xs rounded-xl transition-all group"
+                  >
+                    <FileText className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+                    View Admission Slip
+                  </Button>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Upcoming Exams Widget */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <Card className="glass-ethereal border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 rounded-lg bg-red-500/10">
-                      <FileQuestion className="h-4 w-4 text-red-400" />
-                    </div>
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                      Examination Hall
-                    </h3>
-                  </div>
 
-                  <div className="space-y-4">
-                    {upcomingExams.length === 0 ? (
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
-                        <p className="text-xs text-slate-500 font-serif italic">
-                          No examinations currently scheduled.
-                        </p>
-                      </div>
-                    ) : (
-                      upcomingExams.map((exam: any) => {
-                        const isLive =
-                          new Date() >= new Date(exam.startTime) &&
-                          new Date() <= new Date(exam.endTime);
-                        const hasSubmitted = !!exam.mySubmission;
-
-                        return (
-                          <div
-                            key={exam._id}
-                            className={cn(
-                              "bg-white/5 border transition-all rounded-2xl p-5 hover:bg-white/10 group",
-                              hasSubmitted
-                                ? "border-emerald-500/20"
-                                : isLive
-                                  ? "border-brand-gold/40 bg-brand-gold/5"
-                                  : "border-white/10",
-                            )}
-                          >
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <p className="text-lg font-serif font-bold text-white group-hover:text-brand-gold transition-colors">
-                                  {exam.title}
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">
-                                  {exam.subject}
-                                </p>
-                              </div>
-                              {hasSubmitted ? (
-                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] font-black uppercase tracking-widest px-3 h-6">
-                                  ✓ Result
-                                </Badge>
-                              ) : isLive ? (
-                                <Badge className="bg-brand-gold text-brand-primary text-[10px] font-black uppercase tracking-widest px-3 h-6 animate-pulse">
-                                  Live Now
-                                </Badge>
-                              ) : null}
-                            </div>
-
-                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mb-6 font-black uppercase tracking-widest">
-                              <Calendar className="h-3 w-3 text-brand-gold" />
-                              {new Date(exam.startTime).toLocaleDateString(
-                                undefined,
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                },
-                              )}
-                            </div>
-
-                            {/* Show Score for Completed Exams */}
-                            {hasSubmitted ? (
-                              <div className="w-full bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                      <ShieldCheck className="h-5 w-5 text-emerald-400" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">
-                                        Grade {exam.mySubmission.grade}
-                                      </p>
-                                      <p className="text-sm font-serif font-bold text-white">
-                                        {exam.mySubmission.score} /{" "}
-                                        {exam.mySubmission.totalMarks}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-lg font-serif font-bold text-emerald-400">
-                                      {exam.mySubmission.percentage}%
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => {
-                                  if (isLive) {
-                                    window.open(
-                                      `/exam/${exam._id}`,
-                                      "_blank",
-                                      "width=1200,height=800,menubar=no,toolbar=no,location=no",
-                                    );
-                                  } else {
-                                    toast.info("Institutional Guard", {
-                                      description: `This examination will be accessible on ${new Date(exam.startTime).toLocaleString()}.`,
-                                    });
-                                  }
-                                }}
-                                className={cn(
-                                  "w-full h-12 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl shadow-lg",
-                                  isLive
-                                    ? "bg-brand-gold hover:bg-brand-gold/90 text-brand-primary shadow-brand-gold/20"
-                                    : "bg-white/5 text-slate-500 cursor-not-allowed border border-white/5",
-                                )}
-                              >
-                                {isLive
-                                  ? "Begin Examination"
-                                  : "Locked by Office"}
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
           </div>
 
           {/* Weekly Timetable - Full Width */}
@@ -1264,7 +1089,7 @@ export function StudentPortal() {
                             ? "bg-brand-gold/10 border border-brand-gold/20 shadow-xl shadow-brand-gold/5"
                             : "bg-white/5 border border-white/5 opacity-50 hover:opacity-100",
                           isToday &&
-                            "ring-2 ring-brand-gold ring-offset-4 ring-offset-brand-primary scale-105 z-10",
+                          "ring-2 ring-brand-gold ring-offset-4 ring-offset-brand-primary scale-105 z-10",
                         )}
                       >
                         {/* Day Header */}
@@ -1366,7 +1191,7 @@ export function StudentPortal() {
                           variant="secondary"
                           className="font-black bg-white/5 text-white border-white/10 px-3 h-6 uppercase tracking-widest text-[10px]"
                         >
-                          {videos.length} Lectures
+                          0 Lectures
                         </Badge>
                       </div>
                       <h4 className="font-serif font-bold text-2xl text-white mb-2 group-hover:text-brand-gold transition-colors">
@@ -1416,8 +1241,7 @@ export function StudentPortal() {
                               variant="secondary"
                               className="font-black bg-white/5 text-white border-white/10 px-3 h-6 uppercase tracking-widest text-[10px]"
                             >
-                              {videosBySubject[subject.name]?.length || 0}{" "}
-                              Lectures
+                              0 Lectures
                             </Badge>
                           </div>
                           <h4 className="font-serif font-bold text-2xl text-white mb-2 relative z-10 group-hover:text-brand-gold transition-colors">
@@ -1442,244 +1266,8 @@ export function StudentPortal() {
               })}
             </div>
           </div>
-
-          {/* Video Library - Full Width */}
-          <div className="md:col-span-12">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Video className="h-5 w-5 text-amber-500" />
-                Lecture Library
-                {activeSubject && (
-                  <span className="text-stone-500 font-normal ml-2">
-                    • {activeSubject}
-                  </span>
-                )}
-              </h3>
-              <Badge
-                variant="outline"
-                className="bg-amber-500/5 text-amber-400 border-amber-500/20 px-4 py-1.5 rounded-full font-mono"
-              >
-                {videos.length} Available
-              </Badge>
-            </div>
-
-            {videosLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="animate-pulse bg-white/5 border border-white/10 rounded-[2rem] p-6"
-                  >
-                    <div className="aspect-video bg-white/10 rounded-2xl mb-6" />
-                    <div className="h-6 bg-white/10 rounded-lg mb-4 w-3/4" />
-                    <div className="h-4 bg-white/10 rounded-lg w-1/2" />
-                  </div>
-                ))}
-              </div>
-            ) : videos.length === 0 ? (
-              // Smart Empty State with Countdown
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="glass-ethereal border border-white/10 rounded-[3rem] p-16 text-center shadow-2xl"
-              >
-                <div className="max-w-md mx-auto">
-                  <div className="mb-10">
-                    <div className="w-32 h-32 mx-auto rounded-[2.5rem] bg-brand-gold/10 flex items-center justify-center border border-brand-gold/20 relative">
-                      <div className="absolute inset-0 rounded-[2.5rem] bg-brand-gold/5 animate-ping" />
-                      <Timer className="h-16 w-16 text-brand-gold" />
-                    </div>
-                  </div>
-                  <h3 className="text-4xl font-serif font-black text-white mb-4">
-                    Excellence takes{" "}
-                    <span className="text-brand-gold">Time.</span>
-                  </h3>
-                  <p className="text-slate-400 text-lg mb-10 leading-relaxed">
-                    You've mastered all current lectures. New elite content for{" "}
-                    <span className="text-brand-gold font-bold">
-                      {activeSubject || "your subjects"}
-                    </span>{" "}
-                    is being prepared.
-                  </p>
-
-                  {/* Next Session Countdown */}
-                  <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 inline-block shadow-inner">
-                    <p className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-4">
-                      Academic Milestone
-                    </p>
-                    <p className="text-2xl font-serif font-bold text-white mb-2">
-                      {profile?.session?.name || "Premium Session"}
-                    </p>
-                    <p className="text-xs text-slate-500 font-medium italic mb-6">
-                      Status: Curating Premium Content
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="border-brand-gold/30 hover:bg-brand-gold/10 text-brand-gold font-black uppercase tracking-widest px-8 rounded-xl h-12"
-                    >
-                      View Syllabus
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                {videos.map((video, index) => (
-                  <motion.div
-                    key={video._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    whileHover={{ y: -10 }}
-                    onClick={() => handlePlayVideo(video)}
-                    className="cursor-pointer group"
-                  >
-                    <Card className="overflow-hidden glass-ethereal border border-white/10 group-hover:border-brand-gold/40 transition-all duration-500 rounded-[2.5rem] shadow-2xl h-full flex flex-col">
-                      {/* Thumbnail */}
-                      <div className="relative aspect-video bg-brand-primary overflow-hidden">
-                        {video.thumbnail ? (
-                          <img
-                            src={video.thumbnail}
-                            alt={video.title}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Play className="h-12 w-12 text-white/20" />
-                          </div>
-                        )}
-
-                        {/* Duration Badge */}
-                        {video.formattedDuration && (
-                          <span className="absolute bottom-4 right-4 bg-brand-primary/90 backdrop-blur-md text-[10px] font-black text-white px-3 py-1.5 rounded-lg border border-white/10 tracking-widest">
-                            {video.formattedDuration}
-                          </span>
-                        )}
-
-                        {/* Play Overlay */}
-                        <div className="absolute inset-0 bg-brand-primary/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-brand-gold flex items-center justify-center shadow-2xl shadow-brand-gold/40 transform scale-75 group-hover:scale-100 transition-transform duration-500">
-                            <Play className="h-6 w-6 text-brand-primary fill-current" />
-                          </div>
-                        </div>
-
-                        {/* Subject Tag */}
-                        <div className="absolute top-4 left-4">
-                          <span className="px-3 py-1.5 rounded-lg bg-brand-gold text-brand-primary text-[10px] font-black uppercase tracking-widest shadow-xl">
-                            {video.subjectName}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <CardContent className="p-6 flex-1 flex flex-col justify-between">
-                        <div>
-                          <h4 className="font-serif font-bold text-lg text-white mb-4 line-clamp-2 leading-tight group-hover:text-brand-gold transition-colors">
-                            {video.title}
-                          </h4>
-                          <div className="flex items-center justify-between mt-auto">
-                            <div className="flex items-center gap-2 text-slate-500">
-                              <Eye className="h-4 w-4" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">
-                                {video.viewCount} Views
-                              </span>
-                            </div>
-                            {video.teacherName && (
-                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                                <User className="h-3 w-3 text-brand-gold" />
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                  {video.teacherName.split(" ")[0]}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </main>
-
-      {/* Video Player Modal */}
-      <Dialog
-        open={!!selectedVideo}
-        onOpenChange={() => setSelectedVideo(null)}
-      >
-        <DialogContent className="max-w-6xl p-0 bg-black border-white/10 overflow-hidden rounded-3xl shadow-2xl">
-          <div className="flex flex-col lg:flex-row h-full">
-            <div className="flex-[2] aspect-video lg:aspect-auto h-full min-h-[400px]">
-              {selectedVideo && (
-                <iframe
-                  src={getEmbedUrl(selectedVideo)}
-                  title={selectedVideo.title}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              )}
-            </div>
-
-            <div className="flex-1 p-8 lg:border-l border-white/5 bg-stone-950 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-amber-400 mb-6">
-                  <span className="px-3 py-1 rounded bg-amber-500/10 text-[10px] font-bold uppercase tracking-widest border border-amber-500/20">
-                    {selectedVideo?.subjectName}
-                  </span>
-                </div>
-
-                <h3 className="text-2xl font-bold text-white mb-4 line-clamp-3 leading-tight">
-                  {selectedVideo?.title}
-                </h3>
-
-                {selectedVideo?.description && (
-                  <p className="text-stone-400 text-sm leading-relaxed mb-6">
-                    {selectedVideo.description}
-                  </p>
-                )}
-
-                <div className="space-y-3">
-                  <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
-                    <User className="h-4 w-4 text-amber-400" />
-                    <div>
-                      <p className="text-[10px] font-bold text-stone-500 uppercase">
-                        Instructor
-                      </p>
-                      <p className="text-sm font-bold text-white">
-                        {selectedVideo?.teacherName || "Academy Expert"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
-                    <Eye className="h-4 w-4 text-yellow-400" />
-                    <div>
-                      <p className="text-[10px] font-bold text-stone-500 uppercase">
-                        Views
-                      </p>
-                      <p className="text-sm font-bold text-white font-mono">
-                        {selectedVideo?.viewCount}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <Button
-                  onClick={() => setSelectedVideo(null)}
-                  className="w-full h-12 rounded-xl bg-stone-800 hover:bg-stone-700 text-white font-bold transition-all"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

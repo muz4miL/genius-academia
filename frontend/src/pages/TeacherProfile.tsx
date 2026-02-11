@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useReactToPrint } from "react-to-print";
 import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
+import { useTeacherPaymentPDF } from "@/hooks/useTeacherPaymentPDF";
 
 // Modular Components
 import {
@@ -56,12 +57,23 @@ export default function TeacherProfile() {
   const [receiptData, setReceiptData] = useState<any>(null);
 
   const receiptRef = useRef<HTMLDivElement>(null);
-  const handlePrintReceipt = useReactToPrint({
-    contentRef: receiptRef,
-    documentTitle: receiptData
-      ? `Teacher-Payment-${receiptData.voucherId}`
-      : "Teacher Payment",
-  });
+  const { generateVoucherPDF, isGenerating } = useTeacherPaymentPDF();
+  
+  // We'll keep the ref for potential use, but won't use react-to-print for PDF generation
+  const handlePrintReceipt = async () => {
+    if (receiptData) {
+      try {
+        await generateVoucherPDF(receiptData);
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        toast({
+          title: 'PDF Generation Failed',
+          description: 'Failed to generate receipt PDF',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
 
   // Fetch teacher details (now includes debtToOwner for partners)
   const { data: teacherData, isLoading: teacherLoading } = useQuery({
@@ -116,20 +128,31 @@ export default function TeacherProfile() {
         description: data.message,
       });
       if (data?.data?.voucher) {
-        setReceiptData({
+        const receiptDataForPDF = {
           voucherId: data.data.voucher.voucherId,
           teacherName: data.data.voucher.teacherName,
           subject: data.data.voucher.subject,
           amountPaid: data.data.voucher.amountPaid,
           remainingBalance: data.data.remainingBalance || 0,
-          paymentDate: new Date(data.data.voucher.paymentDate),
+          paymentDate: new Date(data.data.voucher.paymentDate).toISOString(),
           description: data.data.voucher.notes || "Teacher payout",
           sessionName: data.data.voucher.sessionName || "N/A",
           compensationType: teacher?.compensation?.type || "percentage",
-        });
-        setTimeout(() => {
-          handlePrintReceipt();
-        }, 400);
+        };
+        setReceiptData(receiptDataForPDF);
+        // Generate PDF immediately with the data we just created
+        setTimeout(async () => {
+          try {
+            await generateVoucherPDF(receiptDataForPDF);
+          } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast({
+              title: 'PDF Generation Failed',
+              description: 'Failed to generate receipt PDF',
+              variant: 'destructive',
+            });
+          }
+        }, 100);
       }
       setProcessPayoutDialogOpen(false);
       setProcessPayoutAmount("");
