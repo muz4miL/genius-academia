@@ -10,6 +10,7 @@ import { HeaderBanner } from "@/components/dashboard/HeaderBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -17,6 +18,16 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Save,
   Loader2,
@@ -33,6 +44,8 @@ import {
   Eye,
   EyeOff,
   Power,
+  Pencil,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -81,6 +94,37 @@ const Configuration = () => {
   const [newStaffFullName, setNewStaffFullName] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isCreatingStaff, setIsCreatingStaff] = useState(false);
+
+  // Edit Mode & Permissions
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(["dashboard"]);
+
+  // Delete Confirmation State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // System Reset Confirmation State
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  // Subject Deletion Confirmation State
+  const [subjectToDelete, setSubjectToDelete] = useState<{ name: string; index: number } | null>(null);
+  const [subjectConfirmOpen, setSubjectConfirmOpen] = useState(false);
+
+  // All available permissions for the permission matrix
+  const allPermissions = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "admissions", label: "Admissions" },
+    { key: "students", label: "Students" },
+    { key: "teachers", label: "Teachers" },
+    { key: "finance", label: "Finance & Expenses" },
+    { key: "classes", label: "Classes" },
+    { key: "timetable", label: "Timetable" },
+    { key: "sessions", label: "Sessions" },
+    { key: "inquiries", label: "Inquiries" },
+    { key: "payroll", label: "Payroll (Admin Only)" },
+    { key: "configuration", label: "Configuration (Admin Only)" },
+  ];
 
   // --- Check Owner Access ---
   useEffect(() => {
@@ -193,16 +237,25 @@ const Configuration = () => {
     fetchStaff();
   }, [user]);
 
-  // --- Create Staff Handler ---
-  const handleCreateStaff = async () => {
+  // --- Create/Update Staff Handler ---
+  const handleCreateOrUpdateStaff = async () => {
     if (
       !newStaffUsername.trim() ||
-      !newStaffPassword ||
       !newStaffFullName.trim()
     ) {
       toast({
         title: "Missing Information",
-        description: "Please fill in username, password, and full name.",
+        description: "Please fill in username and full name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Password is required for new staff, optional for edit
+    if (!isEditMode && !newStaffPassword) {
+      toast({
+        title: "Missing Password",
+        description: "Password is required for new staff accounts.",
         variant: "destructive",
       });
       return;
@@ -210,47 +263,126 @@ const Configuration = () => {
 
     setIsCreatingStaff(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/create-staff`, {
-        method: "POST",
+      const endpoint = isEditMode
+        ? `${API_BASE_URL}/api/auth/staff/${editingStaffId}`
+        : `${API_BASE_URL}/api/auth/create-staff`;
+
+      const method = isEditMode ? "PATCH" : "POST";
+
+      const body: any = {
+        username: newStaffUsername.trim(),
+        fullName: newStaffFullName.trim(),
+        permissions: selectedPermissions,
+      };
+
+      // Only include password if it's provided (required for create, optional for edit)
+      if (newStaffPassword) {
+        body.password = newStaffPassword;
+      }
+
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          username: newStaffUsername.trim(),
-          password: newStaffPassword,
-          fullName: newStaffFullName.trim(),
-        }),
+        body: JSON.stringify(body),
       });
 
       const result = await response.json();
 
       if (result.success) {
+        const permCount = selectedPermissions.length;
         toast({
-          title: "Staff Created",
-          description: `Account for ${newStaffFullName.trim()} created successfully.`,
+          title: isEditMode ? "Staff Updated" : "Staff Created",
+          description: isEditMode
+            ? `${newStaffFullName.trim()} updated with ${permCount} permissions.`
+            : `Account for ${newStaffFullName.trim()} created with ${permCount} permissions.`,
           className: "bg-green-50 border-green-200",
         });
+
+        // Reset form
         setNewStaffUsername("");
         setNewStaffPassword("");
         setNewStaffFullName("");
         setShowNewPassword(false);
+        setSelectedPermissions(["dashboard"]);
+        setIsEditMode(false);
+        setEditingStaffId(null);
+
         // Refresh staff list
-        setStaffList((prev) => [result.user, ...prev]);
+        if (isEditMode) {
+          setStaffList((prev) =>
+            prev.map((s) =>
+              s._id === editingStaffId || s.userId === editingStaffId
+                ? result.user
+                : s
+            )
+          );
+        } else {
+          setStaffList((prev) => [result.user, ...prev]);
+        }
       } else {
+        console.error("❌ Staff creation failed:", result);
         toast({
-          title: "Error",
-          description: result.message || "Failed to create staff account.",
+          title: "Error Creating Staff",
+          description: result.message || `Failed to ${isEditMode ? 'update' : 'create'} staff account.`,
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("❌ Staff creation error:", error);
       toast({
-        title: "Error",
-        description: "Failed to create staff account.",
+        title: "Network Error",
+        description: error.message || `Failed to ${isEditMode ? 'update' : 'create'} staff account.`,
         variant: "destructive",
       });
     } finally {
       setIsCreatingStaff(false);
     }
+  };
+
+  // --- Edit Staff Handler ---
+  const handleEditStaff = (staff: any) => {
+    setIsEditMode(true);
+    setEditingStaffId(staff._id || staff.userId);
+    setNewStaffUsername(staff.username);
+    setNewStaffFullName(staff.fullName);
+    setNewStaffPassword(""); // Leave blank to keep current password
+    setSelectedPermissions(staff.permissions || ["dashboard"]);
+    setShowNewPassword(false);
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // --- Cancel Edit Handler ---
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditingStaffId(null);
+    setNewStaffUsername("");
+    setNewStaffPassword("");
+    setNewStaffFullName("");
+    setSelectedPermissions(["dashboard"]);
+    setShowNewPassword(false);
+  };
+
+  // --- Toggle Permission ---
+  const togglePermission = (permKey: string) => {
+    setSelectedPermissions((prev) => {
+      if (prev.includes(permKey)) {
+        // Don't allow removing dashboard - everyone needs it
+        if (permKey === "dashboard") {
+          toast({
+            title: "Dashboard Required",
+            description: "All users must have dashboard access.",
+            variant: "destructive",
+          });
+          return prev;
+        }
+        return prev.filter((p) => p !== permKey);
+      } else {
+        return [...prev, permKey];
+      }
+    });
   };
 
   // --- Toggle Staff Status ---
@@ -288,6 +420,55 @@ const Configuration = () => {
       });
     }
   };
+
+  // --- Delete Staff ---
+  const handleDeleteStaff = (staffId: string, staffName: string) => {
+    setStaffToDelete({ id: staffId, name: staffName });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteStaff = async () => {
+    if (!staffToDelete) return;
+
+    const { id: staffId, name: staffName } = staffToDelete;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/staff/${staffId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStaffList((prev) => prev.filter((s) => s._id !== staffId && s.userId !== staffId));
+        toast({
+          title: "Staff Deleted",
+          description: `${staffName} has been removed from the system.`,
+          className: "bg-green-50 border-green-200",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to delete staff account.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete staff account.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setStaffToDelete(null);
+    }
+  };
+
 
   // --- Instant Save Helper ---
   const saveConfigToBackend = async (
@@ -721,27 +902,9 @@ const Configuration = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-red-600"
-                          onClick={async () => {
-                            if (window.confirm(`Remove ${subject.name}?`)) {
-                              const newSubjects = defaultSubjectFees.filter(
-                                (_, i) => i !== index,
-                              );
-                              setDefaultSubjectFees(newSubjects);
-                              try {
-                                await saveConfigToBackend(newSubjects);
-                                toast({
-                                  title: "Deleted",
-                                  description: `${subject.name} removed`,
-                                });
-                              } catch (error) {
-                                setDefaultSubjectFees(defaultSubjectFees);
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to delete",
-                                  variant: "destructive",
-                                });
-                              }
-                            }
+                          onClick={() => {
+                            setSubjectToDelete({ name: subject.name, index });
+                            setSubjectConfirmOpen(true);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -765,18 +928,33 @@ const Configuration = () => {
                       Staff Access Management
                     </CardTitle>
                     <CardDescription>
-                      Create and manage operator/staff login accounts
+                      Create and manage operator/staff login accounts with granular permissions
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
-                {/* Create New Staff */}
+                {/* Create/Edit Staff Form */}
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-foreground mb-3">
-                    Create New Staff Account
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      {isEditMode ? "Edit Staff Account" : "Create New Staff Account"}
+                    </p>
+                    {isEditMode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCancelEdit}
+                        className="h-8 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Basic Info */}
+                  <div className="grid gap-3 sm:grid-cols-3 mb-4">
                     <div className="space-y-1">
                       <Label className="text-xs">Full Name *</Label>
                       <Input
@@ -793,14 +971,17 @@ const Configuration = () => {
                         value={newStaffUsername}
                         onChange={(e) => setNewStaffUsername(e.target.value)}
                         className="h-10"
+                        disabled={isEditMode}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Password *</Label>
+                      <Label className="text-xs">
+                        Password {isEditMode ? "(leave blank to keep current)" : "*"}
+                      </Label>
                       <div className="relative">
                         <Input
                           type={showNewPassword ? "text" : "password"}
-                          placeholder="Min 6 characters"
+                          placeholder={isEditMode ? "Leave blank to keep" : "Min 6 characters"}
                           value={newStaffPassword}
                           onChange={(e) => setNewStaffPassword(e.target.value)}
                           className="h-10 pr-10"
@@ -819,20 +1000,62 @@ const Configuration = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Permission Matrix */}
+                  <div className="space-y-2 mb-4">
+                    <Label className="text-xs font-semibold">Access Permissions</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Select which tabs this staff member can access
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white rounded-lg border">
+                      {allPermissions.map((perm) => (
+                        <div
+                          key={perm.key}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`perm-${perm.key}`}
+                            checked={selectedPermissions.includes(perm.key)}
+                            onCheckedChange={() => togglePermission(perm.key)}
+                            disabled={perm.key === "dashboard"}
+                          />
+                          <label
+                            htmlFor={`perm-${perm.key}`}
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {perm.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ✓ {selectedPermissions.length} permissions selected
+                    </p>
+                  </div>
+
                   <Button
-                    className="mt-3 bg-primary hover:bg-primary/90"
-                    onClick={handleCreateStaff}
+                    className="w-full bg-primary hover:bg-primary/90"
+                    onClick={handleCreateOrUpdateStaff}
                     disabled={isCreatingStaff}
                   >
                     {isCreatingStaff ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
+                        {isEditMode ? "Updating..." : "Creating..."}
                       </>
                     ) : (
                       <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Staff Account
+                        {isEditMode ? (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Update Staff Account
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Staff Account
+                          </>
+                        )}
                       </>
                     )}
                   </Button>
@@ -866,7 +1089,7 @@ const Configuration = () => {
                             : "bg-gray-50 border-gray-200 opacity-60",
                         )}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <div
                             className={cn(
                               "flex h-10 w-10 items-center justify-center rounded-full text-white font-bold text-sm",
@@ -880,12 +1103,15 @@ const Configuration = () => {
                               .toUpperCase()
                               .slice(0, 2)}
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold text-sm">
                               {staff.fullName}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               @{staff.username} • {staff.role || "STAFF"}
+                            </p>
+                            <p className="text-xs text-primary mt-1">
+                              {staff.permissions?.length || 0} permissions
                             </p>
                           </div>
                         </div>
@@ -900,6 +1126,15 @@ const Configuration = () => {
                           >
                             {staff.isActive ? "Active" : "Disabled"}
                           </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEditStaff(staff)}
+                            title="Edit permissions"
+                          >
+                            <Pencil className="h-4 w-4 text-blue-500" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -921,6 +1156,20 @@ const Configuration = () => {
                                   : "text-green-500",
                               )}
                             />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              handleDeleteStaff(
+                                staff._id || staff.userId,
+                                staff.fullName
+                              )
+                            }
+                            title="Delete staff account"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400 hover:text-red-600" />
                           </Button>
                         </div>
                       </div>
@@ -975,55 +1224,8 @@ const Configuration = () => {
                   </p>
                   <Button
                     variant="destructive"
-                    className="w-full bg-red-600 hover:bg-red-700"
-                    onClick={async () => {
-                      if (
-                        window.confirm(
-                          "WARNING: This will delete ALL financial data and students. This cannot be undone. Are you sure?",
-                        )
-                      ) {
-                        try {
-                          const response = await fetch(
-                            `${API_BASE_URL}/api/finance/reset-system`,
-                            {
-                              method: "POST",
-                              credentials: "include",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                            },
-                          );
-
-                          const data = await response.json();
-
-                          if (data.success) {
-                            toast({
-                              title: "System Reset Complete",
-                              description:
-                                "Database wiped. All balances reset to 0. Reloading...",
-                              className: "bg-green-50 border-green-200",
-                            });
-                            setTimeout(() => {
-                              window.location.reload();
-                            }, 2000);
-                          } else {
-                            toast({
-                              title: "Reset Failed",
-                              description:
-                                data.message || "Failed to reset system",
-                              variant: "destructive",
-                            });
-                          }
-                        } catch (error) {
-                          console.error("Reset error:", error);
-                          toast({
-                            title: "Error",
-                            description: "Failed to reset system",
-                            variant: "destructive",
-                          });
-                        }
-                      }
-                    }}
+                    className="w-full h-12 text-lg font-bold shadow-lg"
+                    onClick={() => setResetConfirmOpen(true)}
                   >
                     RESET ALL DATA
                   </Button>
@@ -1035,6 +1237,152 @@ const Configuration = () => {
 
         {/* Subject editing removed for session-based pricing */}
       </div>
+
+      {/* --- REUSABLE CUSTOM DIALOGS (PREMIUM UI) --- */}
+
+      {/* Staff Deletion Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md border-2 border-red-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <ShieldAlert className="h-6 w-6 text-red-500" />
+              Confirm Staff Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 text-lg py-2">
+              Are you sure you want to delete <span className="font-bold text-red-600">{staffToDelete?.name}</span>?
+              This action <span className="underline font-semibold">cannot be undone</span> and all access for this user will be revoked immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="h-12 border-slate-200 text-slate-600 font-medium hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteStaff}
+              className="h-12 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-200"
+            >
+              Yes, Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* System Reset Confirmation */}
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent className="max-w-md border-4 border-red-500 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-black text-red-600 flex items-center gap-2 uppercase tracking-tighter">
+              <AlertCircle className="h-8 w-8 fill-red-600 text-white" />
+              Extreme Warning
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-900 font-medium text-lg border-l-4 border-red-500 pl-4 py-2 bg-red-50/50">
+              This will <span className="text-red-600 font-black">WIPE EVERYTHING</span>.
+              <br /><br />
+              All financial records, student data, and account balances will be permanently deleted. This is for academy owners during terminal reset only.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel className="h-12 font-semibold">Cancel Safety</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  const response = await fetch(
+                    `${API_BASE_URL}/api/finance/reset-system`,
+                    {
+                      method: "POST",
+                      credentials: "include",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                    },
+                  );
+
+                  const data = await response.json();
+
+                  if (data.success) {
+                    toast({
+                      title: "System Reset Complete",
+                      description: "Database wiped. All balances reset to 0. Reloading...",
+                      className: "bg-green-50 border-green-200",
+                    });
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 2000);
+                  } else {
+                    toast({
+                      title: "Reset Failed",
+                      description: data.message || "Failed to reset system",
+                      variant: "destructive",
+                    });
+                  }
+                } catch (error) {
+                  console.error("Reset error:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to reset system",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setResetConfirmOpen(false);
+                }
+              }}
+              className="h-12 bg-red-600 hover:bg-red-700 text-white font-black uppercase"
+            >
+              WIPE DATABASE
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Subject Deletion Confirmation */}
+      <AlertDialog open={subjectConfirmOpen} onOpenChange={setSubjectConfirmOpen}>
+        <AlertDialogContent className="max-w-md border-b-4 border-red-500 shadow-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Remove Subject
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Are you sure you want to remove <span className="font-bold text-slate-900">{subjectToDelete?.name}</span>?
+              This will update the default subjects for all future sessions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!subjectToDelete) return;
+                const { index, name } = subjectToDelete;
+                const newSubjects = defaultSubjectFees.filter((_, i) => i !== index);
+                setDefaultSubjectFees(newSubjects);
+                try {
+                  await saveConfigToBackend(newSubjects);
+                  toast({
+                    title: "Subject Removed",
+                    description: `${name} has been taken off the list.`,
+                    className: "bg-green-50 border-green-200"
+                  });
+                } catch (error) {
+                  setDefaultSubjectFees(defaultSubjectFees);
+                  toast({
+                    title: "Error",
+                    description: "Something went wrong while removing the subject.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSubjectConfirmOpen(false);
+                  setSubjectToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Remove Subject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
     </DashboardLayout>
   );
 };

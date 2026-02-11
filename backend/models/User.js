@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 8,
+      minlength: 6,
     },
     fullName: {
       type: String,
@@ -234,6 +234,7 @@ userSchema.methods.getPublicProfile = function () {
   }
 
   return {
+    _id: this._id,
     userId: this.userId,
     username: this.username,
     fullName: this.fullName,

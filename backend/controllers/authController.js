@@ -155,7 +155,7 @@ exports.getMe = async (req, res) => {
 // ========================================
 exports.createStaff = async (req, res) => {
     try {
-        const { username, password, fullName, phone, email } = req.body;
+        const { username, password, fullName, phone, email, permissions } = req.body;
 
         // Validate input
         if (!username || !password || !fullName) {
@@ -187,6 +187,7 @@ exports.createStaff = async (req, res) => {
             role: 'STAFF',
             phone,
             email,
+            permissions: permissions || ['dashboard'], // Default to dashboard if not provided
             canBeDeleted: true,
             isActive: true,
             createdBy: req.user._id,
@@ -199,6 +200,25 @@ exports.createStaff = async (req, res) => {
         });
     } catch (error) {
         console.error('Create Staff Error:', error);
+
+        // Handle Mongoose validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({
+                success: false,
+                message: messages.join(', '),
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+            });
+        }
+
+        // Handle duplicate key errors
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: '❌ Username already exists.',
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: 'Error creating staff account.',
@@ -261,9 +281,61 @@ exports.toggleStaffStatus = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error toggling staff status.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         });
     }
 };
+
+// ========================================
+// @route   PATCH /api/auth/staff/:id
+// @desc    Update staff account (OWNER only)
+// @access  Private (OWNER)
+// ========================================
+exports.updateStaff = async (req, res) => {
+    try {
+        const { fullName, password, permissions } = req.body;
+
+        const staff = await User.findById(req.params.id);
+
+        if (!staff || staff.role !== 'STAFF') {
+            return res.status(404).json({
+                success: false,
+                message: '❌ Staff member not found.',
+            });
+        }
+
+        // Update fields
+        if (fullName) staff.fullName = fullName;
+        if (permissions) staff.permissions = permissions;
+
+        // Only update password if provided
+        if (password && password.trim()) {
+            if (password.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 6 characters.',
+                });
+            }
+            staff.password = password; // Will be hashed by pre-save hook
+        }
+
+        await staff.save();
+
+        res.status(200).json({
+            success: true,
+            message: `✅ Staff account updated successfully.`,
+            user: staff.getPublicProfile(),
+        });
+    } catch (error) {
+        console.error('Update Staff Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating staff account.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        });
+    }
+};
+
 
 // ========================================
 // @route   POST /api/auth/reset-password
@@ -323,6 +395,46 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error resetting password.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        });
+    }
+};
+
+// ========================================
+// @route   DELETE /api/auth/staff/:id
+// @desc    Delete staff account (OWNER only)
+// @access  Private (OWNER)
+// ========================================
+exports.deleteStaff = async (req, res) => {
+    try {
+        const staff = await User.findById(req.params.id);
+
+        if (!staff || staff.role !== 'STAFF') {
+            return res.status(404).json({
+                success: false,
+                message: '❌ Staff member not found.',
+            });
+        }
+
+        // Prevent deleting yourself
+        if (staff._id.toString() === req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: '⛔ Cannot delete your own account.',
+            });
+        }
+
+        await staff.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            message: `✅ ${staff.fullName}'s account deleted successfully.`,
+        });
+    } catch (error) {
+        console.error('Delete Staff Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting staff account.',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         });
     }

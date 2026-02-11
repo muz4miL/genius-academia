@@ -17,7 +17,7 @@
  * ================================================================
  */
 
-require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
+require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 const mongoose = require("mongoose");
 
 // ── Models ──────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ async function seed() {
     log("🧑‍🏫", "Creating Teachers...");
 
     const teacherData = [
-      { name: "Sir Ahmad Khan", phone: "03001234567", subject: "physics",  username: "ahmad.khan" },
+      { name: "Sir Ahmad Khan", phone: "03001234567", subject: "physics", username: "ahmad.khan" },
       { name: "Sir Bilal Raza", phone: "03009876543", subject: "chemistry", username: "bilal.raza" },
       { name: "Sir Kamran Ali", phone: "03005556667", subject: "mathematics", username: "kamran.ali" },
     ];

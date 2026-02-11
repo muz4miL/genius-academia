@@ -40,6 +40,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Phone,
     UserPlus,
     Users,
@@ -179,9 +189,12 @@ export default function Leads() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Edit modal state
     const [editingLead, setEditingLead] = useState<Lead | null>(null);
     const [editRemarks, setEditRemarks] = useState("");
+
+    // Delete confirmation state
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
 
     // Fetch leads
     const { data, isLoading, refetch } = useQuery<{
@@ -660,9 +673,8 @@ export default function Leads() {
                                                 {/* Delete */}
                                                 <button
                                                     onClick={() => {
-                                                        if (confirm(`Delete lead "${lead.name}"?`)) {
-                                                            deleteMutation.mutate(lead._id);
-                                                        }
+                                                        setLeadToDelete(lead);
+                                                        setDeleteConfirmOpen(true);
                                                     }}
                                                     className="h-8 w-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
                                                     title="Delete Lead"
@@ -725,6 +737,39 @@ export default function Leads() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Custom Premium Delete Confirmation */}
+            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <AlertDialogContent className="sm:max-w-md border-2 border-red-50 shadow-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-bold flex items-center gap-2 text-gray-900">
+                            <Trash2 className="h-6 w-6 text-red-500" />
+                            Delete Lead?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-600 text-lg py-2">
+                            Are you absolutely sure you want to remove <span className="font-bold text-red-600">{leadToDelete?.name}</span>?
+                            This will permanently delete this inquiry record from your pipeline.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4">
+                        <AlertDialogCancel className="h-11 font-medium border-gray-200">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (leadToDelete) {
+                                    deleteMutation.mutate(leadToDelete._id);
+                                    setDeleteConfirmOpen(false);
+                                    setLeadToDelete(null);
+                                }
+                            }}
+                            className="h-11 bg-red-600 hover:bg-red-700 text-white font-bold px-6 shadow-md"
+                        >
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </DashboardLayout>
     );
 }

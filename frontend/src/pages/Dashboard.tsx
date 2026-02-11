@@ -26,6 +26,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Users,
   AlertCircle,
   FlaskConical,
@@ -52,6 +62,14 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  TrendingDown,
+  Briefcase,
+  ArrowRight,
+  Search,
+  Calendar,
+  Lock,
+  Unlock,
+  ShieldAlert,
 } from "lucide-react";
 import {
   BarChart,
@@ -96,6 +114,9 @@ const OwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState("7d");
+  const [isClosing, setIsClosing] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
   // Real stats from API
   const [stats, setStats] = useState({
@@ -244,6 +265,36 @@ const OwnerDashboard = () => {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.print();
+  };
+
+  const handleCloseDay = () => {
+    setCloseConfirmOpen(true);
+  };
+
+  const confirmCloseDay = async () => {
+    setIsClosing(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/finance/close-day`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage(data.message);
+        fetchStats(); // Refresh stats after closing day
+      } else {
+        setError(data.message || "Failed to close day.");
+      }
+    } catch (err) {
+      console.error("Error closing day:", err);
+      setError("Failed to connect to server for closing day.");
+    } finally {
+      setIsClosing(false);
+      setCloseConfirmOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -842,6 +893,39 @@ const OwnerDashboard = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* --- DAILY CLOSING DIALOG --- */}
+        <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+          <AlertDialogContent className="max-w-md border-2 border-emerald-100 shadow-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Lock className="h-6 w-6 text-emerald-600" />
+                Daily Closing Confirmation
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-600 py-3 text-lg">
+                <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 mb-6 shadow-inner">
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-700 mb-1">Cash to be Vaulted</p>
+                  <p className="text-4xl font-black text-emerald-950">PKR {(stats.floatingCash || 0).toLocaleString()}</p>
+                </div>
+                Are you sure you want to move your floating cash to the <span className="font-bold text-slate-900 underline">Verified Accounts</span>?
+                <br /><br />
+                This will lock the amount for today's session.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-3">
+              <AlertDialogCancel className="h-12 text-slate-500 font-semibold uppercase tracking-wider text-xs">
+                Review Cash
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmCloseDay}
+                className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-lg shadow-emerald-200"
+              >
+                🔒 Close Day
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </DashboardLayout>
     </TooltipProvider>
   );
@@ -861,6 +945,7 @@ const PartnerDashboard = () => {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
   // Real stats from API
   const [stats, setStats] = useState({
@@ -920,16 +1005,19 @@ const PartnerDashboard = () => {
     const floatingAmount = stats.floatingCash || 0;
 
     if (floatingAmount === 0) {
-      alert("❌ No floating cash to close. Collect some payments first!");
+      toast({
+        title: "Nothing to close",
+        description: "No floating cash available to close at this time.",
+        variant: "destructive"
+      });
       return;
     }
 
-    const confirmed = confirm(
-      `🔒 Confirm Daily Closing\n\nYou are about to lock PKR ${floatingAmount.toLocaleString()} into your verified balance.\n\nThis action cannot be undone. Continue?`,
-    );
+    setCloseConfirmOpen(true);
+  };
 
-    if (!confirmed) return;
-
+  const confirmCloseDay = async () => {
+    const floatingAmount = stats.floatingCash || 0;
     try {
       setIsClosing(true);
       setError(null);
@@ -957,6 +1045,7 @@ const PartnerDashboard = () => {
       setError("Network error. Please try again.");
     } finally {
       setIsClosing(false);
+      setCloseConfirmOpen(false);
     }
   };
 
@@ -995,7 +1084,7 @@ const PartnerDashboard = () => {
       if (data.success) {
         setSuccessMessage(
           data.message ||
-            `✅ Payment of PKR ${amount.toLocaleString()} recorded successfully!`,
+          `✅ Payment of PKR ${amount.toLocaleString()} recorded successfully!`,
         );
         setPaymentModalOpen(false);
         setPaymentAmount("");
@@ -1133,11 +1222,10 @@ const PartnerDashboard = () => {
 
         {/* 3. Expense Debt (Red - Warning) - SRS 3.0 Module 3 */}
         <div
-          className={`group relative overflow-hidden rounded-2xl backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 ${
-            stats.expenseDebt > 0
-              ? "bg-red-50 border-red-500 animate-pulse"
-              : "bg-white/90 border-slate-300"
-          }`}
+          className={`group relative overflow-hidden rounded-2xl backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 ${stats.expenseDebt > 0
+            ? "bg-red-50 border-red-500 animate-pulse"
+            : "bg-white/90 border-slate-300"
+            }`}
         >
           {/* Prominent Alert Badge for Outstanding Debt */}
           {stats.expenseDebt > 0 && (
@@ -1181,11 +1269,10 @@ const PartnerDashboard = () => {
               )}
             </div>
             <div
-              className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-lg ${
-                stats.expenseDebt > 0
-                  ? "bg-red-500 text-white"
-                  : "bg-green-100 text-green-600"
-              }`}
+              className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-lg ${stats.expenseDebt > 0
+                ? "bg-red-500 text-white"
+                : "bg-green-100 text-green-600"
+                }`}
             >
               {stats.expenseDebt > 0 ? (
                 <AlertCircle className="h-7 w-7" />
@@ -1246,6 +1333,36 @@ const PartnerDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* --- DAILY CLOSING DIALOG --- */}
+      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <AlertDialogContent className="max-w-md border-2 border-blue-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Lock className="h-6 w-6 text-blue-600" />
+              Partner Daily Closing
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 py-3 text-lg">
+              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-6 shadow-inner">
+                <p className="text-xs uppercase tracking-[0.2em] font-bold text-blue-700 mb-1">Cash to be Reported</p>
+                <p className="text-4xl font-black text-blue-950">PKR {(stats.floatingCash || 0).toLocaleString()}</p>
+              </div>
+              Lock this amount into the verified balance? This will finalize your collections for today.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="h-12 text-slate-500 font-semibold uppercase tracking-wider text-xs">
+              Go Back
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCloseDay}
+              className="h-12 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-200"
+            >
+              🔒 Verify & Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Payment Recording Modal */}
     </DashboardLayout>
@@ -1513,11 +1630,10 @@ const TeacherDashboard = () => {
                     {groupedByDay[day].map((entry: any, idx: number) => (
                       <div
                         key={entry._id || idx}
-                        className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
-                          day === today
-                            ? "bg-emerald-50 border-emerald-200"
-                            : "bg-slate-50 border-slate-200"
-                        }`}
+                        className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${day === today
+                          ? "bg-emerald-50 border-emerald-200"
+                          : "bg-slate-50 border-slate-200"
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-sm font-bold ${day === today ? "text-emerald-700" : "text-slate-700"}`}>
@@ -1548,21 +1664,226 @@ const TeacherDashboard = () => {
 };
 
 // ========================================
-// 👨‍💼 STAFF DASHBOARD COMPONENT (Fallback)
+// 👨‍💼 STAFF DASHBOARD COMPONENT
 // ========================================
 const StaffDashboard = () => {
   const { user } = useAuth();
+  const [staffStats, setStaffStats] = useState<any>({
+    totalStudents: 0,
+    totalTeachers: 0,
+    totalClasses: 0,
+    todayAdmissions: 0,
+    recentInquiries: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  const perms = user?.permissions || ["dashboard"];
+  const hasPerm = (p: string) => perms.includes(p);
+
+  useEffect(() => {
+    const fetchStaffData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch basic counts based on permissions
+        const promises: Promise<any>[] = [];
+
+        if (hasPerm("students") || hasPerm("admissions")) {
+          promises.push(
+            fetch(`${API_BASE_URL}/students`, { credentials: "include" })
+              .then((r) => r.json())
+              .catch(() => ({ success: false }))
+          );
+        } else {
+          promises.push(Promise.resolve(null));
+        }
+
+        if (hasPerm("teachers")) {
+          promises.push(
+            fetch(`${API_BASE_URL}/teachers`, { credentials: "include" })
+              .then((r) => r.json())
+              .catch(() => ({ success: false }))
+          );
+        } else {
+          promises.push(Promise.resolve(null));
+        }
+
+        if (hasPerm("classes")) {
+          promises.push(
+            fetch(`${API_BASE_URL}/classes`, { credentials: "include" })
+              .then((r) => r.json())
+              .catch(() => ({ success: false }))
+          );
+        } else {
+          promises.push(Promise.resolve(null));
+        }
+
+        const [studentsData, teachersData, classesData] = await Promise.all(promises);
+
+        setStaffStats({
+          totalStudents: studentsData?.data?.length || studentsData?.students?.length || 0,
+          totalTeachers: teachersData?.data?.length || teachersData?.teachers?.length || 0,
+          totalClasses: classesData?.data?.length || classesData?.classes?.length || 0,
+        });
+      } catch (err) {
+        console.error("Staff dashboard error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStaffData();
+  }, []);
+
+  // Quick action items based on permissions
+  const quickActions = [
+    { perm: "admissions", label: "New Admission", icon: UserPlus, href: "/admissions", color: "from-emerald-500 to-emerald-600" },
+    { perm: "students", label: "View Students", icon: GraduationCap, href: "/students", color: "from-sky-500 to-sky-600" },
+    { perm: "teachers", label: "View Teachers", icon: Users, href: "/teachers", color: "from-violet-500 to-violet-600" },
+    { perm: "finance", label: "Finance", icon: DollarSign, href: "/finance", color: "from-amber-500 to-amber-600" },
+    { perm: "classes", label: "Classes", icon: BookOpen, href: "/classes", color: "from-rose-500 to-rose-600" },
+    { perm: "timetable", label: "Timetable", icon: CalendarDays, href: "/timetable", color: "from-indigo-500 to-indigo-600" },
+    { perm: "sessions", label: "Sessions", icon: Clock, href: "/sessions", color: "from-teal-500 to-teal-600" },
+    { perm: "inquiries", label: "Inquiries", icon: ClipboardCheck, href: "/inquiries", color: "from-orange-500 to-orange-600" },
+  ].filter((a) => hasPerm(a.perm));
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Staff Dashboard">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Staff Dashboard">
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-700 mb-2">
-            Welcome, {user?.fullName}
-          </h2>
-          <p className="text-slate-500">Staff dashboard coming soon...</p>
+      {/* Welcome Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-sky-900 p-8 shadow-2xl border-b-4 border-sky-500">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE2djRoNHYtNGgtNHptMC0yaDZ2Nmgtdi02eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+        <div className="relative z-10">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Welcome back,{" "}
+            <span className="text-sky-400">{user?.fullName || "Staff"}</span>
+          </h1>
+          <p className="text-slate-300 text-lg">
+            Genius Islamian's Academy — Staff Panel
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-sky-500/20 text-sky-300 text-xs font-medium border border-sky-500/30">
+              {perms.length} Module{perms.length !== 1 ? "s" : ""} Accessible
+            </span>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/30">
+              ● Online
+            </span>
+          </div>
         </div>
       </div>
+
+      {/* Stats Cards - Permission Based */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {hasPerm("students") && (
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-sky-500 cursor-pointer" onClick={() => window.location.href = "/students"}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Students</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalStudents}</p>
+                <p className="text-xs text-slate-400 mt-1">Enrolled students</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-lg">
+                <GraduationCap className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {hasPerm("teachers") && (
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-violet-500 cursor-pointer" onClick={() => window.location.href = "/teachers"}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Teachers</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalTeachers}</p>
+                <p className="text-xs text-slate-400 mt-1">Active teachers</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-lg">
+                <Users className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {hasPerm("classes") && (
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-emerald-500 cursor-pointer" onClick={() => window.location.href = "/classes"}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Classes</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalClasses}</p>
+                <p className="text-xs text-slate-400 mt-1">Active classes</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                <BookOpen className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      {quickActions.length > 0 && (
+        <Card className="mt-8 border-slate-200 bg-white shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+              <ClipboardCheck className="h-6 w-6 text-sky-600" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              Navigate to your assigned modules
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {quickActions.map((action) => (
+                <Button
+                  key={action.perm}
+                  size="lg"
+                  className={`h-14 bg-gradient-to-r ${action.color} text-white font-semibold shadow-lg hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300`}
+                  onClick={() => (window.location.href = action.href)}
+                >
+                  <action.icon className="mr-2 h-5 w-5" />
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Your Permissions */}
+      <Card className="mt-6 border-slate-200 bg-white shadow-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            Your Access Permissions
+          </CardTitle>
+          <CardDescription>Modules assigned to your account by the administrator</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {perms.map((p: string) => (
+              <span
+                key={p}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-sm font-medium text-slate-700 border border-slate-200"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </span>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </DashboardLayout>
   );
 };

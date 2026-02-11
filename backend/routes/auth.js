@@ -7,6 +7,8 @@ const {
     createStaff,
     getAllStaff,
     toggleStaffStatus,
+    updateStaff,
+    deleteStaff,
     resetPassword,
 } = require('../controllers/authController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
@@ -29,7 +31,9 @@ router.get('/me', getMe);
 // ========================================
 router.post('/create-staff', restrictTo('OWNER'), createStaff);
 router.get('/staff', restrictTo('OWNER'), getAllStaff);
+router.patch('/staff/:id', restrictTo('OWNER'), updateStaff);
 router.patch('/staff/:id/toggle', restrictTo('OWNER'), toggleStaffStatus);
+router.delete('/staff/:id', restrictTo('OWNER'), deleteStaff);
 router.post('/reset-password', restrictTo('OWNER'), resetPassword);
 
 module.exports = router;
