@@ -834,3 +834,91 @@ exports.processPayout = async (req, res) => {
     });
   }
 };
+
+// =====================================================================
+// MANUAL CREDIT TEACHER — Admin manually adds credit to teacher balance
+// This is a LIABILITY entry (debt owed to teacher), NOT an expense.
+// Actual expense is only recorded when Pay/Payout happens.
+// =====================================================================
+// @desc    Manually credit a teacher's pending balance
+// @route   POST /api/payroll/credit
+// @access  Protected (OWNER only)
+exports.manualCreditTeacher = async (req, res) => {
+  try {
+    const { teacherId, amount, description } = req.body;
+
+    // Validate input
+    if (!teacherId || !amount || Number(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher ID and a valid positive amount are required",
+      });
+    }
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    const creditAmount = Number(amount);
+
+    // 1. Atomically increment teacher's pending balance
+    const updatedTeacher = await Teacher.findByIdAndUpdate(
+      teacherId,
+      { $inc: { "balance.pending": creditAmount } },
+      { new: true }
+    );
+
+    // 2. Create a LIABILITY transaction (tracks debt, NOT cash movement)
+    await Transaction.create({
+      type: "LIABILITY",
+      category: "Payroll_Credit",
+      amount: creditAmount,
+      description: description || `Manual credit for ${teacher.name}`,
+      date: new Date(),
+      collectedBy: req.user._id,
+      status: "VERIFIED",
+      splitDetails: {
+        teacherId: teacher._id,
+        teacherName: teacher.name,
+      },
+    });
+
+    // 3. Create notification for audit trail
+    await Notification.create({
+      recipientRole: "OWNER",
+      message: `💰 Manual credit of PKR ${creditAmount.toLocaleString()} added to ${teacher.name}${description ? ` — ${description}` : ""}`,
+      type: "FINANCE",
+      relatedId: teacher._id.toString(),
+    });
+
+    console.log(
+      `✅ Manual credit: PKR ${creditAmount.toLocaleString()} → ${teacher.name} (Pending: ${updatedTeacher.balance.pending})`
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `PKR ${creditAmount.toLocaleString()} credited to ${teacher.name}`,
+      data: {
+        teacherName: teacher.name,
+        creditedAmount: creditAmount,
+        newPendingBalance: updatedTeacher.balance.pending,
+        totalBalance: {
+          floating: updatedTeacher.balance.floating,
+          verified: updatedTeacher.balance.verified,
+          pending: updatedTeacher.balance.pending,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in manualCreditTeacher:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while crediting teacher",
+      error: error.message,
+    });
+  }
+};

@@ -1,5 +1,6 @@
 const Class = require("../models/Class");
 const Session = require("../models/Session");
+const Student = require("../models/Student");
 
 // Create a new class
 exports.createClass = async (req, res) => {
@@ -37,7 +38,34 @@ exports.getClasses = async (req, res) => {
       "sessionName status startDate endDate",
     );
 
-    res.status(200).json({ success: true, data: classes });
+    // Aggregate revenue for each class
+    const classesWithRevenue = await Promise.all(
+      classes.map(async (classDoc) => {
+        // Get all students enrolled in this class
+        const students = await Student.find({
+          classRef: classDoc._id,
+          studentStatus: "Active",
+        }).lean();
+
+        // Sum up paid amounts
+        const totalRevenueCollected = students.reduce(
+          (sum, student) => sum + (student.paidAmount || 0),
+          0,
+        );
+
+        // Calculate estimated teacher share (70%)
+        const estimatedTeacherShare = Math.round(totalRevenueCollected * 0.7);
+
+        return {
+          ...classDoc.toObject(),
+          totalRevenueCollected,
+          estimatedTeacherShare,
+          enrolledStudents: students.length,
+        };
+      }),
+    );
+
+    res.status(200).json({ success: true, data: classesWithRevenue });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

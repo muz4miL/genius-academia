@@ -170,7 +170,7 @@ router.get("/", protect, async (req, res) => {
 });
 
 // @route   GET /api/finance/stats/overview
-// @desc    Get real-time finance overview
+// @desc    Get real-time finance overview (MONTHLY - synced with Dashboard)
 // @access  Protected (OWNER)
 router.get("/stats/overview", protect, async (req, res) => {
   try {
@@ -179,18 +179,36 @@ router.get("/stats/overview", protect, async (req, res) => {
     const Expense = require("../models/Expense");
     const Transaction = require("../models/Transaction");
 
-    // Total Income: Sum of all paidAmount
-    const incomeResult = await Student.aggregate([
-      { $group: { _id: null, totalIncome: { $sum: "$paidAmount" } } },
-    ]);
-    const totalIncome = incomeResult[0]?.totalIncome || 0;
+    // THIS MONTH ONLY - Sync with Dashboard
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // Total Expected: Sum of all totalFee
+    // Monthly Income from Transactions (consistent with Dashboard)
+    const monthlyIncomeResult = await Transaction.aggregate([
+      { $match: { type: "INCOME", date: { $gte: startOfMonth, $lte: endOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const totalIncome = monthlyIncomeResult[0]?.total || 0;
+
+    // Monthly Expenses from Transactions (consistent with Dashboard)
+    const monthlyExpensesResult = await Transaction.aggregate([
+      { $match: { type: "EXPENSE", date: { $gte: startOfMonth, $lte: endOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const totalExpenses = monthlyExpensesResult[0]?.total || 0;
+
+    // Total Expected & Pending (all-time student data)
     const expectedResult = await Student.aggregate([
       { $group: { _id: null, totalExpected: { $sum: "$totalFee" } } },
     ]);
     const totalExpected = expectedResult[0]?.totalExpected || 0;
-    const totalPending = totalExpected - totalIncome;
+
+    const collectedResult = await Student.aggregate([
+      { $group: { _id: null, totalCollected: { $sum: "$paidAmount" } } },
+    ]);
+    const totalCollected = collectedResult[0]?.totalCollected || 0;
+    const totalPending = totalExpected - totalCollected;
 
     const pendingStudentsCount = await Student.countDocuments({
       feeStatus: { $in: ["pending", "partial", "Pending"] },
@@ -219,31 +237,25 @@ router.get("/stats/overview", protect, async (req, res) => {
       });
     }
 
-    // Expenses
-    const expensesResult = await Expense.aggregate([
-      { $match: { status: { $ne: "REJECTED" } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-    const totalExpenses = expensesResult[0]?.total || 0;
-
-    const netProfit = totalIncome - totalTeacherLiabilities - totalExpenses;
+    // Net Profit = Monthly Income - Monthly Expenses (matches Dashboard exactly)
+    const netProfit = totalIncome - totalExpenses;
 
     res.json({
       success: true,
       data: {
-        totalIncome,
-        totalExpected,
-        totalPending,
+        totalIncome,       // Monthly INCOME transactions
+        totalExpected,     // All-time total fees
+        totalPending,      // All-time unpaid fees
         pendingStudentsCount,
-        totalTeacherLiabilities,
+        totalTeacherLiabilities,  // Current owed to teachers
         teacherPayroll,
         teacherCount: teachers.length,
         academyShare: netProfit,
-        totalExpenses,
-        netProfit,
+        totalExpenses,     // Monthly EXPENSE transactions
+        netProfit,         // Monthly Net (INCOME - EXPENSE)
         collectionRate:
           totalExpected > 0
-            ? Math.round((totalIncome / totalExpected) * 100)
+            ? Math.round((totalCollected / totalExpected) * 100)
             : 0,
       },
     });

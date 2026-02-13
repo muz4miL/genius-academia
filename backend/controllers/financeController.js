@@ -164,7 +164,7 @@ exports.getDashboardStats = async (req, res) => {
     const totalCollected = totalCollectedFees[0]?.total || 0;
     const totalPending = totalExpected - totalCollected;
 
-    // Teacher liabilities (what academy owes teachers)
+    // Teacher liabilities (what academy owes teachers — manual credits)
     const teacherLiabilities = await Teacher.aggregate([
       { $match: { status: "active" } },
       {
@@ -181,15 +181,15 @@ exports.getDashboardStats = async (req, res) => {
       (teacherLiabilities[0]?.totalVerified || 0) +
       (teacherLiabilities[0]?.totalPending || 0);
 
-    // Load academy share config (default 30%)
-    const config = await Configuration.findOne();
-    const academySharePercent = config?.salaryConfig?.academyShare || 30;
+    // Total manual credits (LIABILITY transactions) this month
+    const monthlyLiabilityResult = await Transaction.aggregate([
+      { $match: { type: "LIABILITY", date: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const monthlyLiabilities = monthlyLiabilityResult[0]?.total || 0;
 
-    // Owner net revenue = Academy's share of income - expenses
-    const academyShare = Math.round(
-      monthlyIncome * (academySharePercent / 100),
-    );
-    const ownerNetRevenue = academyShare - monthlyExpenses;
+    // Net Revenue = Total Cash In - Total Cash Out (Expenses only, not liabilities)
+    const netRevenue = monthlyIncome - monthlyExpenses;
 
     return res.json({
       success: true,
@@ -214,13 +214,14 @@ exports.getDashboardStats = async (req, res) => {
 
         // Teacher financials
         teacherOwed,
+        monthlyLiabilities,
 
-        // Owner summary
-        ownerNetRevenue: Math.round(ownerNetRevenue),
-        academyShare,
-        netProfit: monthlyIncome - monthlyExpenses,
+        // Owner summary (Cash-Based: Income minus actual Payouts)
+        ownerNetRevenue: netRevenue,
+        netProfit: netRevenue,
 
         // Legacy compat (frontend may still reference these)
+        academyShare: monthlyIncome,
         chemistryRevenue: 0,
         pendingReimbursements: 0,
         poolRevenue: 0,

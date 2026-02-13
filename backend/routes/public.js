@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   publicRegister,
   getPendingRegistrations,
+  getPendingStudent,
   approveRegistration,
   rejectRegistration,
   getPendingCount,
@@ -37,6 +38,14 @@ router.get(
   protect,
   restrictTo("OWNER", "OPERATOR"),
   getPendingRegistrations,
+);
+
+// Get single pending registration by ID
+router.get(
+  "/pending/:id",
+  protect,
+  restrictTo("OWNER", "OPERATOR"),
+  getPendingStudent,
 );
 
 // Get pending count (for sidebar badge)
