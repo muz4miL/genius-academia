@@ -346,13 +346,46 @@ exports.getPayrollDashboard = async (req, res) => {
       "name subject balance totalPaid compensation salaryAccruals",
     );
 
+    const creditTotals = await Transaction.aggregate([
+      { $match: { type: "CREDIT", "splitDetails.teacherId": { $ne: null } } },
+      {
+        $group: { _id: "$splitDetails.teacherId", total: { $sum: "$amount" } },
+      },
+    ]);
+
+    const payoutTotals = await Transaction.aggregate([
+      {
+        $match: {
+          type: "EXPENSE",
+          category: {
+            $in: [
+              "Teacher Salary",
+              "Teacher Advance",
+              "Teacher Payout",
+              "Teacher_Payout",
+            ],
+          },
+          "splitDetails.teacherId": { $ne: null },
+        },
+      },
+      {
+        $group: { _id: "$splitDetails.teacherId", total: { $sum: "$amount" } },
+      },
+    ]);
+
+    const creditMap = new Map(
+      creditTotals.map((item) => [item._id.toString(), item.total]),
+    );
+    const payoutMap = new Map(
+      payoutTotals.map((item) => [item._id.toString(), item.total]),
+    );
+
     const teachersWithBalances = teachers.map((teacher) => {
-      const compType = teacher.compensation?.type || "percentage";
       const floating = teacher.balance?.floating || 0;
       const verified = teacher.balance?.verified || 0;
       const pending = teacher.balance?.pending || 0;
-      const payableBalance =
-        compType === "fixed" ? pending : verified + floating;
+      const payableBalance = pending;
+      const teacherId = teacher._id.toString();
 
       return {
         _id: teacher._id,
@@ -367,6 +400,9 @@ exports.getPayrollDashboard = async (req, res) => {
           payable: payableBalance,
         },
         totalPaid: teacher.totalPaid || 0,
+        totalEarned: creditMap.get(teacherId) || 0,
+        totalWithdrawn: payoutMap.get(teacherId) || 0,
+        netPayable: pending,
       };
     });
 
@@ -611,9 +647,7 @@ exports.getTeacherReport = async (req, res) => {
             .lean()
         : [];
 
-      const studentMap = new Map(
-        students.map((s) => [s._id.toString(), s]),
-      );
+      const studentMap = new Map(students.map((s) => [s._id.toString(), s]));
 
       const classInfoMap = new Map(
         classesWithCounts.map((c) => [c._id.toString(), c]),
@@ -708,6 +742,94 @@ exports.getTeacherReport = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while generating report",
+      error: error.message,
+    });
+  }
+};
+
+exports.processPayout = async (req, res) => {
+  try {
+    const { teacherId, amount, notes, isAdvance } = req.body;
+
+    if (!teacherId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher ID and amount are required",
+      });
+    }
+
+    const payoutAmount = Number(amount);
+    if (payoutAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    const pendingBalance = teacher.balance?.pending || 0;
+
+    if (!isAdvance && payoutAmount > pendingBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient pending balance. Available: PKR ${pendingBalance.toLocaleString()}`,
+      });
+    }
+
+    const updatedTeacher = await Teacher.findByIdAndUpdate(
+      teacherId,
+      {
+        $inc: {
+          "balance.pending": -payoutAmount,
+          totalPaid: payoutAmount,
+        },
+      },
+      { new: true },
+    );
+
+    await Transaction.create({
+      type: "EXPENSE",
+      category: isAdvance ? "Teacher Advance" : "Teacher Salary",
+      amount: payoutAmount,
+      description: `Salary Payout to ${teacher.name}${notes ? ` - ${notes}` : ""}`,
+      date: new Date(),
+      collectedBy: req.user._id,
+      status: "VERIFIED",
+      splitDetails: {
+        teacherId: teacher._id,
+        teacherName: teacher.name,
+        payoutType: isAdvance ? "ADVANCE" : "SALARY",
+      },
+    });
+
+    await Notification.create({
+      recipient: teacher._id,
+      message: `Payout received: PKR ${payoutAmount.toLocaleString()}${isAdvance ? " (Advance)" : ""}`,
+      type: "FINANCE",
+    });
+
+    return res.json({
+      success: true,
+      message: `PKR ${payoutAmount.toLocaleString()} paid to ${teacher.name}`,
+      data: {
+        teacher: updatedTeacher.name,
+        amountPaid: payoutAmount,
+        remainingPending: updatedTeacher.balance?.pending || 0,
+        totalPaid: updatedTeacher.totalPaid || 0,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in processPayout:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while processing payout",
       error: error.message,
     });
   }

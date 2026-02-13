@@ -7,6 +7,7 @@ const Configuration = require("../models/Configuration");
 const FeeRecord = require("../models/FeeRecord");
 const Transaction = require("../models/Transaction");
 const Notification = require("../models/Notification");
+const { distributeRevenue } = require("../controllers/financeController");
 const { protect } = require("../middleware/authMiddleware");
 const { handlePhotoUpload } = require("../middleware/upload");
 const {
@@ -353,22 +354,8 @@ router.post("/", async (req, res) => {
     const paidAmount = Number(savedStudent.paidAmount) || 0;
     if (paidAmount > 0) {
       const config = await Configuration.findOne().lean();
-
-      let teacher = null;
-      if (savedStudent.assignedTeacher) {
-        teacher = await Teacher.findById(savedStudent.assignedTeacher);
-      }
-
-      const compType = teacher?.compensation?.type || "percentage";
-      const teacherSharePct =
-        compType === "fixed"
-          ? 0
-          : teacher?.compensation?.teacherShare ?? config?.salaryConfig?.teacherShare ?? 70;
-      const academySharePct = 100 - teacherSharePct;
-
-      const teacherShare = teacher
-        ? Math.round((paidAmount * teacherSharePct) / 100)
-        : 0;
+      const teacherSharePct = config?.salaryConfig?.teacherShare ?? 70;
+      const teacherShare = Math.floor((paidAmount * teacherSharePct) / 100);
       const academyShare = paidAmount - teacherShare;
 
       const monthLabel = new Date().toLocaleString("en-US", {
@@ -389,46 +376,30 @@ router.post("/", async (req, res) => {
         status: "PAID",
         collectedBy: req.user?._id,
         collectedByName: req.user?.fullName || "Staff",
-        teacher: teacher?._id,
-        teacherName: teacher?.name,
         isPartnerTeacher: false,
         splitBreakdown: {
           teacherShare,
           academyShare,
-          teacherPercentage: teacher ? teacherSharePct : 0,
-          academyPercentage: teacher ? academySharePct : 100,
+          teacherPercentage: teacherSharePct,
+          academyPercentage: 100 - teacherSharePct,
         },
         paymentMethod: "CASH",
         notes: "Admission payment",
-        revenueSource: compType === "fixed" ? "fixed-salary" : "standard-split",
+        revenueSource: "configuration",
       });
 
-      await Transaction.create({
-        type: "INCOME",
-        category: "Tuition",
-        stream: teacher ? "STAFF_TUITION" : "ACADEMY_POOL",
-        amount: paidAmount,
-        description: `Admission fee: ${savedStudent.studentName} - ${monthLabel}`,
-        collectedBy: req.user?._id,
-        status: teacher && compType !== "fixed" ? "FLOATING" : "VERIFIED",
-        studentId: savedStudent._id,
-        splitDetails: {
-          teacherShare,
-          academyShare,
-          teacherPercentage: teacher ? teacherSharePct : 0,
-          academyPercentage: teacher ? academySharePct : 100,
-          teacherId: teacher?._id,
-          teacherName: teacher?.name,
-        },
-      });
-
-      if (teacher && teacherShare > 0) {
-        if (!teacher.balance) {
-          teacher.balance = { floating: 0, verified: 0, pending: 0 };
-        }
-        teacher.balance.floating =
-          (teacher.balance.floating || 0) + teacherShare;
-        await teacher.save();
+      try {
+        console.log(
+          "💰 Triggering Revenue Distribution for:",
+          savedStudent.studentName,
+        );
+        await distributeRevenue({
+          studentId: savedStudent._id,
+          paidAmount,
+          feeRecordId: feeRecord._id,
+        });
+      } catch (error) {
+        console.error("Revenue distribution failed:", error);
       }
 
       try {

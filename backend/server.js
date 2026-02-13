@@ -9,11 +9,12 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI is missing from environment");
+    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error("MONGO_URI or MONGODB_URI is missing from environment");
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(mongoUri);
     console.log("✅ MongoDB Connected Successfully!");
   } catch (error) {
     console.error("❌ MongoDB Connection Error:", error.message);

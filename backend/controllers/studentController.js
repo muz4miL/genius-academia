@@ -6,6 +6,7 @@ const Class = require("../models/Class");
 const Configuration = require("../models/Configuration");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
+const { distributeRevenue } = require("./financeController");
 
 // Minimal revenue helper inline to avoid import errors
 const calculateRevenueSplit = async ({ fee, teacherRole, teacher, config }) => {
@@ -40,8 +41,7 @@ const calculateRevenueSplit = async ({ fee, teacherRole, teacher, config }) => {
     };
   }
 
-  const teacherSharePct =
-    teacher?.compensation?.teacherShare ?? staffShare;
+  const teacherSharePct = teacher?.compensation?.teacherShare ?? staffShare;
   const teacherAmt = Math.round((fee * teacherSharePct) / 100);
   return {
     teacherRevenue: teacherAmt,
@@ -65,9 +65,13 @@ const getTeacherRole = async (teacher) => {
   // Check if teacher is linked to a User with an elevated role
   if (teacher.userId) {
     try {
-      const linkedUser = await User.findById(teacher.userId).select("role").lean();
+      const linkedUser = await User.findById(teacher.userId)
+        .select("role")
+        .lean();
       if (linkedUser?.role === "OWNER") return "OWNER";
-    } catch (_) { /* fallthrough */ }
+    } catch (_) {
+      /* fallthrough */
+    }
   }
   return "STAFF";
 };
@@ -221,14 +225,17 @@ exports.collectFee = async (req, res) => {
       splitBreakdown: {
         teacherShare: split.teacherRevenue,
         academyShare: split.poolRevenue,
-        teacherPercentage: split.isOwner ? 100 : (split.config?.staffTeacherShare || 70),
-        academyPercentage: split.isOwner ? 0 : (split.config?.staffAcademyShare || 30),
+        teacherPercentage: split.isOwner
+          ? 100
+          : split.config?.staffTeacherShare || 70,
+        academyPercentage: split.isOwner
+          ? 0
+          : split.config?.staffAcademyShare || 30,
       },
       paymentMethod: paymentMethod || "CASH",
       notes,
     });
 
-    // Update student with strict fee status calculation
     student.paidAmount = (student.paidAmount || 0) + Number(amount);
     student.feeStatus = calculateFeeStatus(
       student.paidAmount,
@@ -236,54 +243,20 @@ exports.collectFee = async (req, res) => {
     );
     await student.save();
 
-    // Update teacher balance
-    if (teacher && split.teacherRevenue > 0) {
-      if (!teacher.balance)
-        teacher.balance = { floating: 0, verified: 0, pending: 0 };
-
-      if (split.isOwner) {
-        // Owner's earnings are immediately verified
-        teacher.balance.verified =
-          (teacher.balance.verified || 0) + split.teacherRevenue;
-      } else {
-        // Staff teachers earn floating until day close
-        teacher.balance.floating =
-          (teacher.balance.floating || 0) + split.teacherRevenue;
-      }
-      await teacher.save();
-
-      // Notification (non-critical)
-      try {
-        await Notification.create({
-          recipient: teacher._id,
-          message: `Fee received: ${student.studentName} - ${month}: PKR ${split.teacherRevenue}`,
-          type: "FINANCE",
-          relatedId: feeRecord._id.toString(),
-        });
-      } catch (e) {
-        console.log("Notification skipped");
-      }
+    try {
+      console.log(
+        "💰 Triggering Revenue Distribution for:",
+        student.studentName,
+      );
+      await distributeRevenue({
+        studentId: student._id,
+        paidAmount: Number(amount),
+        feeRecordId: feeRecord._id,
+      });
+    } catch (error) {
+      console.error("Revenue distribution failed:", error);
     }
 
-    // Create transaction record
-    await Transaction.create({
-      type: "INCOME",
-      category: "Tuition",
-      stream: split.stream,
-      amount: Number(amount),
-      description: `Fee: ${student.studentName} - ${month}`,
-      collectedBy: req.user?._id,
-      status: split.isOwner ? "VERIFIED" : "FLOATING",
-      studentId: student._id,
-      splitDetails: {
-        teacherShare: split.teacherRevenue,
-        academyShare: split.poolRevenue,
-        teacherId: teacher?._id,
-        teacherName: teacher?.name,
-      },
-    });
-
-    // Update collector's totalCash tracking
     if (req.user?._id && !split.isOwner) {
       try {
         const collector = await User.findById(req.user._id);
@@ -298,7 +271,9 @@ exports.collectFee = async (req, res) => {
 
     // Academy's share is retained automatically (single-owner model)
     if (split.poolRevenue > 0) {
-      console.log(`Academy retains PKR ${split.poolRevenue} (30% of ${amount})`);
+      console.log(
+        `Academy retains PKR ${split.poolRevenue} (30% of ${amount})`,
+      );
     }
 
     res.status(201).json({

@@ -16,6 +16,7 @@ const Configuration = require("../models/Configuration");
 const User = require("../models/User");
 const Teacher = require("../models/Teacher");
 const Student = require("../models/Student");
+const Class = require("../models/Class");
 const FeeRecord = require("../models/FeeRecord");
 const Session = require("../models/Session");
 const TeacherPayment = require("../models/TeacherPayment");
@@ -59,7 +60,7 @@ exports.closeDay = async (req, res) => {
     // Mark all floating → verified
     await Transaction.updateMany(
       { collectedBy: userId, status: "FLOATING", type: "INCOME" },
-      { $set: { status: "VERIFIED", closingId: closing._id } }
+      { $set: { status: "VERIFIED", closingId: closing._id } },
     );
 
     // Move teacher floating balances → verified
@@ -67,7 +68,7 @@ exports.closeDay = async (req, res) => {
       ...new Set(
         floatingTransactions
           .filter((tx) => tx.splitDetails?.teacherId)
-          .map((tx) => tx.splitDetails.teacherId.toString())
+          .map((tx) => tx.splitDetails.teacherId.toString()),
       ),
     ];
 
@@ -75,7 +76,8 @@ exports.closeDay = async (req, res) => {
       const teacher = await Teacher.findById(tid);
       if (teacher && teacher.balance) {
         const floatingBal = teacher.balance.floating || 0;
-        teacher.balance.verified = (teacher.balance.verified || 0) + floatingBal;
+        teacher.balance.verified =
+          (teacher.balance.verified || 0) + floatingBal;
         teacher.balance.floating = 0;
         await teacher.save();
       }
@@ -151,8 +153,12 @@ exports.getDashboardStats = async (req, res) => {
 
     // Fee collection stats
     const [totalExpectedFees, totalCollectedFees] = await Promise.all([
-      Student.aggregate([{ $group: { _id: null, total: { $sum: "$totalFee" } } }]),
-      Student.aggregate([{ $group: { _id: null, total: { $sum: "$paidAmount" } } }]),
+      Student.aggregate([
+        { $group: { _id: null, total: { $sum: "$totalFee" } } },
+      ]),
+      Student.aggregate([
+        { $group: { _id: null, total: { $sum: "$paidAmount" } } },
+      ]),
     ]);
     const totalExpected = totalExpectedFees[0]?.total || 0;
     const totalCollected = totalCollectedFees[0]?.total || 0;
@@ -180,7 +186,9 @@ exports.getDashboardStats = async (req, res) => {
     const academySharePercent = config?.salaryConfig?.academyShare || 30;
 
     // Owner net revenue = Academy's share of income - expenses
-    const academyShare = Math.round(monthlyIncome * (academySharePercent / 100));
+    const academyShare = Math.round(
+      monthlyIncome * (academySharePercent / 100),
+    );
     const ownerNetRevenue = academyShare - monthlyExpenses;
 
     return res.json({
@@ -381,10 +389,7 @@ exports.processTeacherPayout = async (req, res) => {
     const floatingBal = teacher.balance?.floating || 0;
     const pendingBal = teacher.balance?.pending || 0;
 
-    const availableBalance =
-      compType === "fixed"
-        ? pendingBal
-        : verifiedBal + floatingBal;
+    const availableBalance = pendingBal;
 
     if (payoutAmount > availableBalance) {
       return res.status(400).json({
@@ -400,19 +405,7 @@ exports.processTeacherPayout = async (req, res) => {
     };
     const originalTotalPaid = teacher.totalPaid || 0;
 
-    if (compType === "fixed") {
-      teacher.balance.pending = pendingBal - payoutAmount;
-    } else {
-      // Deduct from verified first, then floating
-      let remaining = payoutAmount;
-      if (remaining <= verifiedBal) {
-        teacher.balance.verified = verifiedBal - remaining;
-      } else {
-        remaining -= verifiedBal;
-        teacher.balance.verified = 0;
-        teacher.balance.floating = Math.max(0, floatingBal - remaining);
-      }
-    }
+    teacher.balance.pending = pendingBal - payoutAmount;
 
     teacher.totalPaid = originalTotalPaid + payoutAmount;
     await teacher.save();
@@ -438,7 +431,6 @@ exports.processTeacherPayout = async (req, res) => {
         sessionName: activeSession?.sessionName,
       });
     } catch (paymentError) {
-      // Roll back teacher balances if payment creation fails
       teacher.balance.verified = originalBalance.verified;
       teacher.balance.floating = originalBalance.floating;
       teacher.balance.pending = originalBalance.pending;
@@ -625,7 +617,7 @@ exports.getTeacherPayrollData = async (req, res) => {
   try {
     const teachers = await Teacher.find({ status: "active" })
       .select(
-        "name subject teacherId balance totalPaid compensation profileImage"
+        "name subject teacherId balance totalPaid compensation profileImage",
       )
       .lean();
 
@@ -720,12 +712,20 @@ exports.deleteTransaction = async (req, res) => {
 
     let doc = await Transaction.findByIdAndDelete(id);
     if (doc) {
-      return res.json({ success: true, message: "Transaction deleted.", data: doc });
+      return res.json({
+        success: true,
+        message: "Transaction deleted.",
+        data: doc,
+      });
     }
 
     doc = await Expense.findByIdAndDelete(id);
     if (doc) {
-      return res.json({ success: true, message: "Expense deleted.", data: doc });
+      return res.json({
+        success: true,
+        message: "Expense deleted.",
+        data: doc,
+      });
     }
 
     return res
@@ -766,17 +766,17 @@ exports.resetSystem = async (req, res) => {
           "balance.pending": 0,
           totalPaid: 0,
         },
-      }
+      },
     );
 
     await User.updateMany(
       {},
-      { $set: { walletBalance: 0, totalCash: 0, manualBalance: 0 } }
+      { $set: { walletBalance: 0, totalCash: 0, manualBalance: 0 } },
     );
 
     await Student.updateMany(
       {},
-      { $set: { paidAmount: 0, feeStatus: "Pending" } }
+      { $set: { paidAmount: 0, feeStatus: "Pending" } },
     );
 
     return res.json({
@@ -797,8 +797,18 @@ exports.getAnalyticsDashboard = async (req, res) => {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
 
     // Monthly Revenue & Expenses
@@ -832,10 +842,10 @@ exports.getAnalyticsDashboard = async (req, res) => {
       const month = d.getMonth() + 1;
       const label = `${monthNames[d.getMonth()]} ${year}`;
       const rev = monthlyRevenue.find(
-        (r) => r._id.year === year && r._id.month === month
+        (r) => r._id.year === year && r._id.month === month,
       );
       const exp = monthlyExpenses.find(
-        (e) => e._id.year === year && e._id.month === month
+        (e) => e._id.year === year && e._id.month === month,
       );
       revenueVsExpenses.push({
         month: label,
@@ -870,7 +880,7 @@ exports.getAnalyticsDashboard = async (req, res) => {
       const month = d.getMonth() + 1;
       const label = `${monthNames[d.getMonth()]} ${year}`;
       const growth = studentGrowth.find(
-        (g) => g._id.year === year && g._id.month === month
+        (g) => g._id.year === year && g._id.month === month,
       );
       const newCount = growth ? growth.newStudents : 0;
       cumulativeStudents += newCount;
@@ -1084,3 +1094,249 @@ exports.generateFinancialReport = async (req, res) => {
   }
 };
 
+exports.distributeRevenue = async ({ studentId, paidAmount, feeRecordId }) => {
+  try {
+    const normalizeSubjectName = (value) => {
+      if (!value) return "";
+      if (typeof value === "string") return value.trim();
+      if (typeof value === "object") {
+        return (
+          value.name ||
+          value.subject ||
+          value.subName ||
+          value.title ||
+          ""
+        ).trim();
+      }
+      return "";
+    };
+
+    const normalizeSubjectList = (list) => {
+      if (!Array.isArray(list)) return [];
+      return list
+        .map(normalizeSubjectName)
+        .filter(Boolean)
+        .map((s) => s.toLowerCase());
+    };
+
+    let resolvedStudentId = studentId;
+    let resolvedPaidAmount = paidAmount;
+
+    if (feeRecordId) {
+      const feeRecord = await FeeRecord.findById(feeRecordId).lean();
+      if (!feeRecord) {
+        throw new Error("Fee record not found");
+      }
+      if (!resolvedStudentId) {
+        resolvedStudentId = feeRecord.student;
+      }
+      if (!resolvedPaidAmount) {
+        resolvedPaidAmount = feeRecord.amount;
+      }
+    }
+
+    if (!resolvedStudentId) {
+      throw new Error("Student reference is missing");
+    }
+    if (!resolvedPaidAmount || resolvedPaidAmount <= 0) {
+      throw new Error("Paid amount is missing or invalid");
+    }
+
+    const student = await Student.findById(resolvedStudentId).lean();
+    if (!student) {
+      throw new Error("Student not found");
+    }
+
+    const config = await Configuration.findOne().lean();
+    const teacherSharePct = config?.salaryConfig?.teacherShare ?? 70;
+    const teacherPool = Math.floor(
+      resolvedPaidAmount * (teacherSharePct / 100),
+    );
+    const academyShare = resolvedPaidAmount - teacherPool;
+
+    const classQuery = student.classRef
+      ? { _id: student.classRef }
+      : { $or: [{ classTitle: student.class }, { gradeLevel: student.class }] };
+    const classDoc = await Class.findOne(classQuery).lean();
+
+    const enrolledSubjects = normalizeSubjectList(student.subjects || []);
+    let subjectCandidates = enrolledSubjects;
+
+    if (subjectCandidates.length === 0) {
+      subjectCandidates = normalizeSubjectList(
+        (classDoc?.subjectTeachers || []).map((entry) => entry.subject),
+      );
+    }
+    if (subjectCandidates.length === 0) {
+      subjectCandidates = normalizeSubjectList(classDoc?.subjects || []);
+    }
+
+    subjectCandidates = [...new Set(subjectCandidates)];
+
+    let teacherUpdates = [];
+    let transactionCreates = [];
+    let sharePerSubject = 0;
+    let unallocatedAmount = 0;
+    let allocatedAmount = 0;
+
+    if (subjectCandidates.length > 0) {
+      sharePerSubject = Math.floor(teacherPool / subjectCandidates.length);
+
+      const subjectTeacherMap = new Map();
+      (classDoc?.subjectTeachers || []).forEach((entry) => {
+        const subjectName = normalizeSubjectName(entry?.subject)
+          .toLowerCase()
+          .trim();
+        if (!subjectName) return;
+        const existing = subjectTeacherMap.get(subjectName) || [];
+        existing.push(entry);
+        subjectTeacherMap.set(subjectName, existing);
+      });
+
+      for (const subjectName of subjectCandidates) {
+        const matchingEntries = subjectTeacherMap.get(subjectName) || [];
+        const validEntries = matchingEntries.filter((e) => e?.teacherId);
+        if (validEntries.length === 0) {
+          console.log(
+            `⚠️ No teacher for ${subjectName} - Funds diverted to Unallocated`,
+          );
+          unallocatedAmount += sharePerSubject;
+          continue;
+        }
+
+        const perTeacherShare = Math.floor(
+          sharePerSubject / validEntries.length,
+        );
+
+        for (const entry of validEntries) {
+          const teacherId = entry.teacherId;
+          const teacherName = entry.teacherName || "";
+          const displaySubject =
+            normalizeSubjectName(entry.subject) || subjectName;
+
+          if (perTeacherShare > 0) {
+            teacherUpdates.push({
+              updateOne: {
+                filter: { _id: teacherId },
+                update: { $inc: { "balance.pending": perTeacherShare } },
+              },
+            });
+
+            transactionCreates.push({
+              type: "CREDIT",
+              category: "Teacher Share",
+              amount: perTeacherShare,
+              description: `Credit: Share from ${student.studentName} - ${displaySubject}`,
+              date: new Date(),
+              status: "VERIFIED",
+              splitDetails: {
+                teacherId: teacherId,
+                teacherName: teacherName,
+                studentId: resolvedStudentId,
+                studentName: student.studentName,
+                subject: displaySubject,
+                shareType: "SESSION_SPLIT",
+              },
+            });
+            allocatedAmount += perTeacherShare;
+          }
+        }
+
+        const remainderForSubject =
+          sharePerSubject - perTeacherShare * validEntries.length;
+        if (remainderForSubject > 0) {
+          unallocatedAmount += remainderForSubject;
+        }
+      }
+    } else if (classDoc?.assignedTeacher) {
+      const classTeacher = await Teacher.findById(
+        classDoc.assignedTeacher,
+      ).lean();
+      if (classTeacher) {
+        sharePerSubject = teacherPool;
+        teacherUpdates.push({
+          updateOne: {
+            filter: { _id: classTeacher._id },
+            update: { $inc: { "balance.pending": teacherPool } },
+          },
+        });
+
+        transactionCreates.push({
+          type: "CREDIT",
+          category: "Teacher Share",
+          amount: teacherPool,
+          description: `Credit: Share from ${student.studentName} - Class Teacher`,
+          date: new Date(),
+          status: "VERIFIED",
+          splitDetails: {
+            teacherId: classTeacher._id,
+            teacherName: classTeacher.name,
+            studentId: resolvedStudentId,
+            studentName: student.studentName,
+            shareType: "CLASS_TEACHER_FALLBACK",
+          },
+        });
+        allocatedAmount = teacherPool;
+      }
+    } else {
+      unallocatedAmount = teacherPool;
+    }
+
+    const totalAllocated = allocatedAmount + unallocatedAmount;
+    if (teacherPool > totalAllocated) {
+      unallocatedAmount += teacherPool - totalAllocated;
+    }
+
+    if (unallocatedAmount > 0) {
+      transactionCreates.push({
+        type: "CREDIT",
+        category: "Unallocated Pool",
+        amount: unallocatedAmount,
+        description: `Unallocated teacher share from ${student.studentName}`,
+        date: new Date(),
+        status: "VERIFIED",
+        splitDetails: {
+          studentId: resolvedStudentId,
+          studentName: student.studentName,
+          shareType: "UNALLOCATED_POOL",
+        },
+      });
+    }
+
+    if (teacherUpdates.length > 0) {
+      await Teacher.bulkWrite(teacherUpdates);
+    }
+
+    if (transactionCreates.length > 0) {
+      await Transaction.insertMany(transactionCreates);
+    }
+
+    await Transaction.create({
+      type: "INCOME",
+      category: "Academy Share",
+      amount: academyShare,
+      description: `Academy share from ${student.studentName}`,
+      date: new Date(),
+      status: "VERIFIED",
+      splitDetails: {
+        studentId: resolvedStudentId,
+        studentName: student.studentName,
+        shareType: "ACADEMY_SPLIT",
+      },
+    });
+
+    return {
+      success: true,
+      teacherPool,
+      academyShare,
+      teachersCount: teacherUpdates.length,
+      sharePerTeacher: sharePerSubject,
+      unallocatedAmount,
+      teacherUpdates: teacherUpdates.length,
+      transactionsCreated: transactionCreates.length + 1,
+    };
+  } catch (error) {
+    console.error("Revenue distribution error:", error);
+    throw error;
+  }
+};

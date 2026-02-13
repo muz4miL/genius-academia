@@ -259,7 +259,7 @@ export default function Payroll() {
                   </p>
                   <p className="text-2xl font-bold text-red-600">
                     {dashboard.teachersWithBalances.filter(
-                      (t: any) => (t.balance?.payable || 0) > 0,
+                      (t: any) => (t.netPayable || 0) > 0,
                     ).length}
                   </p>
                 </div>
@@ -304,8 +304,9 @@ export default function Payroll() {
                     <TableHead>Teacher</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Compensation</TableHead>
-                    <TableHead className="text-right">Payable</TableHead>
-                    <TableHead className="text-right">Total Paid</TableHead>
+                    <TableHead className="text-right">Total Earned</TableHead>
+                    <TableHead className="text-right">Total Withdrawn</TableHead>
+                    <TableHead className="text-right">Net Payable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -321,11 +322,14 @@ export default function Payroll() {
                       <TableCell className="capitalize">
                         {teacher.compensation?.type || "percentage"}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-green-600">
-                        Rs. {(teacher.balance?.payable || 0).toLocaleString()}
+                      <TableCell className="text-right">
+                        Rs. {(teacher.totalEarned || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        Rs. {(teacher.totalPaid || 0).toLocaleString()}
+                        Rs. {(teacher.totalWithdrawn || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        Rs. {(teacher.netPayable || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
@@ -346,7 +350,7 @@ export default function Payroll() {
                               setSelectedTeacher(teacher);
                               setPayDialogOpen(true);
                             }}
-                            disabled={(teacher.balance?.payable || 0) <= 0}
+                            disabled={(teacher.netPayable || 0) <= 0}
                           >
                             Pay
                           </Button>
@@ -382,7 +386,7 @@ export default function Payroll() {
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Payable</span>
                     <span className="font-semibold text-green-600">
-                      Rs. {(teacher.balance?.payable || 0).toLocaleString()}
+                      Rs. {(teacher.netPayable || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -409,7 +413,7 @@ export default function Payroll() {
             <DialogTitle>Pay Teacher</DialogTitle>
             <DialogDescription>
               {selectedTeacher
-                ? `Pay ${selectedTeacher.name} (Available: Rs. ${(selectedTeacher.balance?.payable || 0).toLocaleString()})`
+                ? `Pay ${selectedTeacher.name} (Available: Rs. ${(selectedTeacher.netPayable || 0).toLocaleString()})`
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -452,7 +456,7 @@ export default function Payroll() {
                 !selectedTeacher ||
                 !payAmount ||
                 Number(payAmount) <= 0 ||
-                Number(payAmount) > (selectedTeacher.balance?.payable || 0) ||
+                Number(payAmount) > (selectedTeacher.netPayable || 0) ||
                 payTeacherMutation.isPending
               }
             >

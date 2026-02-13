@@ -7,12 +7,13 @@ const transactionSchema = new mongoose.Schema(
       enum: [
         "INCOME",
         "EXPENSE",
+        "CREDIT",
         "PARTNER_WITHDRAWAL",
         "REFUND",
-        "DEBT", // Partner expense debt (Zahid/Saud owes Waqar)
-        "TRANSFER", // Internal fund movements
-        "DIVIDEND", // Pool distribution to partners
-        "POOL_DISTRIBUTION", // Pool split operation
+        "DEBT",
+        "TRANSFER",
+        "DIVIDEND",
+        "POOL_DISTRIBUTION",
       ],
       required: [true, "Transaction type is required"],
     },
@@ -28,6 +29,9 @@ const transactionSchema = new mongoose.Schema(
         "Teacher Payout",
         "Teacher Salary",
         "Teacher Advance",
+        "Teacher Share",
+        "Academy Share",
+        "Unallocated Pool",
         "Electricity Bill",
         "Generator Fuel",
         "Staff Tea & Refreshments",
@@ -37,12 +41,12 @@ const transactionSchema = new mongoose.Schema(
         "Misc",
         "Miscellaneous",
         "Refund",
-        "Dividend", // Pool distribution dividends
-        "ExpenseShare", // Partner's share of expenses
-        "Teacher_Payout", // Teacher salary payments
-        "Pool_Dividend", // Pool dividend (new)
-        "Expense_Share", // Alternate for expense share
-        "Daily_Close", // End of day closing
+        "Dividend",
+        "ExpenseShare",
+        "Teacher_Payout",
+        "Pool_Dividend",
+        "Expense_Share",
+        "Daily_Close",
       ],
       required: [true, "Category is required"],
     },
