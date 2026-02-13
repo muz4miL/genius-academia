@@ -19,6 +19,8 @@ import Timetable from "./pages/Timetable";
 import Sessions from "./pages/Sessions";
 import Payroll from "./pages/Payroll";
 import Leads from "./pages/Leads";
+import PendingApprovals from "./pages/PendingApprovals";
+import KioskRegister from "./pages/KioskRegister";
 // Student Portal
 import StudentPortal from "./pages/StudentPortal";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
@@ -39,6 +41,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/public" element={<PublicLanding />} />
             <Route path="/public-home" element={<Navigate to="/public" replace />} />
+            <Route path="/register" element={<KioskRegister />} />
 
             {/* Student Portal */}
             <Route path="/student-portal" element={<StudentPortal />} />
@@ -149,6 +152,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Leads />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/registrations"
+              element={
+                <ProtectedRoute>
+                  <PendingApprovals />
                 </ProtectedRoute>
               }
             />

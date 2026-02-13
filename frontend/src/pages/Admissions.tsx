@@ -41,7 +41,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentApi, classApi, sessionApi } from "@/lib/api";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { AdmissionSlip } from "@/components/admissions/AdmissionSlip";
 import { ImageCapture } from "@/components/shared/ImageCapture";
@@ -63,6 +63,8 @@ interface SubjectItem {
 const Admissions = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const pendingId = searchParams.get("pendingId");
 
   // PDF Receipt Hook (replaces react-to-print)
   const { isPrinting, generatePDF } = usePDFReceipt();
@@ -165,6 +167,58 @@ const Admissions = () => {
       }
     }
   }, []);
+
+  // Load Pending Student from Registration Approval
+  useEffect(() => {
+    const loadPendingStudent = async () => {
+      if (!pendingId) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/public/pending/${pendingId}`, {
+          credentials: "include",
+        });
+        
+        if (!res.ok) {
+          toast.error("Failed to load pending student");
+          return;
+        }
+
+        const data = await res.json();
+        const student = data.data;
+
+        console.log("📋 Loading pending student:", student);
+
+        // Pre-fill form with pending student data
+        setStudentName(student.studentName || "");
+        setFatherName(student.fatherName || "");
+        setGender(student.gender || "Male");
+        setParentCell(student.parentCell || "");
+        setStudentCell(student.studentCell || "");
+        setAddress(student.address || "");
+        setReferralSource(student.referralSource || "");
+        setGroup(student.group || "");
+        
+        // Handle class - classRef is the ObjectId string
+        const classIdToSet = student.classRef?._id || student.classRef || "";
+        console.log("🎓 Setting class ID:", classIdToSet, "from classRef:", student.classRef);
+        setSelectedClassId(classIdToSet);
+        
+        // Set session from pending student if exists
+        const sessionIdToSet = student.sessionRef?._id || student.sessionRef || "";
+        console.log("📅 Setting session ID:", sessionIdToSet, "from sessionRef:", student.sessionRef);
+        if (sessionIdToSet) {
+          setSelectedSessionId(sessionIdToSet);
+        }
+
+        toast.success(`Loaded registration: ${student.studentName}`);
+      } catch (error) {
+        console.error("Error loading pending student:", error);
+        toast.error("Failed to load pending student");
+      }
+    };
+
+    loadPendingStudent();
+  }, [pendingId]);
 
   // TASK 1: Save Draft to localStorage whenever form state changes
   useEffect(() => {
@@ -322,15 +376,8 @@ const Admissions = () => {
 
   // Get classes filtered by group (cascading select)
   const getFilteredClasses = () => {
-    if (!group) return classes;
-    // Filter classes by the new 'group' field (exact match with backend enum)
-    return classes.filter((c: any) => {
-      const classGroup = c.group || "";
-      const selectedGroup = group;
-
-      // Direct match with the new group field
-      return classGroup === selectedGroup;
-    });
+    // Return all classes - no filtering by group
+    return classes;
   };
 
   const filteredClasses = getFilteredClasses();
@@ -432,7 +479,7 @@ const Admissions = () => {
   // React Query Mutation
   const createStudentMutation = useMutation({
     mutationFn: studentApi.create,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       setSavedStudent(data.data);
 
@@ -440,6 +487,21 @@ const Admissions = () => {
       if (selectedSessionId) {
         const session = sessions.find((s: any) => s._id === selectedSessionId);
         setSavedSession(session);
+      }
+
+      // Delete pending student if this was from registration approval
+      if (pendingId) {
+        try {
+          await fetch(`${API_BASE_URL}/api/public/reject/${pendingId}`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: "Approved and admitted" }),
+          });
+          queryClient.invalidateQueries({ queryKey: ["pending-registrations"] });
+        } catch (error) {
+          console.error("Failed to delete pending student:", error);
+        }
       }
 
       // TASK 3: Clear draft after successful save (Safety Flush)
@@ -811,29 +873,20 @@ const Admissions = () => {
                 </Select>
               </div>
 
-              {/* Class Dropdown - Filtered by Group */}
+              {/* Class Dropdown - No group filtering */}
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="class">Class *</Label>
                 <Select
                   value={selectedClassId}
                   onValueChange={setSelectedClassId}
-                  disabled={!group}
                 >
                   <SelectTrigger className="bg-background">
-                    <SelectValue
-                      placeholder={
-                        group ? "Select class" : "Select group first"
-                      }
-                    />
+                    <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    {!group ? (
+                    {filteredClasses.length === 0 ? (
                       <SelectItem value="none" disabled>
-                        Please select a group first
-                      </SelectItem>
-                    ) : filteredClasses.length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        No classes for {group}
+                        No classes available
                       </SelectItem>
                     ) : (
                       filteredClasses.map((cls: any) => (

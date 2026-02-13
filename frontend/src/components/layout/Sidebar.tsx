@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Phone,
   Banknote,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -34,6 +35,12 @@ const navItems = [
     icon: UserPlus,
     label: "Admissions",
     path: "/admissions",
+    permission: "admissions",
+  },
+  {
+    icon: ClipboardList,
+    label: "Registrations",
+    path: "/registrations",
     permission: "admissions",
   },
   { icon: Users, label: "Students", path: "/students", permission: "students" },
