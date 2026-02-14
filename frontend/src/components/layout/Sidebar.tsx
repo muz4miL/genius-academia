@@ -15,6 +15,7 @@ import {
   Phone,
   Banknote,
   ClipboardList,
+  Armchair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -57,6 +58,12 @@ const navItems = [
     permission: "finance",
   },
   { icon: BookOpen, label: "Classes", path: "/classes", permission: "classes" },
+  {
+    icon: Armchair,
+    label: "Seat Management",
+    path: "/seat-management",
+    permission: "classes",
+  },
   {
     icon: Clock,
     label: "Timetable",

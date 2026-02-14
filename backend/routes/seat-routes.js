@@ -1,10 +1,24 @@
 const router = require('express').Router();
-const { getAvailableSeats, bookSeat, releaseSeat, initializeSeats } = require('../controllers/seat-controller');
-const { verifyStudent, verifyAdmin } = require('../middleware/auth');
+const {
+    getAvailableSeats,
+    bookSeat,
+    releaseSeat,
+    initializeSeats,
+    getAllSeatsAdmin,
+    vacateSeat,
+    toggleReservation,
+} = require('../controllers/seat-controller');
+const { protect } = require('../middleware/authMiddleware');
 
-router.get('/:classId/:sessionId', verifyStudent, getAvailableSeats);
-router.post('/book', verifyStudent, bookSeat);
-router.post('/release', verifyStudent, releaseSeat);
-router.post('/initialize', verifyAdmin, initializeSeats);
+// Student Routes
+router.get('/:classId/:sessionId', getAvailableSeats);
+router.post('/book', bookSeat);
+router.post('/release', releaseSeat);
+
+// Admin Routes (Protected)
+router.get('/admin/:classId/:sessionId', protect, getAllSeatsAdmin);
+router.post('/initialize', protect, initializeSeats);
+router.post('/vacate/:seatId', protect, vacateSeat);
+router.patch('/reserve/:seatId', protect, toggleReservation);
 
 module.exports = router;

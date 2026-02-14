@@ -129,6 +129,7 @@ exports.getStudentProfile = async (req, res) => {
         barcodeId: student.barcodeId,
         name: student.studentName,
         fatherName: student.fatherName,
+        gender: student.gender,
         class: student.class,
         group: student.group,
         subjects: student.subjects,

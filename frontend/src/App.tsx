@@ -21,6 +21,7 @@ import Payroll from "./pages/Payroll";
 import Leads from "./pages/Leads";
 import PendingApprovals from "./pages/PendingApprovals";
 import KioskRegister from "./pages/KioskRegister";
+import SeatManagementPage from "./pages/SeatManagementPage";
 // Student Portal
 import StudentPortal from "./pages/StudentPortal";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
@@ -160,6 +161,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PendingApprovals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seat-management"
+              element={
+                <ProtectedRoute>
+                  <SeatManagementPage />
                 </ProtectedRoute>
               }
             />

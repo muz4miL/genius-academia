@@ -361,6 +361,22 @@ studentSchema.pre("save", async function () {
 });
 
 // ========================================
+// MIDDLEWARE: Hash password before saving
+// ========================================
+studentSchema.pre('save', async function (next) {
+  // Only hash password if it has been modified (or is new)
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ========================================
 // INSTANCE METHODS
 // ========================================
 
@@ -393,6 +409,7 @@ studentSchema.methods.getStudentProfile = function () {
     barcodeId: this.barcodeId,
     name: this.studentName,
     fatherName: this.fatherName,
+    gender: this.gender,
     class: this.class,
     group: this.group,
     subjects: this.subjects,

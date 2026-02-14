@@ -46,7 +46,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { studentApi, sessionApi } from "@/lib/api";
+import { studentApi, sessionApi, classApi } from "@/lib/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 // Import CRUD Modals
@@ -123,6 +123,14 @@ const Students = () => {
   });
 
   const sessions = sessionsData?.data || [];
+
+  // Fetch all classes for filter dropdown (dynamic)
+  const { data: classesData } = useQuery({
+    queryKey: ["classes-filter"],
+    queryFn: () => classApi.getAll({ status: "active" }),
+  });
+
+  const classOptions = classesData?.data || [];
 
   // Fetch students with React Query - include session filter
   const { data, isLoading, isError, error } = useQuery({
@@ -349,7 +357,9 @@ const Students = () => {
     }
     try {
       setIsResettingPassword(true);
-      const username = credentialStudent.studentId || credentialStudent.username;
+      // Try multiple identifiers: barcodeId, studentId, or username
+      const username = credentialStudent.barcodeId || credentialStudent.studentId || credentialStudent.username;
+      console.log('🔑 Resetting password for student:', { username, student: credentialStudent });
       const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -357,6 +367,7 @@ const Students = () => {
         body: JSON.stringify({ userId: username, newPassword: resetPasswordValue }),
       });
       const data = await res.json();
+      console.log('📡 Reset password response:', data);
       if (data.success) {
         setResetSuccess(true);
         setCredentialStudent({ ...credentialStudent, plainPassword: resetPasswordValue });
@@ -365,6 +376,7 @@ const Students = () => {
         toast.error(data.message || "Failed to reset password.");
       }
     } catch (err: any) {
+      console.error('❌ Reset password error:', err);
       toast.error(err.message || "Server error.");
     } finally {
       setIsResettingPassword(false);
@@ -456,12 +468,12 @@ const Students = () => {
             </SelectTrigger>
             <SelectContent className="bg-popover">
               <SelectItem value="all">All Classes</SelectItem>
-              <SelectItem value="9th Grade">9th Grade</SelectItem>
-              <SelectItem value="10th Grade">10th Grade</SelectItem>
-              <SelectItem value="11th Grade">11th Grade</SelectItem>
-              <SelectItem value="12th Grade">12th Grade</SelectItem>
-              <SelectItem value="MDCAT Prep">MDCAT Prep</SelectItem>
-              <SelectItem value="ECAT Prep">ECAT Prep</SelectItem>
+              {classOptions.map((cls: any) => (
+                <SelectItem key={cls._id} value={cls.classTitle || cls.className}>
+                  {cls.classTitle || cls.className}
+                  {cls.group ? ` (${cls.group})` : ""}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -936,7 +948,7 @@ const Students = () => {
               </Label>
               <div className="flex">
                 <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg font-mono text-sm text-gray-700">
-                  {credentialStudent?.studentId || "N/A"}
+                  {credentialStudent?.barcodeId || credentialStudent?.studentId || "N/A"}
                 </div>
                 <Button
                   size="sm"
@@ -944,7 +956,7 @@ const Students = () => {
                   className="rounded-l-none border border-l-0 border-gray-200 h-auto"
                   onClick={() =>
                     copyCredential(
-                      credentialStudent?.studentId || "",
+                      credentialStudent?.barcodeId || credentialStudent?.studentId || "",
                       "username",
                     )
                   }
