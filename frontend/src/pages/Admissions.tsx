@@ -611,9 +611,9 @@ const Admissions = () => {
       group,
       subjects: subjectsWithFees, // Send as array of {name, fee} objects
       parentCell,
-      studentCell: studentCell || undefined,
-      address: address || undefined,
-      referralSource: referralSource || undefined,
+      studentCell: studentCell || "",
+      address: address || "",
+      referralSource: referralSource || "",
       admissionDate: new Date(admissionDate),
       totalFee: Number(totalFee),
       paidAmount: Number(paidAmount) || 0,

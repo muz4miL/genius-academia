@@ -105,7 +105,6 @@ const Students = () => {
   const [feeStudent, setFeeStudent] = useState<any | null>(null);
   const [feeAmount, setFeeAmount] = useState("");
   const [feeMonth, setFeeMonth] = useState("");
-  const [feeSubject, setFeeSubject] = useState("");
   const [feeSuccess, setFeeSuccess] = useState<any | null>(null);
 
   // Credential Modal State
@@ -173,20 +172,18 @@ const Students = () => {
       studentId,
       amount,
       month,
-      subject,
     }: {
       studentId: string;
       amount: number;
       month: string;
-      subject: string;
     }) => {
       const res = await fetch(
-        `${API_BASE_URL}/students/${studentId}/collect-fee`,
+        `${API_BASE_URL}/api/students/${studentId}/collect-fee`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ amount, month, subject }),
+          body: JSON.stringify({ amount, month }),
         },
       );
       if (!res.ok) {
@@ -266,7 +263,6 @@ const Students = () => {
       setFeeStudent(student);
       setFeeAmount("");
       setFeeMonth(getMonthOptions()[0] || "");
-      setFeeSubject(student?.subjects?.[0] || "");
       setFeeSuccess(null);
       setIsFeeModalOpen(true);
     } catch (error) {
@@ -308,7 +304,6 @@ const Students = () => {
         studentId: feeStudent._id,
         amount: parseFloat(feeAmount),
         month: feeMonth,
-        subject: feeSubject || "",
       });
     } catch (error) {
       console.error("❌ Error submitting fee collection:", error);
@@ -326,7 +321,6 @@ const Students = () => {
       setFeeSuccess(null);
       setFeeAmount("");
       setFeeMonth("");
-      setFeeSubject("");
     } catch (error) {
       console.warn("Error closing fee modal:", error);
     }
@@ -783,65 +777,36 @@ const Students = () => {
           </DialogHeader>
 
           {feeSuccess ? (
-            // Success state
+            // Success state - Simple checkmark + details
             <div className="space-y-4">
-              <div className="flex flex-col items-center justify-center py-4">
-                <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
-                <h3 className="text-lg font-semibold text-green-700">
-                  Fee Collected Successfully!
+              <div className="flex flex-col items-center justify-center py-6">
+                <CheckCircle className="h-20 w-20 text-green-500 mb-3" />
+                <h3 className="text-xl font-bold text-green-700">
+                  Fee Collected!
                 </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Receipt #{feeSuccess?.receiptNumber || "N/A"}
-                </p>
               </div>
 
-              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+              <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-4 border border-green-200 dark:border-green-800 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
-                    Total Amount
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Amount Collected
                   </span>
-                  <span className="font-semibold">
-                    Rs. {feeSuccess?.amount?.toLocaleString() || "0"}
+                  <span className="text-lg font-bold text-green-700 dark:text-green-300">
+                    Rs. {feeSuccess?.feeRecord?.amount?.toLocaleString() || "0"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Month</span>
-                  <span className="font-medium">
-                    {feeSuccess?.month || "N/A"}
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Collection Month
                   </span>
-                </div>
-                <div className="border-t border-border pt-3 mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Split Breakdown:
-                  </p>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-blue-600">
-                      Teacher Share (
-                      {feeSuccess?.splitBreakdown?.teacherPercentage || "0"}%)
-                    </span>
-                    <span className="font-medium">
-                      Rs.{" "}
-                      {feeSuccess?.splitBreakdown?.teacherAmount?.toLocaleString() ||
-                        "0"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm mt-1">
-                    <span className="text-purple-600">
-                      Academy Share (
-                      {feeSuccess?.splitBreakdown?.academyPercentage || "0"}%)
-                    </span>
-                    <span className="font-medium">
-                      Rs.{" "}
-                      {feeSuccess?.splitBreakdown?.academyAmount?.toLocaleString() ||
-                        "0"}
-                    </span>
-                  </div>
+                  <span className="font-semibold text-foreground">
+                    {feeSuccess?.feeRecord?.month || "N/A"}
+                  </span>
                 </div>
               </div>
 
               <DialogFooter>
-                <Button onClick={closeFeeModal} className="w-full">
-                  <Receipt className="mr-2 h-4 w-4" />
+                <Button onClick={closeFeeModal} className="w-full bg-green-600 hover:bg-green-700">
                   Done
                 </Button>
               </DialogFooter>
@@ -849,50 +814,46 @@ const Students = () => {
           ) : (
             // Collection form
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="feeMonth">Month</Label>
-                <Select value={feeMonth} onValueChange={setFeeMonth}>
-                  <SelectTrigger id="feeMonth">
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getMonthOptions()?.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {month}
-                      </SelectItem>
-                    )) || []}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {feeStudent?.subjects &&
-                Array.isArray(feeStudent.subjects) &&
-                feeStudent.subjects.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="feeSubject">Subject</Label>
-                    <Select value={feeSubject} onValueChange={setFeeSubject}>
-                      <SelectTrigger id="feeSubject">
-                        <SelectValue placeholder="Select subject" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {feeStudent?.subjects?.map((subj: any, idx: number) => {
-                          const subjName =
-                            typeof subj === "string"
-                              ? subj
-                              : subj?.name || `Subject ${idx + 1}`;
-                          return (
-                            <SelectItem
-                              key={`${subjName}-${idx}`}
-                              value={subjName}
-                            >
-                              {subjName}
-                            </SelectItem>
-                          );
-                        }) || []}
-                      </SelectContent>
-                    </Select>
+              {/* Student Financial Status */}
+              {feeStudent && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Total Fee</p>
+                      <p className="font-semibold text-blue-700 dark:text-blue-300">
+                        Rs. {Number(feeStudent.totalFee || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Paid Amount</p>
+                      <p className="font-semibold text-green-700 dark:text-green-300">
+                        Rs. {Number(feeStudent.paidAmount || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="col-span-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-muted-foreground mb-1">Remaining Balance</p>
+                      <p className="font-bold text-lg text-purple-700 dark:text-purple-300">
+                        Rs. {(Number(feeStudent.totalFee || 0) - Number(feeStudent.paidAmount || 0)).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
+              )}
+
+              {/* Month - Auto-set, read-only */}
+              <div className="space-y-2">
+                <Label htmlFor="feeMonth" className="text-sm font-medium">
+                  Collection Month
+                </Label>
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border border-border rounded-md">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {feeMonth}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    (Current Month)
+                  </span>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="feeAmount">Amount (Rs.)</Label>

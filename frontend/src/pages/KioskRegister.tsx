@@ -127,7 +127,7 @@ export default function KioskRegister() {
       studentCell: studentCell.trim(),
       gender,
       address: address.trim(),
-      referralSource: referralSource || undefined,
+      referralSource: referralSource || "",
       class: selectedClassId,
       group: selectedGroup,
       session: selectedSessionId || undefined,

@@ -33,8 +33,12 @@ exports.getStudent = async (req, res) => {
 
 // Helper: Calculate Fee Status — PAID only when Paid == Total, otherwise PENDING
 const calculateFeeStatus = (paidAmount, totalFee) => {
-  if (paidAmount >= totalFee && totalFee > 0) return "Paid";
-  return "Pending"; // default — includes partial payments
+  const paid = Number(paidAmount) || 0;
+  const total = Number(totalFee) || 0;
+  
+  if (paid >= total && total > 0) return "paid";
+  if (paid > 0 && paid < total) return "partial";
+  return "pending";
 };
 
 // CREATE student
@@ -117,7 +121,7 @@ exports.collectFee = async (req, res) => {
     const { amount, month, subject, teacherId, paymentMethod, notes } =
       req.body;
 
-    console.log("Collecting fee:", { id, amount, month, subject });
+    console.log("🎫 Collecting fee:", { id, amount, month, subject });
 
     if (!amount || !month) {
       return res
@@ -131,13 +135,32 @@ exports.collectFee = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Student not found" });
 
+    const amountNum = Number(amount);
+
+    // Validate amount is positive
+    if (amountNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    // Check if amount exceeds remaining balance
+    const remainingBalance = (student.totalFee || 0) - (student.paidAmount || 0);
+    if (amountNum > remainingBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount (Rs. ${amountNum.toLocaleString()}) exceeds remaining balance (Rs. ${remainingBalance.toLocaleString()})`,
+      });
+    }
+
     // Create Fee Record (No automatic revenue split — Manual Payroll Model)
     const feeRecord = await FeeRecord.create({
       student: student._id,
       studentName: student.studentName,
       className: student.class,
       subject: subject || "General",
-      amount: Number(amount),
+      amount: amountNum,
       month,
       status: "PAID",
       collectedBy: req.user?._id,
@@ -147,19 +170,23 @@ exports.collectFee = async (req, res) => {
       notes,
     });
 
-    student.paidAmount = (student.paidAmount || 0) + Number(amount);
+    console.log("💰 Old Paid Amount:", student.paidAmount);
+    const oldPaidAmount = student.paidAmount || 0;
+    student.paidAmount = (student.paidAmount || 0) + amountNum;
+    console.log("💰 New Paid Amount:", student.paidAmount);
+    
+    const oldFeeStatus = student.feeStatus;
     student.feeStatus = calculateFeeStatus(
       student.paidAmount,
       student.totalFee || 0,
     );
     await student.save();
 
-    // Record FULL amount as INCOME (Academy Revenue)
-    // Teacher shares are now handled manually via Payroll -> Manual Credit
-    await Transaction.create({
+    // Record FULL amount as INCOME (Academy Revenue) in Transaction Ledger
+    const transaction = await Transaction.create({
       type: "INCOME",
       category: "Tuition",
-      amount: Number(amount),
+      amount: amountNum,
       description: `Fee collected from ${student.studentName} (${month})`,
       date: new Date(),
       collectedBy: req.user?._id,
@@ -167,6 +194,8 @@ exports.collectFee = async (req, res) => {
       studentId: student._id,
       classId: student.classRef, // Link to class for revenue tracking
     });
+
+    console.log("✅ Transaction created:", transaction._id);
 
     // Track collector's cash (for daily closing verification)
     if (req.user?._id) {
@@ -179,6 +208,50 @@ exports.collectFee = async (req, res) => {
       } catch (e) {
         console.log("TotalCash update skipped:", e.message);
       }
+    }
+
+    // SEND NOTIFICATION - When fee is collected
+    try {
+      const Notification = require("../models/Notification");
+      const User = require("../models/User");
+
+      // Find Academy Owner
+      const owner = await User.findOne({ role: "OWNER" });
+      
+      if (owner) {
+        // Calculate new remaining balance after payment
+        const newRemainingBalance = (student.totalFee || 0) - student.paidAmount;
+        
+        // Notification for fee collection - show amount paid and remaining balance
+        const notificationMsg = `Fee collected from ${student.studentName} (${student.studentId}): Rs. ${amountNum.toLocaleString()} paid | Remaining Balance: Rs. ${newRemainingBalance.toLocaleString()}`;
+        
+        await Notification.create({
+          recipient: owner._id,
+          recipientRole: "OWNER",
+          message: notificationMsg,
+          type: "FINANCE",
+          relatedId: transaction._id, // Link to transaction for tracking
+        });
+
+        console.log("🔔 Notification sent to owner:", notificationMsg);
+
+        // If balance is NOW fully paid, send special notification
+        if (student.feeStatus === "paid" && oldFeeStatus !== "paid") {
+          const paidMsg = `✅ ${student.studentName} (${student.studentId}) has FULLY PAID their fee of Rs. ${student.totalFee.toLocaleString()}`;
+          
+          await Notification.create({
+            recipient: owner._id,
+            recipientRole: "OWNER",
+            message: paidMsg,
+            type: "FINANCE",
+            relatedId: student._id, // Link to student record
+          });
+
+          console.log("✅ Balance Paid Notification:", paidMsg);
+        }
+      }
+    } catch (e) {
+      console.log("⚠️ Notification creation skipped:", e.message);
     }
 
     res.status(201).json({

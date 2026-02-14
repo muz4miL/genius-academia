@@ -448,25 +448,26 @@ router.put("/:id", async (req, res) => {
     if (updateData.totalFee !== undefined) {
       updateData.totalFee = Number(updateData.totalFee);
     }
-    if (updateData.paidAmount !== undefined) {
-      updateData.paidAmount = Number(updateData.paidAmount);
-    }
 
-    // Never allow frontend to override studentId
+    // IMPORTANT: paidAmount should ONLY be updated via collectFee endpoint
+    // Remove it from update data to prevent accidental changes
+    delete updateData.paidAmount;
+    
+    // Never allow frontend to override these fields
     delete updateData.studentId;
     delete updateData._id;
+    delete updateData.feeStatus; // Auto-calculated by pre-save hook
 
     console.log("📝 Updating student:", student.studentId);
-    console.log("📝 Update data:", JSON.stringify(updateData, null, 2));
 
     // Step 3: Apply updates using Object.assign
     Object.assign(student, updateData);
 
-    // Step 4: Save (this triggers the pre-save hook!)
+    // Step 4: Save (this triggers the pre-save hook to recalculate feeStatus!)
     const updatedStudent = await student.save();
 
     console.log("✅ Student updated:", updatedStudent.studentId);
-    console.log("✅ New feeStatus:", updatedStudent.feeStatus);
+    console.log("✅ Fee Status:", updatedStudent.feeStatus);
 
     res.json({
       success: true,

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast"
 import {
   Card,
   CardContent,
@@ -598,16 +599,6 @@ const OwnerDashboard = () => {
                       <div className="text-right">
                         <p className="text-sm font-bold text-amber-900">PKR {(analytics.feeCollection?.pending?.amount || 0).toLocaleString()}</p>
                         <p className="text-xs text-amber-600">{analytics.feeCollection?.pending?.count || 0} students</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-200">
-                      <div className="flex items-center gap-3">
-                        <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                        <span className="text-sm font-medium text-red-800">Overdue</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-red-900">PKR {(analytics.feeCollection?.overdue?.amount || 0).toLocaleString()}</p>
-                        <p className="text-xs text-red-600">{analytics.feeCollection?.overdue?.count || 0} students</p>
                       </div>
                     </div>
                   </div>

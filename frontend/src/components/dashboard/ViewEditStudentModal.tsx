@@ -249,7 +249,7 @@ export const ViewEditStudentModal = ({
       address: address || undefined,
       admissionDate,
       totalFee: Number(totalFee) || 0,
-      paidAmount: Number(paidAmount) || 0,
+      // paidAmount removed - use Collect Fee flow instead
       seatNumber: seatNumber || undefined,
     };
 
@@ -721,10 +721,14 @@ export const ViewEditStudentModal = ({
                       id="paidAmount"
                       type="number"
                       value={paidAmount}
-                      onChange={(e) => setPaidAmount(e.target.value)}
+                      disabled
                       placeholder="0"
-                      className="bg-background"
+                      className="bg-muted cursor-not-allowed"
+                      title="Use 'Collect Fee' button to add payments"
                     />
+                    <p className="text-xs text-orange-600 dark:text-orange-400">
+                      💡 Use the <strong>Collect Fee</strong> button to record payments
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">

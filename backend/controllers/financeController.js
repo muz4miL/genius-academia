@@ -112,7 +112,31 @@ exports.getDashboardStats = async (req, res) => {
 
     // Total students
     const totalStudents = await Student.countDocuments();
-    const activeStudents = await Student.countDocuments({ status: "active" });
+    const activeStudents = await Student.countDocuments({ studentStatus: "Active" });
+
+    // Student status breakdown
+    const statusBreakdownResult = await Student.aggregate([
+      {
+        $group: {
+          _id: "$studentStatus",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Transform to object with all statuses (Active, Pending, Alumni, Expelled, Suspended)
+    const studentsByStatus = {
+      Active: 0,
+      Pending: 0,
+      Alumni: 0,
+      Expelled: 0,
+      Suspended: 0
+    };
+    statusBreakdownResult.forEach(item => {
+      if (item._id && studentsByStatus.hasOwnProperty(item._id)) {
+        studentsByStatus[item._id] = item.count;
+      }
+    });
 
     // Total teachers
     const totalTeachers = await Teacher.countDocuments({ status: "active" });
@@ -197,6 +221,7 @@ exports.getDashboardStats = async (req, res) => {
         // Core KPIs
         totalStudents,
         activeStudents,
+        studentsByStatus,  // Student status breakdown
         totalTeachers,
         monthlyIncome,
         monthlyExpenses,
@@ -892,14 +917,13 @@ exports.getAnalyticsDashboard = async (req, res) => {
       });
     }
 
-    // Fee Collection Status
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const feeStats = await FeeRecord.aggregate([
-      { $match: { month: currentMonth } },
+    // Fee Collection Status - Using Student feeStatus and paidAmount
+    const feeStats = await Student.aggregate([
+      { $match: { studentStatus: "Active" } },
       {
         $group: {
-          _id: "$status",
-          total: { $sum: "$amount" },
+          _id: "$feeStatus",
+          total: { $sum: "$paidAmount" },
           count: { $sum: 1 },
         },
       },
@@ -907,16 +931,16 @@ exports.getAnalyticsDashboard = async (req, res) => {
     const feeCollection = {
       paid: { amount: 0, count: 0 },
       pending: { amount: 0, count: 0 },
-      overdue: { amount: 0, count: 0 },
     };
     feeStats.forEach((f) => {
       const key = f._id?.toLowerCase();
-      if (key === "paid")
+      if (key === "paid") {
         feeCollection.paid = { amount: f.total, count: f.count };
-      else if (key === "pending")
-        feeCollection.pending = { amount: f.total, count: f.count };
-      else if (key === "overdue" || key === "refunded")
-        feeCollection.overdue = { amount: f.total, count: f.count };
+      } else if (key === "pending" || key === "partial") {
+        // Combine pending and partial into one "Pending" category
+        feeCollection.pending.amount += f.total;
+        feeCollection.pending.count += f.count;
+      }
     });
 
     // Expense Breakdown

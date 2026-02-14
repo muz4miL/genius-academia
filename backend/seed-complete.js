@@ -22,12 +22,15 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/genius-aca
 async function clearDatabase() {
   console.log("\n🗑️  CLEARING DATABASE...");
   
+  const User = require("./models/User");
+  
   await Student.deleteMany({});
   await Teacher.deleteMany({});
   await Class.deleteMany({});
   await Session.deleteMany({});
   await Transaction.deleteMany({});
   await Expense.deleteMany({});
+  await User.deleteMany({ role: { $ne: "OWNER" } }); // Delete all non-owner users
   
   console.log("✅ Database cleared");
 }
@@ -99,6 +102,19 @@ async function seedTeachers() {
   
   const hashedPassword = await bcrypt.hash("teacher123", 10);
   
+  // Helper function to generate username
+  const generateUsername = (name) => {
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join("") || "";
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    return (firstName + lastName).toLowerCase().replace(/[^a-z]/g, '') + randomSuffix;
+  };
+  
+  const plainPassword = "teacher123";
+  
+  // Teacher 1: Dr. Ahmed Khan
+  const username1 = generateUsername("Dr. Ahmed Khan");
   const teacher1 = await Teacher.create({
     name: "Dr. Ahmed Khan",
     email: "ahmed@gia.edu",
@@ -108,6 +124,8 @@ async function seedTeachers() {
     phone: "03001234567",
     cnic: "12345-6789012-3",
     status: "active",
+    username: username1,
+    plainPassword: plainPassword,
     compensation: {
       type: "percentage",
       teacherShare: 70,
@@ -121,6 +139,8 @@ async function seedTeachers() {
     totalPaid: 0,
   });
   
+  // Teacher 2: Prof. Fatima Ali  
+  const username2 = generateUsername("Prof. Fatima Ali");
   const teacher2 = await Teacher.create({
     name: "Prof. Fatima Ali",
     email: "fatima@gia.edu",
@@ -130,6 +150,8 @@ async function seedTeachers() {
     phone: "03009876543",
     cnic: "12345-6789012-4",
     status: "active",
+    username: username2,
+    plainPassword: plainPassword,
     compensation: {
       type: "percentage",
       teacherShare: 70,
@@ -143,6 +165,8 @@ async function seedTeachers() {
     totalPaid: 0,
   });
   
+  // Teacher 3: Engr. Hassan Raza
+  const username3 = generateUsername("Engr. Hassan Raza");
   const teacher3 = await Teacher.create({
     name: "Engr. Hassan Raza",
     email: "hassan@gia.edu",
@@ -152,6 +176,8 @@ async function seedTeachers() {
     phone: "03001112222",
     cnic: "12345-6789012-5",
     status: "active",
+    username: username3,
+    plainPassword: plainPassword,
     compensation: {
       type: "percentage",
       teacherShare: 70,
@@ -167,7 +193,52 @@ async function seedTeachers() {
   
   const teachers = [teacher1, teacher2, teacher3];
   
-  console.log(`✅ Created ${teachers.length} teachers`);
+  // Create User accounts for teachers so they can login
+  console.log("Creating User accounts for teachers...");
+  
+  const User = require("./models/User");
+  
+  await User.create({
+    userId: "TCH0001",
+    username: username1,
+    password: plainPassword, // Will be hashed by User pre-save hook
+    fullName: "Dr. Ahmed Khan",
+    role: "TEACHER",
+    permissions: ["dashboard", "lectures"],
+    phone: "03001234567",
+    isActive: true,
+    teacherId: teacher1._id,
+  });
+  
+  await User.create({
+    userId: "TCH0002",
+    username: username2,
+    password: plainPassword,
+    fullName: "Prof. Fatima Ali",
+    role: "TEACHER",
+    permissions: ["dashboard", "lectures"],
+    phone: "03009876543",
+    isActive: true,
+    teacherId: teacher2._id,
+  });
+  
+  await User.create({
+    userId: "TCH0003",
+    username: username3,
+    password: plainPassword,
+    fullName: "Engr. Hassan Raza",
+    role: "TEACHER",
+    permissions: ["dashboard", "lectures"],
+    phone: "03001112222",
+    isActive: true,
+    teacherId: teacher3._id,
+  });
+  
+  console.log(`✅ Created ${teachers.length} teachers with login accounts`);
+  console.log(`   Teacher 1: ${username1} / ${plainPassword}`);
+  console.log(`   Teacher 2: ${username2} / ${plainPassword}`);
+  console.log(`   Teacher 3: ${username3} / ${plainPassword}`);
+  
   return teachers;
 }
 
