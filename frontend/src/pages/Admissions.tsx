@@ -12,23 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertCircle,
   Save,
-  UserPlus,
-  Sparkles,
   Eye,
   CheckCircle2,
   Loader2,
@@ -109,13 +98,25 @@ const Admissions = () => {
   const [sessionPrice, setSessionPrice] = useState<number | null>(null);
   const [isSessionPriceMode, setIsSessionPriceMode] = useState(false);
   const [sessionPriceLoading, setSessionPriceLoading] = useState(false);
-  // Quick Add: Session pricing
 
   // Discount/Scholarship Calculation
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   // Student Photo State
   const [photo, setPhoto] = useState<string | null>(null);
+
+  // Draft Persistence State
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // Success Modal State
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [savedStudent, setSavedStudent] = useState<any>(null);
+  const [savedSession, setSavedSession] = useState<any>(null);
+
+  // Pending student class ID (set after classes load)
+  const [pendingClassId, setPendingClassId] = useState<string | null>(null);
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [isLoadingPendingData, setIsLoadingPendingData] = useState(false);
 
   // TASK 1: Load Draft on Component Mount
   useEffect(() => {
@@ -153,6 +154,7 @@ const Admissions = () => {
     const loadPendingStudent = async () => {
       if (!pendingId) return;
 
+      setIsLoadingPendingData(true);
       try {
         const res = await fetch(`${API_BASE_URL}/api/public/pending/${pendingId}`, {
           credentials: "include",
@@ -166,10 +168,14 @@ const Admissions = () => {
         const data = await res.json();
         const student = data.data;
 
-        console.log("📋 Loading pending student:", student);
+        console.log("📋 Full pending student data:", JSON.stringify(student, null, 2));
+        console.log("🔍 classRef field:", student.classRef, "Type:", typeof student.classRef);
+        console.log("🔍 sclassName field:", student.sclassName, "Type:", typeof student.sclassName);
+        console.log("🔍 currentSession field:", student.currentSession, "Type:", typeof student.currentSession);
+        console.log("🔍 sessionRef field:", student.sessionRef, "Type:", typeof student.sessionRef);
 
         // Pre-fill form with pending student data
-        setStudentName(student.studentName || "");
+        setStudentName(student.studentName || student.name || "");
         setFatherName(student.fatherName || "");
         setGender(student.gender || "Male");
         setParentCell(student.parentCell || "");
@@ -178,27 +184,93 @@ const Admissions = () => {
         setReferralSource(student.referralSource || "");
         setGroup(student.group || "");
         
-        // Handle class - classRef is the ObjectId string
-        const classIdToSet = student.classRef?._id || student.classRef || "";
-        console.log("🎓 Setting class ID:", classIdToSet, "from classRef:", student.classRef);
-        setSelectedClassId(classIdToSet);
-        
-        // Set session from pending student if exists
-        const sessionIdToSet = student.sessionRef?._id || student.sessionRef || "";
-        console.log("📅 Setting session ID:", sessionIdToSet, "from sessionRef:", student.sessionRef);
-        if (sessionIdToSet) {
-          setSelectedSessionId(sessionIdToSet);
+        // Handle class - classRef is the primary field for pending students
+        // Convert ObjectId to string if needed
+        let classIdToSet = "";
+        if (student.classRef) {
+          if (typeof student.classRef === 'object' && student.classRef._id) {
+            classIdToSet = student.classRef._id;
+          } else if (typeof student.classRef === 'string') {
+            classIdToSet = student.classRef;
+          }
+        } else if (student.sclassName) {
+          if (typeof student.sclassName === 'object' && student.sclassName._id) {
+            classIdToSet = student.sclassName._id;
+          } else if (typeof student.sclassName === 'string') {
+            classIdToSet = student.sclassName;
+          }
         }
+        
+        console.log("🎓 Extracted class ID:", classIdToSet);
+        console.log("📚 Available classes count:", classes.length);
+        
+        setPendingClassId(classIdToSet || null);
+        
+        // Handle session
+        let sessionIdToSet = "";
+        if (student.sessionRef) {
+          if (typeof student.sessionRef === 'object' && student.sessionRef._id) {
+            sessionIdToSet = student.sessionRef._id;
+          } else if (typeof student.sessionRef === 'string') {
+            sessionIdToSet = student.sessionRef;
+          }
+        } else if (student.currentSession) {
+          if (typeof student.currentSession === 'object' && student.currentSession._id) {
+            sessionIdToSet = student.currentSession._id;
+          } else if (typeof student.currentSession === 'string') {
+            sessionIdToSet = student.currentSession;
+          }
+        }
+        
+        console.log("📅 Extracted session ID:", sessionIdToSet);
+        console.log("📚 Available sessions count:", sessions.length);
+        
+        setPendingSessionId(sessionIdToSet || null);
 
-        toast.success(`Loaded registration: ${student.studentName}`);
+        toast.success(`Loaded registration: ${student.studentName || student.name}`);
       } catch (error) {
         console.error("Error loading pending student:", error);
         toast.error("Failed to load pending student");
+      } finally {
+        setIsLoadingPendingData(false);
       }
     };
 
     loadPendingStudent();
   }, [pendingId]);
+
+  // Set class and session once data is loaded
+  useEffect(() => {
+    if (pendingClassId && classes.length > 0 && !selectedClassId) {
+      console.log("✅ Setting class from pending data:", pendingClassId);
+      console.log("Available classes:", classes.map((c: any) => ({ id: c._id, name: c.classTitle })));
+      
+      // Verify the classId exists in the classes array
+      const classExists = classes.some((c: any) => c._id === pendingClassId);
+      if (classExists) {
+        setSelectedClassId(pendingClassId);
+        console.log("✅ Class successfully set!");
+      } else {
+        console.warn("⚠️ Pending class ID not found in available classes:", pendingClassId);
+      }
+    }
+  }, [pendingClassId, classes, selectedClassId]);
+
+  useEffect(() => {
+    if (pendingSessionId && sessions.length > 0 && !selectedSessionId) {
+      console.log("✅ Setting session from pending data:", pendingSessionId);
+      console.log("Available sessions:", sessions.map((s: any) => ({ id: s._id, name: s.sessionName })));
+      
+      // Verify the sessionId exists in the sessions array
+      const sessionExists = sessions.some((s: any) => s._id === pendingSessionId);
+      if (sessionExists) {
+        setSelectedSessionId(pendingSessionId);
+        console.log("✅ Session successfully set!");
+      } else {
+        console.warn("⚠️ Pending session ID not found in available sessions:", pendingSessionId);
+      }
+    }
+  }, [pendingSessionId, sessions, selectedSessionId]);
 
   // TASK 1: Save Draft to localStorage whenever form state changes
   useEffect(() => {
@@ -248,21 +320,6 @@ const Admissions = () => {
     isCustomFeeMode,
   ]);
 
-  // TASK 1: Auto-select active or upcoming session for Quick Add
-  useEffect(() => {
-    if (sessions.length > 0 && !quickSessionId) {
-      // Prefer active, then upcoming, then any session
-      const activeSession = sessions.find((s: any) => s.status === "active");
-      const upcomingSession = sessions.find(
-        (s: any) => s.status === "upcoming",
-      );
-      const defaultSession = activeSession || upcomingSession || sessions[0];
-
-      if (defaultSession) {
-        setQuickSessionId(defaultSession._id);
-      }
-    }
-  }, [sessions]);
 
   // Fetch session price when session changes
   useEffect(() => {
@@ -315,44 +372,10 @@ const Admissions = () => {
     fetchSessionPrice();
   }, [selectedSessionId]); // Only re-fetch when session changes
 
-  // Quick Add: Fetch session price when session changes
-  useEffect(() => {
-    const fetchQuickSessionPrice = async () => {
-      if (!quickSessionId) {
-        setQuickSessionPrice(null);
-        setQuickTotalFee("");
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/config/session-price/${quickSessionId}`,
-          { credentials: "include" },
-        );
-        if (!response.ok) throw new Error("Failed to fetch session price");
-        const result = await response.json();
-        if (result.success && result.data?.found && result.data?.price > 0) {
-          setQuickSessionPrice(result.data.price);
-          setQuickTotalFee(String(result.data.price));
-        } else {
-          setQuickSessionPrice(null);
-          setQuickTotalFee("");
-        }
-      } catch (error) {
-        console.error("Failed to fetch quick session price:", error);
-        setQuickSessionPrice(null);
-        setQuickTotalFee("");
-      }
-    };
-
-    fetchQuickSessionPrice();
-  }, [quickSessionId]);
 
   // Get selected class
   const getSelectedClass = () =>
     classes.find((c: any) => c._id === selectedClassId);
-  const getQuickSelectedClass = () =>
-    classes.find((c: any) => c._id === quickClassId);
 
   // Get classes filtered by group (cascading select)
   const getFilteredClasses = () => {
@@ -609,56 +632,6 @@ const Admissions = () => {
     createStudentMutation.mutate(studentData);
   };
 
-  // Quick Add submission
-  const handleQuickAdd = () => {
-    if (!quickName || !quickClassId || !quickParentCell) {
-      toast.error("Missing Information", {
-        description: "Please fill in all required fields for quick add",
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (!quickTotalFee || Number(quickTotalFee) <= 0) {
-      toast.error("Missing Session Price", {
-        description:
-          "Please configure the session rate in Settings → Configuration.",
-        duration: 3000,
-      });
-      return;
-    }
-
-    const selectedClass = getQuickSelectedClass();
-    const classTitle =
-      selectedClass?.classTitle || selectedClass?.className || "TBD";
-
-    const quickData = {
-      studentName: quickName,
-      fatherName: "To be updated",
-      class: classTitle,
-      group: "Pre-Medical",
-      subjects: [],
-      parentCell: quickParentCell,
-      studentCell: undefined,
-      address: undefined,
-      admissionDate: new Date(),
-      totalFee: Number(quickTotalFee) || 0,
-      paidAmount: Number(quickPaidAmount) || 0,
-      classRef: quickClassId,
-      sessionRef: quickSessionId || undefined,
-    };
-
-    createStudentMutation.mutate(quickData);
-    setQuickAddOpen(false);
-
-    // Reset quick form
-    setQuickName("");
-    setQuickClassId("");
-    setQuickSessionId("");
-    setQuickParentCell("");
-    setQuickTotalFee("");
-    setQuickPaidAmount("");
-  };
 
   // TASK 4: Reset form and clear ALL state including validation errors
   const handleCancel = () => {
@@ -746,6 +719,120 @@ const Admissions = () => {
               <div className="space-y-2">
                 <Label htmlFor="name">Student Name *</Label>
                 <Input
+                  id="name"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  placeholder="Enter full name"
+                  className="bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fatherName">Father's Name *</Label>
+                <Input
+                  id="fatherName"
+                  value={fatherName}
+                  onChange={(e) => setFatherName(e.target.value)}
+                  placeholder="Enter father's name"
+                  className="bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender *</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wing">Wing - Assigning to Right Wing</Label>
+                <Input
+                  id="wing"
+                  value="Right Wing"
+                  disabled
+                  className="bg-secondary/50 text-muted-foreground cursor-not-allowed"
+                  title="Auto: Assigning to Right Wing"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="class">Group *</Label>
+                <Input
+                  id="class"
+                  value={group}
+                  onChange={(e) => setGroup(e.target.value)}
+                  placeholder="e.g., Pre-Medical"
+                  className="bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="class">Class *</Label>
+                <Select
+                  value={selectedClassId}
+                  onValueChange={setSelectedClassId}
+                  disabled={isLoadingPendingData}
+                >
+                  <SelectTrigger className="bg-background">
+                    {isLoadingPendingData ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading class...</span>
+                      </div>
+                    ) : (
+                      <SelectValue placeholder="Select class" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls: any) => (
+                      <SelectItem key={cls._id} value={cls._id}>
+                        {cls.classTitle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="parentCell">Parent Cell No. *</Label>
+                <Input
+                  id="parentCell"
+                  value={parentCell}
+                  onChange={(e) => setParentCell(e.target.value)}
+                  placeholder="03XX-XXXXXXX"
+                  className="bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="studentCell">Student Cell No.</Label>
+                <Input
+                  id="studentCell"
+                  value={studentCell}
+                  onChange={(e) => setStudentCell(e.target.value)}
+                  placeholder="03XX-XXXXXXX"
+                  className="bg-background"
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="address">Address</Label>
+                <Textarea
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter complete address"
+                  className="bg-background resize-none"
+                  rows={2}
+                />
+              </div>
 
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="referralSource">
@@ -809,6 +896,25 @@ const Admissions = () => {
                   value={admissionDate}
                   onChange={(e) => setAdmissionDate(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="session">Academic Session *</Label>
+                <Select
+                  value={selectedSessionId}
+                  onValueChange={setSelectedSessionId}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Select session" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sessions.map((session: any) => (
+                      <SelectItem key={session._id} value={session._id}>
+                        {session.sessionName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Custom Fee / Scholarship Toggle */}
@@ -1078,212 +1184,6 @@ const Admissions = () => {
           </div>
         </div>
       </div>
-
-      {/* Quick Add Modal */}
-      <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sky-100">
-              <UserPlus className="h-6 w-6 text-sky-600" />
-            </div>
-            <DialogTitle className="text-center text-lg font-semibold">
-              Speed Enrollment
-            </DialogTitle>
-            <DialogDescription className="text-center text-sm">
-              Quick add with minimal info
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="quick-name" className="text-sm">
-                Student Name *
-              </Label>
-              <Input
-                id="quick-name"
-                placeholder="Enter full name"
-                value={quickName}
-                onChange={(e) => setQuickName(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* TASK 1: Session with auto-select (active or upcoming) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Session</Label>
-                {sessions.find((s: any) => s._id === quickSessionId) &&
-                  (() => {
-                    const selected = sessions.find(
-                      (s: any) => s._id === quickSessionId,
-                    );
-                    if (selected?.status === "active") {
-                      return (
-                        <span className="text-xs text-green-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Active
-                        </span>
-                      );
-                    } else if (selected?.status === "upcoming") {
-                      return (
-                        <span className="text-xs text-sky-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Upcoming
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-              </div>
-              <Select value={quickSessionId} onValueChange={setQuickSessionId}>
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="Select session" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sessions.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      No sessions available
-                    </SelectItem>
-                  ) : (
-                    sessions.map((session: any) => (
-                      <SelectItem key={session._id} value={session._id}>
-                        {session.sessionName}
-                        {session.status === "active" && (
-                          <span className="ml-2 text-green-600 text-xs">
-                            (Current)
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* TASK 2: Class with fee sync */}
-            <div className="space-y-1.5">
-              <Label htmlFor="quick-class" className="text-sm">
-                Class *
-              </Label>
-              <Select value={quickClassId} onValueChange={setQuickClassId}>
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls: any) => (
-                    <SelectItem key={cls._id} value={cls._id}>
-                      {cls.className} - {cls.section}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="quick-parent" className="text-sm">
-                Parent Cell *
-              </Label>
-              <Input
-                id="quick-parent"
-                placeholder="03XX-XXXXXXX"
-                value={quickParentCell}
-                onChange={(e) => setQuickParentCell(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* Fee fields with session pricing */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Total Fee</Label>
-                  {quickSessionPrice && (
-                    <span className="text-xs text-emerald-600">
-                      Session Rate
-                    </span>
-                  )}
-                </div>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={quickTotalFee}
-                  onChange={(e) => setQuickTotalFee(e.target.value)}
-                  readOnly={!!quickSessionPrice}
-                  className={`h-9 ${quickSessionPrice ? "bg-emerald-50 border-emerald-200 font-semibold" : "bg-background"}`}
-                />
-                {!quickSessionPrice && quickSessionId && (
-                  <p className="text-xs text-yellow-700">
-                    No session rate configured. Please set a price in
-                    Configuration.
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Paid Amount</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={quickPaidAmount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setQuickPaidAmount(value);
-
-                    // TASK 1: Real-time validation for Quick Add
-                    if (value && quickTotalFee) {
-                      const paidNum = Number(value);
-                      const totalNum = Number(quickTotalFee);
-                      if (paidNum > totalNum) {
-                        setQuickFeeValidationError(
-                          "Received amount cannot exceed total fee",
-                        );
-                      } else {
-                        setQuickFeeValidationError("");
-                      }
-                    } else {
-                      setQuickFeeValidationError("");
-                    }
-                  }}
-                  className={`h-9 ${quickFeeValidationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                />
-                {quickFeeValidationError && (
-                  <p className="text-xs text-red-600 flex items-center gap-1 font-medium">
-                    <AlertCircle className="h-3 w-3" />
-                    {quickFeeValidationError}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setQuickAddOpen(false);
-                setQuickFeeValidationError("");
-              }}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleQuickAdd}
-              disabled={
-                createStudentMutation.isPending || !!quickFeeValidationError
-              }
-              className="flex-1 bg-sky-600 hover:bg-sky-700"
-              style={{ borderRadius: "0.75rem" }}
-            >
-              {createStudentMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Enroll Student"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Success Modal - Elegant Compact Design */}
       <AdmissionSuccessModal
