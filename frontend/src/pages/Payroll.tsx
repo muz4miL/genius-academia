@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { pdf } from "@react-pdf/renderer";
 import {
   Banknote,
   Users,
@@ -43,8 +44,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useReactToPrint } from "react-to-print";
-import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
+import {
+  TeacherPaymentPDF,
+  type TeacherPaymentPDFData,
+} from "@/components/print/TeacherPaymentPDF";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -59,7 +62,6 @@ export default function Payroll() {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payNotes, setPayNotes] = useState("");
-  const [receiptData, setReceiptData] = useState<any>(null);
 
   // Manual Credit State
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
@@ -71,13 +73,53 @@ export default function Payroll() {
   const [classFilter, setClassFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const receiptRef = useRef<HTMLDivElement>(null);
-  const handlePrintReceipt = useReactToPrint({
-    contentRef: receiptRef,
-    documentTitle: receiptData
-      ? `Teacher-Payment-${receiptData.voucherId}`
-      : "Teacher Payment",
-  });
+  // Logo cache for PDF
+  const [cachedLogo, setCachedLogo] = useState<string | null>(null);
+
+  const loadLogo = useCallback(async (): Promise<string> => {
+    if (cachedLogo) return cachedLogo;
+    try {
+      const response = await fetch("/logo.png");
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const url = reader.result as string;
+          setCachedLogo(url);
+          resolve(url);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return "";
+    }
+  }, [cachedLogo]);
+
+  const generatePaymentPDF = useCallback(
+    async (data: TeacherPaymentPDFData) => {
+      try {
+        const logoUrl = await loadLogo();
+        const pdfDoc = <TeacherPaymentPDF data={data} logoDataUrl={logoUrl} />;
+        const blob = await pdf(pdfDoc).toBlob();
+        const pdfUrl = URL.createObjectURL(blob);
+        const newTab = window.open(pdfUrl, "_blank");
+
+        if (!newTab) {
+          // Fallback: download if popup blocked
+          const link = document.createElement("a");
+          link.href = pdfUrl;
+          link.download = `Payment-${data.voucherId}.pdf`;
+          link.click();
+        }
+
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+      } catch (error) {
+        console.error("Error generating payment PDF:", error);
+      }
+    },
+    [loadLogo],
+  );
 
   // Redirect non-owners
   if (user?.role !== "OWNER") {
@@ -151,7 +193,7 @@ export default function Payroll() {
         description: data.message,
       });
       if (data?.data?.voucher) {
-        setReceiptData({
+        const receiptData: TeacherPaymentPDFData = {
           voucherId: data.data.voucher.voucherId,
           teacherName: data.data.voucher.teacherName,
           subject: data.data.voucher.subject,
@@ -161,10 +203,8 @@ export default function Payroll() {
           description: data.data.voucher.notes || "Teacher payout",
           sessionName: data.data.voucher.sessionName || "N/A",
           compensationType: selectedTeacher?.compensation?.type || "percentage",
-        });
-        setTimeout(() => {
-          handlePrintReceipt();
-        }, 400);
+        };
+        generatePaymentPDF(receiptData);
       }
       setPayDialogOpen(false);
       setSelectedTeacher(null);
@@ -543,20 +583,7 @@ export default function Payroll() {
         </DialogContent>
       </Dialog>
 
-      {receiptData && (
-        <TeacherPaymentReceipt
-          ref={receiptRef}
-          voucherId={receiptData.voucherId}
-          teacherName={receiptData.teacherName}
-          subject={receiptData.subject}
-          amountPaid={receiptData.amountPaid}
-          remainingBalance={receiptData.remainingBalance}
-          paymentDate={receiptData.paymentDate}
-          description={receiptData.description}
-          sessionName={receiptData.sessionName}
-          compensationType={receiptData.compensationType}
-        />
-      )}
+
 
       {/* Manual Credit Dialog */}
       <Dialog

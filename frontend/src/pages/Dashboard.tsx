@@ -1560,8 +1560,8 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-slate-900">
-                      {entry.classId?.className || entry.subject || "Class"}
-                      {entry.classId?.section ? ` — ${entry.classId.section}` : ""}
+                      {entry.classId?.classTitle || entry.classId?.className || entry.subject || "Class"}
+                      {entry.classId?.gradeLevel ? ` — ${entry.classId.gradeLevel}` : entry.classId?.section ? ` — ${entry.classId.section}` : ""}
                     </p>
                     <p className="text-sm text-slate-500">{capitalizeSubject(entry.subject)}</p>
                   </div>
@@ -1637,8 +1637,8 @@ const TeacherDashboard = () => {
                           )}
                         </div>
                         <p className="font-medium text-slate-900">
-                          {entry.classId?.className || "Class"}
-                          {entry.classId?.section ? ` (${entry.classId.section})` : ""}
+                          {entry.classId?.classTitle || entry.classId?.className || "Class"}
+                          {entry.classId?.gradeLevel ? ` (${entry.classId.gradeLevel})` : entry.classId?.section ? ` (${entry.classId.section})` : ""}
                         </p>
                         <p className="text-xs text-slate-500 mt-1">{capitalizeSubject(entry.subject)}</p>
                       </div>

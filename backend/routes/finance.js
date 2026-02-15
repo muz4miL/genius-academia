@@ -23,6 +23,8 @@ const {
   resetSystem,
   getAnalyticsDashboard,
   generateFinancialReport,
+  recordStudentMiscPayment,
+  getStudentMiscPayments,
 } = require("../controllers/financeController");
 const { protect, restrictTo } = require("../middleware/authMiddleware");
 
@@ -78,6 +80,25 @@ router.delete(
   protect,
   restrictTo("OWNER", "ADMIN"),
   deleteTransaction,
+);
+
+// @route   POST /api/finance/student-misc-payment
+// @desc    Record a misc student payment (trip, test, lab, event, etc.)
+// @access  Protected (OWNER, STAFF)
+router.post(
+  "/student-misc-payment",
+  protect,
+  restrictTo("OWNER", "STAFF"),
+  recordStudentMiscPayment,
+);
+
+// @route   GET /api/finance/student-misc-payments
+// @desc    Get history of misc student payments
+// @access  Protected (OWNER, STAFF)
+router.get(
+  "/student-misc-payments",
+  protect,
+  getStudentMiscPayments,
 );
 
 // @route   POST /api/finance/close-day

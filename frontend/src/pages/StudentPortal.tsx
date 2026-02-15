@@ -1139,10 +1139,15 @@ export function StudentPortal() {
                                 <p className="text-[10px] text-brand-gold/80 font-bold uppercase tracking-widest mt-1">
                                   {entry.subject}
                                 </p>
+                                {entry.teacherId?.name && (
+                                  <p className="text-[9px] text-slate-300/70 font-medium mt-1">
+                                    {entry.teacherId.name}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-2 mt-2 opacity-60">
                                   <Clock className="h-2.5 w-2.5 text-slate-400" />
                                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                                    Room {entry.room || "TBA"}
+                                    {entry.startTime} — {entry.endTime} | Room {entry.room || "TBA"}
                                   </span>
                                 </div>
                               </div>

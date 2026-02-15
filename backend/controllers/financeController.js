@@ -259,6 +259,156 @@ exports.getDashboardStats = async (req, res) => {
 };
 
 // =====================================================================
+// RECORD STUDENT MISC PAYMENT — Trip, Test, Lab, Event fees etc.
+// =====================================================================
+exports.recordStudentMiscPayment = async (req, res) => {
+  try {
+    const { studentId, amount, paymentType, description, paymentMethod } = req.body;
+
+    if (!studentId || !amount || !paymentType) {
+      return res.status(400).json({
+        success: false,
+        message: "Student, amount, and payment type are required.",
+      });
+    }
+
+    const amountNum = Number(amount);
+    if (amountNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0.",
+      });
+    }
+
+    // Find the student
+    const Student = require("../models/Student");
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found.",
+      });
+    }
+
+    // Map payment types to Transaction categories
+    const categoryMap = {
+      trip: "Trip_Fee",
+      test: "Test_Fee",
+      lab: "Lab_Fee",
+      library: "Library_Fee",
+      sports: "Sports_Fee",
+      event: "Event_Fee",
+      misc: "Student_Misc",
+    };
+
+    const category = categoryMap[paymentType] || "Student_Misc";
+    const paymentLabel = paymentType.charAt(0).toUpperCase() + paymentType.slice(1);
+
+    // Generate receipt ID
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const receiptId = `MISC-${student.studentId}-${dateStr}-${randomSuffix}`;
+
+    // Create transaction in ledger
+    const transaction = await Transaction.create({
+      type: "INCOME",
+      category,
+      amount: amountNum,
+      description: description || `${paymentLabel} fee from ${student.studentName} (${student.studentId})`,
+      date: now,
+      collectedBy: req.user._id,
+      status: "FLOATING",
+      studentId: student._id,
+    });
+
+    // Send notification to owner
+    try {
+      const Notification = require("../models/Notification");
+      const User = require("../models/User");
+      const owner = await User.findOne({ role: "OWNER" });
+
+      if (owner) {
+        await Notification.create({
+          recipient: owner._id,
+          recipientRole: "OWNER",
+          message: `${paymentLabel} fee of PKR ${amountNum.toLocaleString()} collected from ${student.studentName} (${student.studentId})`,
+          type: "FINANCE",
+          relatedId: transaction._id.toString(),
+        });
+      }
+    } catch (notifErr) {
+      console.log("Notification skipped:", notifErr.message);
+    }
+
+    // Track collector's cash
+    if (req.user?._id) {
+      try {
+        const User = require("../models/User");
+        const collector = await User.findById(req.user._id);
+        if (collector) {
+          collector.totalCash = (collector.totalCash || 0) + amountNum;
+          await collector.save();
+        }
+      } catch (e) {
+        console.log("TotalCash update skipped:", e.message);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `${paymentLabel} fee of PKR ${amountNum.toLocaleString()} collected from ${student.studentName}.`,
+      data: {
+        transaction,
+        receiptData: {
+          receiptId,
+          studentId: student.studentId,
+          studentName: student.studentName,
+          fatherName: student.fatherName || "-",
+          class: student.class || "-",
+          contact: student.parentCell || student.studentCell || "-",
+          paymentType: paymentLabel,
+          category,
+          amount: amountNum,
+          description: description || `${paymentLabel} Fee`,
+          paymentMethod: paymentMethod || "Cash",
+          paymentDate: now,
+          collectedBy: req.user?.fullName || "Staff",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("RecordStudentMiscPayment Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// =====================================================================
+// GET STUDENT MISC PAYMENT HISTORY
+// =====================================================================
+exports.getStudentMiscPayments = async (req, res) => {
+  try {
+    const miscCategories = ["Trip_Fee", "Test_Fee", "Lab_Fee", "Library_Fee", "Sports_Fee", "Event_Fee", "Student_Misc"];
+
+    const transactions = await Transaction.find({
+      category: { $in: miscCategories },
+    })
+      .populate("studentId", "studentName studentId class fatherName parentCell")
+      .populate("collectedBy", "fullName")
+      .sort({ date: -1 })
+      .limit(200);
+
+    return res.json({
+      success: true,
+      data: transactions,
+    });
+  } catch (error) {
+    console.error("GetStudentMiscPayments Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// =====================================================================
 // RECORD TRANSACTION — Create a new income or expense transaction
 // =====================================================================
 exports.recordTransaction = async (req, res) => {
@@ -513,11 +663,7 @@ exports.processTeacherPayout = async (req, res) => {
           notes: paymentRecord.notes,
           sessionName: paymentRecord.sessionName,
         },
-        remainingBalance:
-          compType === "fixed"
-            ? teacher.balance?.pending || 0
-            : (teacher.balance?.verified || 0) +
-              (teacher.balance?.floating || 0),
+        remainingBalance: teacher.balance?.pending || 0,
       },
     });
   } catch (error) {

@@ -41,6 +41,18 @@ const styles = StyleSheet.create({
     color: "rgba(220, 38, 38, 0.06)",
     letterSpacing: 4,
   },
+  // Subtle academy background watermark
+  academyWatermark: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%) rotate(-30deg)",
+    fontSize: 48,
+    fontWeight: 700,
+    color: "rgba(26, 54, 93, 0.13)",
+    letterSpacing: 10,
+    zIndex: 10,
+  },
 
   // ==================== HEADER ====================
   header: {
@@ -157,7 +169,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   detailLabel: {
-    width: 55,
+    width: 58,
     fontSize: 9,
     fontWeight: 700,
     color: "#374151",
@@ -167,7 +179,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#111827",
     borderBottom: "1pt solid #d1d5db",
-    paddingBottom: 2,
+    paddingBottom: 3,
   },
   groupBadge: {
     paddingVertical: 2,
@@ -289,9 +301,10 @@ const styles = StyleSheet.create({
   feeRowLabel: {
     fontSize: 9,
     color: "#4b5563",
+    fontWeight: 600,
   },
   feeRowValue: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 700,
     color: "#111827",
   },
@@ -314,17 +327,19 @@ const styles = StyleSheet.create({
   signatureSection: {
     marginTop: "auto",
     alignItems: "flex-end",
-    paddingTop: 8,
+    paddingTop: 10,
   },
   signatureLabel: {
     fontSize: 7,
     color: "#6b7280",
-    marginBottom: 2,
+    marginBottom: 20,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   signatureLine: {
-    width: 100,
-    borderBottom: "1pt solid #374151",
-    height: 16,
+    width: 120,
+    borderBottom: "1.5pt solid #1a365d",
+    height: 1,
   },
 
   // ==================== FOOTER ====================
@@ -438,11 +453,6 @@ export const ReceiptPDF = ({
     <Document>
       <Page size={[612, 396]} style={styles.page}>
         <View style={styles.container}>
-          {/* Watermark for duplicate copies */}
-          {!receiptConfig.isOriginal && (
-            <Text style={styles.watermark}>DUPLICATE</Text>
-          )}
-
           {/* ==================== HEADER ==================== */}
           <View style={styles.header}>
             {/* Left: Logo & Academy Name */}
@@ -671,6 +681,12 @@ export const ReceiptPDF = ({
               Opp. Islamia College, Danishabad, University Road, Peshawar
             </Text>
           </View>
+
+          {/* Watermarks - rendered last to appear on top */}
+          {!receiptConfig.isOriginal && (
+            <Text style={styles.watermark}>DUPLICATE</Text>
+          )}
+          <Text style={styles.academyWatermark}>GENIUS ISLAMIAN'S</Text>
         </View>
       </Page>
     </Document>

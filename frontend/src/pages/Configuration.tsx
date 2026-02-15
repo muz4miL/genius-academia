@@ -115,10 +115,13 @@ const Configuration = () => {
   const allPermissions = [
     { key: "dashboard", label: "Dashboard" },
     { key: "admissions", label: "Admissions" },
+    { key: "registrations", label: "Registrations" },
     { key: "students", label: "Students" },
     { key: "teachers", label: "Teachers" },
     { key: "finance", label: "Finance & Expenses" },
+    { key: "collections", label: "Student Collections" },
     { key: "classes", label: "Classes" },
+    { key: "seat_management", label: "Seat Management" },
     { key: "timetable", label: "Timetable" },
     { key: "sessions", label: "Sessions" },
     { key: "inquiries", label: "Inquiries" },

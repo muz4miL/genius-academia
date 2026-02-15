@@ -21,7 +21,8 @@ const API_BASE_URL = getApiBaseUrl();
 
 interface ClassInfo {
   _id: string;
-  name: string;
+  classTitle: string;
+  gradeLevel?: string;
   section?: string;
   studentCount?: number;
 }
@@ -49,25 +50,11 @@ export function TeacherClassesCard({
       const data = await res.json();
       const classes: ClassInfo[] = data.data || [];
 
-      // Calculate total students from all assigned classes
-      let totalStudents = 0;
-      for (const cls of classes) {
-        // Fetch student count per class
-        try {
-          const studentsRes = await fetch(
-            `${API_BASE_URL}/students?class=${encodeURIComponent(cls.name)}&countOnly=true`,
-            { credentials: "include" },
-          );
-          if (studentsRes.ok) {
-            const studentData = await studentsRes.json();
-            cls.studentCount =
-              studentData.count || studentData.data?.length || 0;
-            totalStudents += cls.studentCount;
-          }
-        } catch {
-          cls.studentCount = 0;
-        }
-      }
+      // Backend already returns studentCount per class
+      const totalStudents = classes.reduce(
+        (sum, cls) => sum + (cls.studentCount || 0),
+        0
+      );
 
       return { data: classes, totalStudents };
     },
@@ -149,10 +136,10 @@ export function TeacherClassesCard({
                       <BookOpen className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold">{cls.name}</p>
-                      {cls.section && (
+                      <p className="font-semibold">{cls.classTitle}</p>
+                      {cls.gradeLevel && (
                         <p className="text-xs text-muted-foreground">
-                          Section: {cls.section}
+                          {cls.gradeLevel}{cls.section ? ` • ${cls.section}` : ''}
                         </p>
                       )}
                     </div>
