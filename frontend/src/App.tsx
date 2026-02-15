@@ -27,6 +27,8 @@ import StudentPortal from "./pages/StudentPortal";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
 import NotFound from "./pages/NotFound";
 import PublicLanding from "./pages/PublicLanding";
+// Gatekeeper (reserved for SCA project)
+import Gatekeeper from "./pages/Gatekeeper";
 
 const queryClient = new QueryClient();
 
@@ -169,6 +171,15 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SeatManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Gatekeeper — reserved for SCA academy project */}
+            <Route
+              path="/gatekeeper"
+              element={
+                <ProtectedRoute>
+                  <Gatekeeper />
                 </ProtectedRoute>
               }
             />

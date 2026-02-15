@@ -321,23 +321,9 @@ const FinanceOverview = () => {
 };
 
 // ==================== ASSET REGISTRY TAB ====================
-const STORAGE_KEY = "genius_asset_registry";
-
-function loadAssets(): Asset[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAssets(assets: Asset[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
-}
 
 const AssetRegistry = () => {
-  const [assets, setAssets] = useState<Asset[]>(loadAssets);
+  const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
 
   // Form state
@@ -348,6 +334,28 @@ const AssetRegistry = () => {
   const [depreciationRate, setDepreciationRate] = useState("10");
   const [alsoRecordExpense, setAlsoRecordExpense] = useState(false);
 
+  // Fetch assets from API
+  const { data: assetsData, isLoading: assetsLoading } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch inventory");
+      return res.json();
+    },
+  });
+
+  const assets: (Asset & { _id?: string })[] = (assetsData?.data || []).map((a: any) => ({
+    id: a._id,
+    _id: a._id,
+    itemName: a.itemName,
+    investorName: a.investorName,
+    purchaseDate: a.purchaseDate,
+    originalCost: a.originalCost,
+    depreciationRate: a.depreciationRate,
+  }));
+
   const totalOriginal = assets.reduce((sum, a) => sum + a.originalCost, 0);
   const totalCurrent = assets.reduce(
     (sum, a) =>
@@ -356,67 +364,94 @@ const AssetRegistry = () => {
     0,
   );
 
-  const handleAdd = () => {
+  // Create asset mutation
+  const createMutation = useMutation({
+    mutationFn: async (newAsset: { itemName: string; investorName: string; purchaseDate: string; originalCost: number; depreciationRate: number }) => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newAsset),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to create asset");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+
+  // Delete asset mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete asset");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success("Asset removed");
+    },
+  });
+
+  const handleAdd = async () => {
     if (!itemName || !purchaseDate || !originalCost) {
       toast.error("Please fill all required fields");
       return;
     }
-    const newAsset: Asset = {
-      id: Date.now().toString(),
-      itemName,
-      investorName: investorName || "Academy",
-      purchaseDate,
-      originalCost: Number(originalCost),
-      depreciationRate: Number(depreciationRate),
-    };
-    const updated = [...assets, newAsset];
-    setAssets(updated);
-    saveAssets(updated);
-    toast.success(`${itemName} added to registry`);
 
-    // Also record as expense if checkbox is checked
-    if (alsoRecordExpense) {
-      const API_BASE_URL =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      fetch(`${API_BASE_URL}/api/finance/record-transaction`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          type: "expense",
-          category: "Equipment/Asset",
-          amount: Number(originalCost),
-          description: `Asset Purchase: ${itemName}${investorName ? ` (Investor: ${investorName})` : ""}`,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            toast.success("Expense record created automatically");
-          } else {
-            toast.info("Asset saved, but expense record could not be created");
-          }
+    try {
+      await createMutation.mutateAsync({
+        itemName,
+        investorName: investorName || "Academy",
+        purchaseDate,
+        originalCost: Number(originalCost),
+        depreciationRate: Number(depreciationRate),
+      });
+      toast.success(`${itemName} added to registry`);
+
+      // Also record as expense if checkbox is checked
+      if (alsoRecordExpense) {
+        fetch(`${API_BASE_URL}/api/finance/record-transaction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            type: "expense",
+            category: "Equipment/Asset",
+            amount: Number(originalCost),
+            description: `Asset Purchase: ${itemName}${investorName ? ` (Investor: ${investorName})` : ""}`,
+          }),
         })
-        .catch(() => {
-          toast.info("Asset saved locally. Expense record requires login.");
-        });
-    }
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              toast.success("Expense record created automatically");
+            }
+          })
+          .catch(() => {});
+      }
 
-    // Reset form
-    setItemName("");
-    setInvestorName("");
-    setPurchaseDate("");
-    setOriginalCost("");
-    setDepreciationRate("10");
-    setAlsoRecordExpense(false);
-    setShowDialog(false);
+      // Reset form
+      setItemName("");
+      setInvestorName("");
+      setPurchaseDate("");
+      setOriginalCost("");
+      setDepreciationRate("10");
+      setAlsoRecordExpense(false);
+      setShowDialog(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add asset");
+    }
   };
 
   const handleDelete = (id: string) => {
-    const updated = assets.filter((a) => a.id !== id);
-    setAssets(updated);
-    saveAssets(updated);
-    toast.success("Asset removed");
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -479,7 +514,12 @@ const AssetRegistry = () => {
           </Button>
         </CardHeader>
         <CardContent>
-          {assets.length === 0 ? (
+          {assetsLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mt-2">Loading assets...</p>
+            </div>
+          ) : assets.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No assets registered</p>

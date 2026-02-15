@@ -32,7 +32,6 @@ import {
   User,
   LogOut,
   Loader2,
-  Video,
   Eye,
   Lock,
   Hourglass,
@@ -215,9 +214,7 @@ export function StudentPortal() {
     },
   });
 
-  const videos = [];
-  const videosBySubject = {};
-  const videosLoading = false;
+
 
   // Fetch student schedule/timetable (Role-Based — filtered by student's class)
   const studentClassId = profile?.classRef?._id || profile?.classRef;
@@ -289,28 +286,7 @@ export function StudentPortal() {
 
   const { current: currentSession, next: nextSession } = getCurrentSession();
 
-  // Fetch exams for student's class
-  const { data: examsData } = useQuery({
-    queryKey: ["student-exams", profile?.classRef, token],
-    queryFn: async () => {
-      const classId = profile?.classRef?._id || profile?.classRef;
-      if (!classId) return { data: [] };
 
-      const res = await fetch(`${API_BASE_URL}/api/exams/class/${classId}`, {
-        credentials: "include",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch exams");
-      return res.json();
-    },
-    enabled: isLoggedIn && !!token && !!profile?.classRef,
-  });
-
-  const exams = examsData?.data || [];
-  const upcomingExams = exams.filter(
-    (e: any) => new Date() <= new Date(e.endTime),
-  );
-  const pastExams = exams.filter((e: any) => new Date() > new Date(e.endTime));
 
   // Handle login
   const handleLogin = (e: React.FormEvent) => {
@@ -1214,7 +1190,7 @@ export function StudentPortal() {
                           variant="secondary"
                           className="font-black bg-white/5 text-white border-white/10 px-3 h-6 uppercase tracking-widest text-[10px]"
                         >
-                          0 Lectures
+                          All Subjects
                         </Badge>
                       </div>
                       <h4 className="font-serif font-bold text-2xl text-white mb-2 group-hover:text-brand-gold transition-colors">
@@ -1264,7 +1240,7 @@ export function StudentPortal() {
                               variant="secondary"
                               className="font-black bg-white/5 text-white border-white/10 px-3 h-6 uppercase tracking-widest text-[10px]"
                             >
-                              0 Lectures
+                              Enrolled
                             </Badge>
                           </div>
                           <h4 className="font-serif font-bold text-2xl text-white mb-2 relative z-10 group-hover:text-brand-gold transition-colors">
