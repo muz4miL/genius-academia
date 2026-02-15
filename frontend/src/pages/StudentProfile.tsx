@@ -319,18 +319,15 @@ export default function StudentProfile() {
                 <div className="flex flex-wrap gap-2">
                   {student.subjects?.length > 0 ? (
                     student.subjects.map((subj: any, idx: number) => (
-                      <Badge
+                      <div
                         key={idx}
-                        variant="outline"
-                        className="px-3 py-1.5 text-sm bg-secondary"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-card"
                       >
-                        {typeof subj === "string" ? subj : subj.name}
-                        {subj.fee && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            Rs. {subj.fee?.toLocaleString()}
-                          </span>
-                        )}
-                      </Badge>
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <span className="text-sm font-medium">
+                          {typeof subj === "string" ? subj : subj.name}
+                        </span>
+                      </div>
                     ))
                   ) : (
                     <span className="text-muted-foreground text-sm">
@@ -424,9 +421,6 @@ export default function StudentProfile() {
                       <TableHead className="font-bold text-gray-900">
                         Collected By
                       </TableHead>
-                      <TableHead className="font-bold text-gray-900 text-center">
-                        Actions
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -473,16 +467,6 @@ export default function StudentProfile() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {record.collectedByName || "Staff"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Print Receipt"
-                          >
-                            <Printer className="h-4 w-4" />
-                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

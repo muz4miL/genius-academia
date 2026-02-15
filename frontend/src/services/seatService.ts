@@ -83,7 +83,6 @@ export const seatService = {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'x-student-id': studentId,
       },
       credentials: 'include',
     });
@@ -103,7 +102,6 @@ export const seatService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-student-id': studentId,
       },
       credentials: 'include',
       body: JSON.stringify({ seatId }),
@@ -129,7 +127,6 @@ export const seatService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-student-id': studentId,
       },
       credentials: 'include',
       body: JSON.stringify({ seatId }),

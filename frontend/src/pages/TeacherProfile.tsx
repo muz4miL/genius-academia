@@ -52,7 +52,6 @@ export default function TeacherProfile() {
   const [processPayoutAmount, setProcessPayoutAmount] = useState("");
   const [processPayoutNotes, setProcessPayoutNotes] = useState("");
 
-  const [reportOpen, setReportOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
 
   const { generateVoucherPDF, isGenerating } = useTeacherPaymentPDF();
@@ -264,14 +263,6 @@ export default function TeacherProfile() {
                 Pay Teacher
               </Button>
             )}
-            {isOwner && (
-              <Button
-                variant="outline"
-                onClick={() => setReportOpen(true)}
-              >
-                Create Report
-              </Button>
-            )}
           </div>
         </div>
 
@@ -389,18 +380,6 @@ export default function TeacherProfile() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Teacher Payroll Report</DialogTitle>
-            <DialogDescription>
-              {teacher.name} ({teacher.subject})
-            </DialogDescription>
-          </DialogHeader>
-          <TeacherReport teacherId={id!} />
-        </DialogContent>
-      </Dialog>
-
       {receiptData && (
         <TeacherPaymentReceipt
           voucherId={receiptData.voucherId}
@@ -417,179 +396,3 @@ export default function TeacherProfile() {
     </DashboardLayout>
   );
 }
-
-const TeacherReport = ({ teacherId }: { teacherId: string }) => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["teacher-report", teacherId],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/payroll/teacher-report/${teacherId}`,
-        {
-          credentials: "include",
-        },
-      );
-      if (!res.ok) throw new Error("Failed to load report");
-      return res.json();
-    },
-    enabled: !!teacherId,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="py-6">
-        <Skeleton className="h-6 w-1/3 mb-4" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
-
-  const report = data?.data;
-  if (!report) return null;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Payable Balance</p>
-          <p className="text-xl font-bold text-emerald-600">
-            Rs. {report.balances.payable.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Paid This Session</p>
-          <p className="text-xl font-bold text-blue-600">
-            Rs. {report.payouts.totalPaidSession.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Session</p>
-          <p className="text-sm font-medium">
-            {report.session?.sessionName || "No active session"}
-          </p>
-        </div>
-      </div>
-
-      {report.teacher.compensation?.type === "percentage" ? (
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Teacher Share (Session)</p>
-          <p className="text-lg font-semibold text-emerald-700">
-            Rs. {report.incomeTotals.teacherShare.toLocaleString()}
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Fixed Salary (Session)</p>
-          <p className="text-lg font-semibold text-emerald-700">
-            Rs. {report.fixedSalaryAccrual?.amount?.toLocaleString() || 0}
-          </p>
-        </div>
-      )}
-
-      <div className="rounded-lg border p-4">
-        <p className="text-sm text-muted-foreground">Classes & Students</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Total Classes</p>
-            <p className="text-lg font-semibold">
-              {report.classSummary?.totalClasses || 0}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Total Students</p>
-            <p className="text-lg font-semibold">
-              {report.classSummary?.totalStudents || 0}
-            </p>
-          </div>
-        </div>
-        {report.classes?.length ? (
-          <div className="mt-4 space-y-2">
-            {report.classes.map((c: any) => (
-              <div
-                key={c._id}
-                className="flex items-center justify-between text-sm border-b pb-2"
-              >
-                <div>
-                  <p className="font-medium">{c.classTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.group || "—"} {c.shift ? `• ${c.shift}` : ""}
-                  </p>
-                </div>
-                <div className="font-semibold">{c.studentCount || 0}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground mt-3">
-            No classes linked to this teacher for the active session.
-          </p>
-        )}
-      </div>
-
-      {report.teacher.compensation?.type === "percentage" && (
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Revenue by Class</p>
-          {report.classRevenueBreakdown?.length ? (
-            <div className="mt-3 space-y-2">
-              {report.classRevenueBreakdown.map((row: any) => (
-                <div
-                  key={row.classId || row.classTitle}
-                  className="flex items-center justify-between text-sm border-b pb-2"
-                >
-                  <div>
-                    <p className="font-medium">{row.classTitle || "Unknown"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Teacher: Rs. {row.teacherShare.toLocaleString()} • Academy: Rs. {row.academyShare.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="font-semibold">
-                    Rs. {row.totalRevenue.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-3">
-              No revenue transactions yet for this session.
-            </p>
-          )}
-        </div>
-      )}
-
-      {report.teacher.compensation?.type === "percentage" && report.incomeTransactions?.length > 0 && (
-        <div className="rounded-lg border p-4">
-          <p className="text-sm font-medium mb-3">
-            Student Fee Breakdown ({report.incomeTransactions.length} transactions)
-          </p>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {report.incomeTransactions.slice(0, 20).map((tx: any) => (
-              <div
-                key={tx._id}
-                className="flex items-center justify-between text-sm border-b pb-2"
-              >
-                <div>
-                  <p className="font-medium">{tx.studentName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tx.studentClass} • {new Date(tx.date).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-emerald-700">
-                    Rs. {tx.teacherShare.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    of Rs. {tx.amount.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          {report.incomeTransactions.length > 20 && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Showing first 20 of {report.incomeTransactions.length} fees
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};

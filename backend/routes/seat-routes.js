@@ -9,11 +9,12 @@ const {
     toggleReservation,
 } = require('../controllers/seat-controller');
 const { protect } = require('../middleware/authMiddleware');
+const { protectStudent } = require('../middleware/auth');
 
-// Student Routes
-router.get('/:classId/:sessionId', getAvailableSeats);
-router.post('/book', bookSeat);
-router.post('/release', releaseSeat);
+// Student Routes (Protected with student JWT)
+router.get('/:classId/:sessionId', protectStudent, getAvailableSeats);
+router.post('/book', protectStudent, bookSeat);
+router.post('/release', protectStudent, releaseSeat);
 
 // Admin Routes (Protected)
 router.get('/admin/:classId/:sessionId', protect, getAllSeatsAdmin);

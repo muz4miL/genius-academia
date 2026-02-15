@@ -13,11 +13,7 @@ const Class = require('../models/Class');
 const getAvailableSeats = async (req, res) => {
     try {
         const { classId, sessionId } = req.params;
-        const studentId = req.headers['x-student-id'] || (req.user && req.user.id);
-
-        if (!studentId) {
-            return res.status(401).json({ message: "Student ID required" });
-        }
+        const studentId = req.student._id;
 
         // Get student gender and seat change count
         const student = await Student.findById(studentId).select('gender seatChangeCount');
@@ -61,11 +57,7 @@ const getAvailableSeats = async (req, res) => {
 const bookSeat = async (req, res) => {
     try {
         const { seatId } = req.body;
-        const studentId = req.headers['x-student-id'] || (req.user && req.user.id);
-
-        if (!studentId) {
-            return res.status(401).json({ message: "Student ID required" });
-        }
+        const studentId = req.student._id;
 
         // Security: Extract student from DB
         const student = await Student.findById(studentId).select('gender sclassName studentName seatNumber seatChangeCount');
@@ -158,11 +150,7 @@ const bookSeat = async (req, res) => {
 const releaseSeat = async (req, res) => {
     try {
         const { seatId } = req.body;
-        const studentId = req.headers['x-student-id'] || (req.user && req.user.id);
-
-        if (!studentId) {
-            return res.status(401).json({ message: "Student ID required" });
-        }
+        const studentId = req.student._id;
 
         // Get student to check change limit
         const student = await Student.findById(studentId);
