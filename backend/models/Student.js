@@ -226,6 +226,12 @@ const studentSchema = new mongoose.Schema(
       trim: true,
       // Format: R-001 (Right Wing / Male), L-001 (Left Wing / Female)
     },
+    // Track seat changes for limiting (max 2 changes allowed)
+    seatChangeCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -363,16 +369,15 @@ studentSchema.pre("save", async function () {
 // ========================================
 // MIDDLEWARE: Hash password before saving
 // ========================================
-studentSchema.pre('save', async function (next) {
+studentSchema.pre('save', async function () {
   // Only hash password if it has been modified (or is new)
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
   
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
   } catch (error) {
-    next(error);
+    throw error;
   }
 });
 

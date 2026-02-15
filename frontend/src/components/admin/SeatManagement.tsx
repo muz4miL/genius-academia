@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,8 @@ export default function SeatManagement({
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [reservationReason, setReservationReason] = useState("");
+  const [vacateReason, setVacateReason] = useState("");
 
   const fetchSeats = useCallback(async () => {
     try {
@@ -57,18 +61,21 @@ export default function SeatManagement({
 
   const handleSeatClick = (seat: Seat) => {
     setSelectedSeat(seat);
+    setReservationReason(""); // Clear previous reason
+    setVacateReason(""); // Clear previous vacate reason
     setActionMenuOpen(true);
   };
 
   const handleVacate = async () => {
     if (!selectedSeat) return;
-    const reason = prompt("Reason for vacating seat:");
-    if (!reason) return;
+    const reason = vacateReason || "Vacated by admin";
+    
     try {
       setProcessing(true);
-      await seatService.vacateSeat(selectedSeat._id, reason, adminId);
+      await seatService.vacateSeat(selectedSeat._id, reason);
       toast.success("Seat vacated successfully");
       setActionMenuOpen(false);
+      setVacateReason("");
       await fetchSeats();
     } catch (error: any) {
       toast.error(error.message);
@@ -81,9 +88,9 @@ export default function SeatManagement({
     if (!selectedSeat) return;
     const newReserved = !selectedSeat.isReserved;
     const reason = newReserved
-      ? prompt("Reason for reservation:")
+      ? (reservationReason || "Reserved by admin")
       : "Unreserved by admin";
-    if (newReserved && !reason) return;
+    
     try {
       setProcessing(true);
       await seatService.toggleReservation(
@@ -93,6 +100,7 @@ export default function SeatManagement({
       );
       toast.success(newReserved ? "Seat reserved" : "Reservation removed");
       setActionMenuOpen(false);
+      setReservationReason("");
       await fetchSeats();
     } catch (error: any) {
       toast.error(error.message);
@@ -324,38 +332,68 @@ export default function SeatManagement({
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {selectedSeat.isTaken && (
-                  <Button
-                    variant="destructive"
-                    onClick={handleVacate}
-                    disabled={processing}
-                  >
-                    {processing ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <UserX className="h-4 w-4 mr-2" />
-                    )}
-                    Vacate Seat
-                  </Button>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="vacateReason" className="text-sm font-medium">
+                        Reason for Vacating <span className="text-muted-foreground text-xs">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="vacateReason"
+                        placeholder="e.g., Student withdrew, Reassignment..."
+                        value={vacateReason}
+                        onChange={(e) => setVacateReason(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={handleVacate}
+                      disabled={processing}
+                    >
+                      {processing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserX className="h-4 w-4 mr-2" />
+                      )}
+                      Vacate Seat
+                    </Button>
+                  </>
                 )}
                 {!selectedSeat.isTaken && (
-                  <Button
-                    variant={selectedSeat.isReserved ? "outline" : "default"}
-                    onClick={handleToggleReservation}
-                    disabled={processing}
-                  >
-                    {processing ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : selectedSeat.isReserved ? (
-                      <Unlock className="h-4 w-4 mr-2" />
-                    ) : (
-                      <Lock className="h-4 w-4 mr-2" />
+                  <>
+                    {!selectedSeat.isReserved && (
+                      <div className="space-y-2">
+                        <Label htmlFor="reservationReason" className="text-sm font-medium">
+                          Reservation Reason <span className="text-muted-foreground text-xs">(Optional)</span>
+                        </Label>
+                        <Input
+                          id="reservationReason"
+                          placeholder="e.g., VIP guest, Special needs..."
+                          value={reservationReason}
+                          onChange={(e) => setReservationReason(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
                     )}
-                    {selectedSeat.isReserved
-                      ? "Remove Reservation"
-                      : "Mark as Reserved"}
-                  </Button>
+                    <Button
+                      variant={selectedSeat.isReserved ? "outline" : "default"}
+                      onClick={handleToggleReservation}
+                      disabled={processing}
+                    >
+                      {processing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : selectedSeat.isReserved ? (
+                        <Unlock className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Lock className="h-4 w-4 mr-2" />
+                      )}
+                      {selectedSeat.isReserved
+                        ? "Remove Reservation"
+                        : "Mark as Reserved"}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

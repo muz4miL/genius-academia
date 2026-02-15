@@ -19,8 +19,8 @@ const getAvailableSeats = async (req, res) => {
             return res.status(401).json({ message: "Student ID required" });
         }
 
-        // Get student gender
-        const student = await Student.findById(studentId).select('gender');
+        // Get student gender and seat change count
+        const student = await Student.findById(studentId).select('gender seatChangeCount');
         if (!student) {
             return res.status(404).json({ message: "Student not found" });
         }
@@ -44,7 +44,12 @@ const getAvailableSeats = async (req, res) => {
             return sObj;
         });
 
-        res.status(200).json({ seats: mappedSeats, allowedSide, studentGender: student.gender });
+        res.status(200).json({ 
+            seats: mappedSeats, 
+            allowedSide, 
+            studentGender: student.gender,
+            seatChangeCount: student.seatChangeCount || 0,
+        });
     } catch (err) {
         res.status(500).json({ message: "Error fetching seats", error: err.message });
     }
@@ -63,15 +68,15 @@ const bookSeat = async (req, res) => {
         }
 
         // Security: Extract student from DB
-        const student = await Student.findById(studentId).select('gender sclassName studentName seatNumber');
+        const student = await Student.findById(studentId).select('gender sclassName studentName seatNumber seatChangeCount');
         if (!student) {
             return res.status(404).json({ message: "Student not found" });
         }
 
-        // CRITICAL: One-time selection enforcement
+        // ENFORCE: Student must release current seat before booking a new one
         if (student.seatNumber) {
-            return res.status(403).json({
-                message: "You have already selected a seat. Contact admin to change.",
+            return res.status(400).json({
+                message: "Please release your current seat before selecting a new one",
                 currentSeat: student.seatNumber,
             });
         }
@@ -97,21 +102,7 @@ const bookSeat = async (req, res) => {
             });
         }
 
-        // Unbook any previous seat for this student in the same session
-        await Seat.updateMany(
-            { student: studentId, session: seat.session },
-            {
-                $set: { isTaken: false, student: null, bookedAt: null },
-                $push: {
-                    history: {
-                        action: 'released',
-                        performedBy: studentId,
-                        performedByModel: 'student',
-                        notes: 'Auto-released due to new booking',
-                    },
-                },
-            }
-        );
+        // Note: No auto-release needed - students must explicitly release first
 
         const studentDisplayName = student.studentName || 'Student';
 
@@ -155,12 +146,14 @@ const bookSeat = async (req, res) => {
             seatLabel: bookedSeat.seatLabel,
         });
     } catch (err) {
+        console.error('❌ Error booking seat:', err);
+        console.error('Stack:', err.stack);
         res.status(500).json({ message: "Error booking seat", error: err.message });
     }
 };
 
 /**
- * Release Seat - With History
+ * Release Seat - With History & Change Limit
  */
 const releaseSeat = async (req, res) => {
     try {
@@ -169,6 +162,22 @@ const releaseSeat = async (req, res) => {
 
         if (!studentId) {
             return res.status(401).json({ message: "Student ID required" });
+        }
+
+        // Get student to check change limit
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        // Check seat change limit (max 2 changes allowed)
+        const maxChanges = 2;
+        if (student.seatChangeCount >= maxChanges) {
+            return res.status(403).json({
+                message: `Maximum ${maxChanges} seat changes allowed. Please contact admin to change your seat.`,
+                changeCount: student.seatChangeCount,
+                maxChanges,
+            });
         }
 
         // Find and release seat only if it belongs to the student
@@ -194,12 +203,19 @@ const releaseSeat = async (req, res) => {
             return res.status(404).json({ message: "Seat not found or not booked by you" });
         }
 
-        // Clear seatNumber from student record
+        // Increment seat change counter and clear seatNumber
         await Student.findByIdAndUpdate(studentId, {
             $unset: { seatNumber: 1 },
+            $inc: { seatChangeCount: 1 },
         });
 
-        res.status(200).json({ message: "Seat released successfully", seat });
+        const remainingChanges = maxChanges - (student.seatChangeCount + 1);
+        res.status(200).json({
+            message: "Seat released successfully",
+            seat,
+            changeCount: student.seatChangeCount + 1,
+            remainingChanges,
+        });
     } catch (err) {
         res.status(500).json({ message: "Error releasing seat", error: err.message });
     }
@@ -346,7 +362,8 @@ const getAllSeatsAdmin = async (req, res) => {
 const vacateSeat = async (req, res) => {
     try {
         const { seatId } = req.params;
-        const { reason, adminId } = req.body;
+        const { reason } = req.body;
+        const adminId = req.user?._id; // Use authenticated user's ID
 
         const seat = await Seat.findById(seatId).populate('student', 'studentName');
 
@@ -386,6 +403,7 @@ const vacateSeat = async (req, res) => {
             seat,
         });
     } catch (err) {
+        console.error('❌ Error vacating seat:', err);
         res.status(500).json({ message: "Error vacating seat", error: err.message });
     }
 };

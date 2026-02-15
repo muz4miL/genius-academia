@@ -42,6 +42,8 @@ export default function SeatGrid({
   const [zoom, setZoom] = useState(1);
   const [showLegend, setShowLegend] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [seatChangeCount, setSeatChangeCount] = useState(0);
+  const [maxChanges] = useState(2);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Fetch seats
@@ -56,6 +58,11 @@ export default function SeatGrid({
       setSeats(data.seats);
       setAllowedSide(data.allowedSide);
       setStudentGender(data.studentGender);
+      
+      // Update seat change count if provided
+      if (data.seatChangeCount !== undefined) {
+        setSeatChangeCount(data.seatChangeCount);
+      }
 
       // Find if student already has a booked seat
       const myBookedSeat = data.seats.find(
@@ -81,6 +88,14 @@ export default function SeatGrid({
 
   // Handle seat selection
   const handleSeatClick = (seat: Seat) => {
+    // Block seat selection if student already has a booked seat
+    if (bookedSeat && bookedSeat._id !== seat._id) {
+      toast.warning("Please release your current seat before selecting a new one", {
+        duration: 4000,
+      });
+      return;
+    }
+    
     if (bookedSeat && bookedSeat._id === seat._id) {
       toast.info("This is your current seat");
       return;
@@ -96,8 +111,10 @@ export default function SeatGrid({
       return;
     }
     if (seat.side !== allowedSide && seat.wing !== allowedSide) {
+      const wingName = allowedSide === "Left" ? "Girls Wing (Left)" : "Boys Wing (Right)";
       toast.error(
-        `${studentGender} students can only select ${allowedSide} side seats`
+        `🚫 This seat is in the ${seat.side === "Left" ? "Girls" : "Boys"} Wing. You can only select seats in the ${wingName}.`,
+        { duration: 4000 }
       );
       return;
     }
@@ -120,7 +137,12 @@ export default function SeatGrid({
       await fetchSeats();
       if (onSeatBooked) onSeatBooked(response.seat);
     } catch (error: any) {
-      if (
+      // Revert optimistic updates on error
+      setSelectedSeat(null);
+      
+      if (error.message.includes("release your current seat") || error.message.includes("400")) {
+        toast.error("Please release your current seat first before selecting a new one", { duration: 5000 });
+      } else if (
         error.message.includes("already taken") ||
         error.message.includes("409")
       ) {
@@ -138,6 +160,7 @@ export default function SeatGrid({
       await fetchSeats();
     } finally {
       setBookingInProgress(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -146,14 +169,28 @@ export default function SeatGrid({
     if (!bookedSeat) return;
     try {
       setBookingInProgress(true);
-      await seatService.releaseSeat(bookedSeat._id, studentId);
-      toast.success("Seat released successfully!");
+      const response = await seatService.releaseSeat(bookedSeat._id, studentId);
+      
+      // Update change count from response
+      if (response.changeCount !== undefined) {
+        setSeatChangeCount(response.changeCount);
+      }
+      
+      const remainingChanges = response.remainingChanges ?? (maxChanges - (response.changeCount || 0));
+      toast.success(
+        `Seat released! ${remainingChanges > 0 ? `${remainingChanges} change${remainingChanges === 1 ? '' : 's'} remaining` : 'No more changes allowed'}`
+      );
+      
       setBookedSeat(null);
       setSelectedSeat(null);
       await fetchSeats();
       if (onSeatReleased) onSeatReleased();
     } catch (error: any) {
-      toast.error(error.message || "Failed to release seat");
+      if (error.message.includes("Maximum") || error.message.includes("403")) {
+        toast.error(error.message || "Seat change limit reached. Contact admin.");
+      } else {
+        toast.error(error.message || "Failed to release seat");
+      }
     } finally {
       setBookingInProgress(false);
     }
@@ -281,40 +318,43 @@ export default function SeatGrid({
       </div>
 
       {/* ── Zoom Controls (Mobile) ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <button
           onClick={() => setShowLegend(!showLegend)}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-1 text-xs sm:text-sm text-slate-400 hover:text-slate-200 transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-800/40"
         >
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
           Legend
           {showLegend ? (
-            <ChevronUp className="h-3 w-3" />
+            <ChevronUp className="h-3.5 w-3.5" />
           ) : (
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3.5 w-3.5" />
           )}
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setZoom(Math.max(0.6, zoom - 0.1))}
-            className="p-1.5 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors"
+            className="p-2 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors active:scale-95"
+            aria-label="Zoom out"
           >
-            <ZoomOut className="h-3.5 w-3.5" />
+            <ZoomOut className="h-4 w-4" />
           </button>
-          <span className="text-[10px] text-slate-500 w-8 text-center">
+          <span className="text-xs text-slate-500 w-10 text-center font-medium">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-            className="p-1.5 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors"
+            className="p-2 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors active:scale-95"
+            aria-label="Zoom in"
           >
-            <ZoomIn className="h-3.5 w-3.5" />
+            <ZoomIn className="h-4 w-4" />
           </button>
           <button
             onClick={() => setZoom(1)}
-            className="p-1.5 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors"
+            className="p-2 rounded-lg bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/50 transition-colors active:scale-95"
+            aria-label="Reset zoom"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -355,11 +395,11 @@ export default function SeatGrid({
       {/* ── Seat Grid (Scrollable & Zoomable) ── */}
       <div
         ref={gridRef}
-        className="overflow-x-auto overflow-y-auto pb-2 -mx-2 px-2"
+        className="overflow-x-auto overflow-y-auto pb-3 -mx-2 px-2 sm:pb-4"
         style={{ WebkitOverflowScrolling: "touch" as any }}
       >
         <div
-          className="min-w-fit mx-auto transition-transform duration-200"
+          className="min-w-fit mx-auto transition-transform duration-200 ease-out"
           style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
         >
           {Object.keys(seatsByRow)
@@ -379,15 +419,15 @@ export default function SeatGrid({
               return (
                 <div
                   key={rowKey}
-                  className="flex items-center gap-0.5 sm:gap-1 justify-center mb-1 sm:mb-1.5"
+                  className="flex items-center gap-1 sm:gap-1.5 justify-center mb-1.5 sm:mb-2"
                 >
                   {/* Row Label */}
-                  <div className="w-5 sm:w-7 h-7 sm:h-9 flex items-center justify-center font-bold text-[9px] sm:text-xs text-amber-500/70 shrink-0">
+                  <div className="w-6 sm:w-7 h-9 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-amber-500/70 shrink-0">
                     {getRowLabel(rowNum)}
                   </div>
 
                   {/* Left Wing Seats */}
-                  <div className="flex gap-[2px] sm:gap-1">
+                  <div className="flex gap-0.5 sm:gap-1">
                     {leftSeats.map((seat) => (
                       <SeatButton
                         key={seat._id}
@@ -395,6 +435,7 @@ export default function SeatGrid({
                         getSeatColor={getSeatColor}
                         onClick={() => handleSeatClick(seat)}
                         isDisabled={
+                          (bookedSeat && bookedSeat._id !== seat._id) || // Disable all others if student has booked seat
                           (seat.isTaken && seat.student?._id !== studentId) ||
                           seat.isReserved ||
                           (seat.side !== allowedSide &&
@@ -407,10 +448,10 @@ export default function SeatGrid({
                   </div>
 
                   {/* Aisle */}
-                  <div className="w-2 sm:w-4 shrink-0" />
+                  <div className="w-3 sm:w-4 shrink-0" />
 
                   {/* Right Wing Seats */}
-                  <div className="flex gap-[2px] sm:gap-1">
+                  <div className="flex gap-0.5 sm:gap-1">
                     {rightSeats.map((seat) => (
                       <SeatButton
                         key={seat._id}
@@ -418,6 +459,7 @@ export default function SeatGrid({
                         getSeatColor={getSeatColor}
                         onClick={() => handleSeatClick(seat)}
                         isDisabled={
+                          (bookedSeat && bookedSeat._id !== seat._id) || // Disable all others if student has booked seat
                           (seat.isTaken && seat.student?._id !== studentId) ||
                           seat.isReserved ||
                           (seat.side !== allowedSide &&
@@ -430,7 +472,7 @@ export default function SeatGrid({
                   </div>
 
                   {/* Row Label (right side) */}
-                  <div className="w-5 sm:w-7 h-7 sm:h-9 flex items-center justify-center font-bold text-[9px] sm:text-xs text-amber-500/70 shrink-0">
+                  <div className="w-6 sm:w-7 h-9 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-amber-500/70 shrink-0">
                     {getRowLabel(rowNum)}
                   </div>
                 </div>
@@ -506,16 +548,18 @@ export default function SeatGrid({
                   </div>
                 </div>
 
-                {/* Warning */}
+                {/* Change Limit Warning */}
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300/90">
-                  ⚠️ This is a <strong>one-time</strong> selection. You cannot
-                  change your seat later. Contact admin if you need to change.
+                  ⚠️ You can change your seat up to <strong>{maxChanges} times</strong>.
+                  {seatChangeCount >= maxChanges 
+                    ? " Limit reached! Contact admin for changes."
+                    : ` (${maxChanges - seatChangeCount} change${maxChanges - seatChangeCount === 1 ? '' : 's'} remaining)`}
                 </div>
 
-                <div className="flex gap-3 pt-1">
+                <div className="flex flex-col sm:flex-row gap-3 pt-1">
                   <Button
                     variant="outline"
-                    className="flex-1 h-12 border-slate-600 text-slate-300 hover:bg-slate-700"
+                    className="flex-1 h-11 sm:h-12 border-slate-600 text-slate-300 hover:bg-slate-700 text-sm sm:text-base"
                     onClick={() => {
                       setConfirmOpen(false);
                       setSelectedSeat(null);
@@ -525,7 +569,7 @@ export default function SeatGrid({
                     Cancel
                   </Button>
                   <Button
-                    className="flex-1 h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-900/40"
+                    className="flex-1 h-11 sm:h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-900/40 text-sm sm:text-base"
                     onClick={handleBookSeat}
                     disabled={bookingInProgress}
                   >
@@ -537,7 +581,7 @@ export default function SeatGrid({
                     ) : (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Confirm
+                        Confirm Booking
                       </>
                     )}
                   </Button>
@@ -572,14 +616,25 @@ export default function SeatGrid({
                     ? "Girls Wing"
                     : "Boys Wing"}
                 </p>
+                {seatChangeCount < maxChanges && (
+                  <p className="text-[11px] text-emerald-400 mt-0.5">
+                    {maxChanges - seatChangeCount} change{maxChanges - seatChangeCount === 1 ? '' : 's'} remaining
+                  </p>
+                )}
+                {seatChangeCount >= maxChanges && (
+                  <p className="text-[11px] text-red-400 mt-0.5">
+                    No changes left • Contact admin
+                  </p>
+                )}
               </div>
             </div>
             <Button
               onClick={handleReleaseSeat}
-              disabled={bookingInProgress}
+              disabled={bookingInProgress || seatChangeCount >= maxChanges}
               variant="destructive"
               size="sm"
-              className="bg-red-600/80 hover:bg-red-600 text-white w-full sm:w-auto"
+              className="bg-red-600/80 hover:bg-red-600 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+              title={seatChangeCount >= maxChanges ? "Change limit reached. Contact admin." : "Release your current seat"}
             >
               {bookingInProgress ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -618,16 +673,18 @@ function SeatButton({
       onClick={onClick}
       disabled={isDisabled}
       className={cn(
-        // Mobile-first: small touch targets that scale up
-        "w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10",
-        "rounded-md sm:rounded-lg",
+        // Mobile-first: larger touch targets (44px min on iOS)
+        "w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11",
+        "rounded-lg",
         "border",
-        "font-semibold",
-        "text-[8px] sm:text-[10px] md:text-xs",
+        "font-bold",
+        "text-[9px] sm:text-[10px] md:text-xs",
         "flex items-center justify-center",
         "select-none touch-manipulation",
         "transition-all duration-150",
-        "shadow-sm",
+        "shadow-sm hover:shadow-md",
+        // Better visual feedback on mobile
+        "active:brightness-90",
         getSeatColor(seat)
       )}
       title={

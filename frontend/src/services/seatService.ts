@@ -49,6 +49,7 @@ export interface GetSeatsResponse {
   seats: Seat[];
   allowedSide: 'Left' | 'Right';
   studentGender: 'Male' | 'Female';
+  seatChangeCount?: number;
 }
 
 export interface BookSeatRequest {
@@ -118,7 +119,12 @@ export const seatService = {
   },
 
   // Release a seat
-  releaseSeat: async (seatId: string, studentId: string): Promise<{ message: string; seat: Seat }> => {
+  releaseSeat: async (seatId: string, studentId: string): Promise<{ 
+    message: string; 
+    seat: Seat;
+    changeCount?: number;
+    remainingChanges?: number;
+  }> => {
     const response = await fetch(`${API_BASE_URL}/seats/release`, {
       method: 'POST',
       headers: {
@@ -175,12 +181,12 @@ export const seatService = {
   },
 
   // Admin: Vacate seat
-  vacateSeat: async (seatId: string, reason: string, adminId: string): Promise<{ message: string; seat: Seat }> => {
+  vacateSeat: async (seatId: string, reason: string): Promise<{ message: string; seat: Seat }> => {
     const response = await fetch(`${API_BASE_URL}/seats/vacate/${seatId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ reason, adminId }),
+      body: JSON.stringify({ reason }),
     });
 
     const data = await response.json();
