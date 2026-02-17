@@ -164,7 +164,7 @@ const Teachers = () => {
     }
     try {
       setIsResettingPassword(true);
-      const username = `teacher.${credentialTeacher.subject || "staff"}`;
+      const username = credentialTeacher.username;
       const res = await fetch(`http://localhost:5000/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,7 +188,7 @@ const Teachers = () => {
 
   const handlePrintLoginSlip = () => {
     if (!credentialTeacher) return;
-    const username = `teacher.${credentialTeacher.subject || "staff"}`;
+    const username = credentialTeacher.username || "N/A";
     const slipWindow = window.open("", "_blank", "width=400,height=500");
     if (slipWindow) {
       slipWindow.document.write(`
@@ -578,7 +578,7 @@ const Teachers = () => {
               </Label>
               <div className="flex">
                 <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg font-mono text-sm text-gray-700">
-                  {`teacher.${credentialTeacher?.subject || "staff"}`}
+                  {credentialTeacher?.username || "N/A"}
                 </div>
                 <Button
                   size="sm"
@@ -586,7 +586,7 @@ const Teachers = () => {
                   className="rounded-l-none border border-l-0 border-gray-200 h-auto"
                   onClick={() =>
                     copyCredential(
-                      `teacher.${credentialTeacher?.subject || "staff"}`,
+                      credentialTeacher?.username || "",
                       "username",
                     )
                   }

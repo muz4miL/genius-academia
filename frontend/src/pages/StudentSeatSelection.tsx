@@ -1,6 +1,6 @@
 /**
  * Student Seat Selection Page
- * Luxury Cinema-Style Seat Booking Interface
+ * Mobile-First Cinema-Style Seat Booking Interface
  */
 
 import { useState, useEffect } from "react";
@@ -12,25 +12,23 @@ import {
   User,
   GraduationCap,
   Calendar,
-  Users,
   ArrowLeft,
-  Info,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SeatGrid from "@/components/student/SeatGrid";
 import { Seat } from "@/services/seatService";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
 interface StudentInfo {
   _id: string;
   name: string;
   studentId: string;
-  gender: 'Male' | 'Female';
+  gender: "Male" | "Female";
   class: string;
+  classId?: string;
   section?: string;
+  seatNumber?: string;
   session?: {
     _id: string;
     name: string;
@@ -41,27 +39,37 @@ export default function StudentSeatSelection() {
   const navigate = useNavigate();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bookedSeatLabel, setBookedSeatLabel] = useState<string | null>(null);
 
-  // For demo purposes, we'll use hardcoded student info
-  // In production, this would come from auth context or API
   useEffect(() => {
-    // Simulating student data fetch
-    // In real implementation, this would use useAuth() hook or fetch from API
-    // NOTE: classId should be a MongoDB ObjectId in production, not a class name
-    // This mock data is for demonstration purposes only
+    // Try to get student info from localStorage
+    const storedStudent = localStorage.getItem("studentInfo");
+    if (storedStudent) {
+      try {
+        const parsed = JSON.parse(storedStudent);
+        setStudentInfo(parsed);
+        if (parsed.seatNumber) {
+          setBookedSeatLabel(parsed.seatNumber);
+        }
+        setLoading(false);
+        return;
+      } catch {
+        // fall through to mock
+      }
+    }
+
+    // Fallback: mock for demo
     const mockStudent: StudentInfo = {
-      _id: "675e55fc5aa09e3a5c51adef", // Example student ID
+      _id: "675e55fc5aa09e3a5c51adef",
       name: "Muhammad Muzammil",
       studentId: "STU-2024-001",
       gender: "Male",
-      class: "10th Grade", // In production, use actual class ObjectId
-      section: "A",
+      class: "10th Grade",
       session: {
-        _id: "675e3bb75aa09e3a5c51adb3", // Example session ID
+        _id: "675e3bb75aa09e3a5c51adb3",
         name: "2024-2025",
       },
     };
-
     setTimeout(() => {
       setStudentInfo(mockStudent);
       setLoading(false);
@@ -69,153 +77,133 @@ export default function StudentSeatSelection() {
   }, []);
 
   const handleSeatBooked = (seat: Seat) => {
-    console.log("Seat booked:", seat);
+    setBookedSeatLabel(seat.seatLabel || `Seat-${seat.seatNumber}`);
+    // Update localStorage
+    if (studentInfo) {
+      const updated = {
+        ...studentInfo,
+        seatNumber: seat.seatLabel || `Seat-${seat.seatNumber}`,
+      };
+      localStorage.setItem("studentInfo", JSON.stringify(updated));
+    }
   };
 
   const handleSeatReleased = () => {
-    console.log("Seat released");
+    setBookedSeatLabel(null);
+    if (studentInfo) {
+      const updated = { ...studentInfo, seatNumber: undefined };
+      localStorage.setItem("studentInfo", JSON.stringify(updated));
+    }
   };
 
   if (loading || !studentInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-amber-500 text-xl">Loading...</div>
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="h-8 w-8 text-amber-500 animate-spin" />
+          <p className="text-slate-400 text-sm">Loading your profile...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      {/* ── Safe area padding on mobile ── */}
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 space-y-3 sm:space-y-5">
+        {/* ── Header ── */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <div>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button
               variant="ghost"
+              size="icon"
               onClick={() => navigate("/student-portal")}
-              className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 mb-4"
+              className="text-slate-400 hover:text-white shrink-0 h-8 w-8 sm:h-9 sm:w-9"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Portal
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
-              🪑 Book Your Seat
-            </h1>
-            <p className="text-slate-400 mt-2">
-              Select your preferred seat from the available options
-            </p>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent truncate">
+                Seat Selection
+              </h1>
+              <p className="text-[10px] sm:text-xs text-slate-500 hidden sm:block">
+                Choose your permanent classroom seat
+              </p>
+            </div>
           </div>
+
+          {/* Student Badge (compact on mobile) */}
+          <Badge
+            variant="outline"
+            className={cn(
+              "shrink-0 text-[10px] sm:text-xs px-2 py-1",
+              studentInfo.gender === "Male"
+                ? "border-blue-500/40 text-blue-300 bg-blue-500/10"
+                : "border-pink-500/40 text-pink-300 bg-pink-500/10"
+            )}
+          >
+            {studentInfo.gender === "Male" ? "👦" : "👧"}{" "}
+            <span className="hidden sm:inline">{studentInfo.gender} • </span>
+            {studentInfo.gender === "Male" ? "Right" : "Left"} Wing
+          </Badge>
         </motion.div>
 
-        {/* Student Info Card */}
+        {/* ── Student Info Card (Compact Mobile) ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50 border-amber-500/20 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-400">
-                <User className="h-5 w-5" />
-                Student Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Name</p>
-                  <p className="text-lg font-semibold text-slate-200">
+          <Card className="bg-slate-800/30 border-slate-700/40 backdrop-blur-sm">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 sm:gap-x-6 sm:gap-y-2 text-xs sm:text-sm">
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 shrink-0" />
+                  <span className="truncate max-w-[120px] sm:max-w-none">
                     {studentInfo.name}
-                  </p>
+                  </span>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Class & Section</p>
-                  <p className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-amber-500" />
-                    {studentInfo.class} {studentInfo.section}
-                  </p>
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 shrink-0" />
+                  {studentInfo.class}
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Session</p>
-                  <p className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-amber-500" />
-                    {studentInfo.session?.name || "2024-2025"}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Gender Zone</p>
-                  <Badge
-                    className={cn(
-                      "text-sm",
-                      studentInfo.gender === "Male"
-                        ? "bg-blue-500/20 text-blue-300 border-blue-500/50"
-                        : "bg-pink-500/20 text-pink-300 border-pink-500/50"
-                    )}
-                  >
-                    <Users className="h-3 w-3 mr-1" />
-                    {studentInfo.gender === "Male" ? "Right Side" : "Left Side"}
-                  </Badge>
-                </div>
+                {studentInfo.session && (
+                  <div className="flex items-center gap-1.5 text-slate-300">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 shrink-0" />
+                    {studentInfo.session.name}
+                  </div>
+                )}
+                {bookedSeatLabel && (
+                  <div className="flex items-center gap-1.5 text-blue-300 font-semibold">
+                    <span className="text-blue-400 shrink-0">🪑</span>
+                    Seat: {bookedSeatLabel}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Instructions Panel */}
+        {/* ── Seat Grid Card ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="bg-gradient-to-br from-amber-900/20 via-amber-800/10 to-amber-900/20 border-amber-500/30 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-400 text-lg">
-                <Info className="h-5 w-5" />
-                Seating Instructions
+          <Card className="bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50 border-amber-500/20 backdrop-blur-sm overflow-hidden">
+            <CardHeader className="py-3 sm:py-4 px-3 sm:px-6">
+              <CardTitle className="text-center text-base sm:text-xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
+                🪑 Select Your Seat
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm text-slate-300">
-              <p>
-                ✅ <strong>Step 1:</strong> Select your preferred seat from the
-                {" "}
-                <span className={studentInfo.gender === "Male" ? "text-blue-400" : "text-pink-400"}>
-                  {studentInfo.gender === "Male" ? "RIGHT" : "LEFT"}
-                </span>
-                {" "}side (gender-based zone)
-              </p>
-              <p>
-                ✅ <strong>Step 2:</strong> Click on an available (green) seat
-              </p>
-              <p>
-                ✅ <strong>Step 3:</strong> Confirm your selection by clicking "Book My Seat"
-              </p>
-              <p className="text-amber-400/80">
-                ℹ️ Seats are assigned based on gender policy for student safety and comfort
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Seat Grid Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50 border-amber-500/20 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-center text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
-                Select Your Seat
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
               {studentInfo.session?._id ? (
                 <SeatGrid
-                  classId={studentInfo.class} // Using class name as ID for demo
+                  classId={studentInfo.classId || studentInfo.class}
                   sessionId={studentInfo.session._id}
                   studentId={studentInfo._id}
                   onSeatBooked={handleSeatBooked}
@@ -224,12 +212,26 @@ export default function StudentSeatSelection() {
               ) : (
                 <div className="text-center text-slate-400 py-12">
                   <p>Session information not available</p>
-                  <p className="text-sm mt-2">Please contact administration</p>
+                  <p className="text-sm mt-2">
+                    Please contact administration
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* ── Help Text (Mobile) ── */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-center text-[10px] sm:text-xs text-slate-600 pb-4"
+        >
+          Tap a green seat to select • Use +/- to zoom •{" "}
+          <span className="text-amber-500/60">Scroll horizontally</span> if
+          needed
+        </motion.p>
       </div>
     </div>
   );

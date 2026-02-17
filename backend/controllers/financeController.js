@@ -112,7 +112,31 @@ exports.getDashboardStats = async (req, res) => {
 
     // Total students
     const totalStudents = await Student.countDocuments();
-    const activeStudents = await Student.countDocuments({ status: "active" });
+    const activeStudents = await Student.countDocuments({ studentStatus: "Active" });
+
+    // Student status breakdown
+    const statusBreakdownResult = await Student.aggregate([
+      {
+        $group: {
+          _id: "$studentStatus",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Transform to object with all statuses (Active, Pending, Alumni, Expelled, Suspended)
+    const studentsByStatus = {
+      Active: 0,
+      Pending: 0,
+      Alumni: 0,
+      Expelled: 0,
+      Suspended: 0
+    };
+    statusBreakdownResult.forEach(item => {
+      if (item._id && studentsByStatus.hasOwnProperty(item._id)) {
+        studentsByStatus[item._id] = item.count;
+      }
+    });
 
     // Total teachers
     const totalTeachers = await Teacher.countDocuments({ status: "active" });
@@ -164,7 +188,7 @@ exports.getDashboardStats = async (req, res) => {
     const totalCollected = totalCollectedFees[0]?.total || 0;
     const totalPending = totalExpected - totalCollected;
 
-    // Teacher liabilities (what academy owes teachers)
+    // Teacher liabilities (what academy owes teachers — manual credits)
     const teacherLiabilities = await Teacher.aggregate([
       { $match: { status: "active" } },
       {
@@ -181,15 +205,15 @@ exports.getDashboardStats = async (req, res) => {
       (teacherLiabilities[0]?.totalVerified || 0) +
       (teacherLiabilities[0]?.totalPending || 0);
 
-    // Load academy share config (default 30%)
-    const config = await Configuration.findOne();
-    const academySharePercent = config?.salaryConfig?.academyShare || 30;
+    // Total manual credits (LIABILITY transactions) this month
+    const monthlyLiabilityResult = await Transaction.aggregate([
+      { $match: { type: "LIABILITY", date: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const monthlyLiabilities = monthlyLiabilityResult[0]?.total || 0;
 
-    // Owner net revenue = Academy's share of income - expenses
-    const academyShare = Math.round(
-      monthlyIncome * (academySharePercent / 100),
-    );
-    const ownerNetRevenue = academyShare - monthlyExpenses;
+    // Net Revenue = Total Cash In - Total Cash Out (Expenses only, not liabilities)
+    const netRevenue = monthlyIncome - monthlyExpenses;
 
     return res.json({
       success: true,
@@ -197,6 +221,7 @@ exports.getDashboardStats = async (req, res) => {
         // Core KPIs
         totalStudents,
         activeStudents,
+        studentsByStatus,  // Student status breakdown
         totalTeachers,
         monthlyIncome,
         monthlyExpenses,
@@ -214,13 +239,14 @@ exports.getDashboardStats = async (req, res) => {
 
         // Teacher financials
         teacherOwed,
+        monthlyLiabilities,
 
-        // Owner summary
-        ownerNetRevenue: Math.round(ownerNetRevenue),
-        academyShare,
-        netProfit: monthlyIncome - monthlyExpenses,
+        // Owner summary (Cash-Based: Income minus actual Payouts)
+        ownerNetRevenue: netRevenue,
+        netProfit: netRevenue,
 
         // Legacy compat (frontend may still reference these)
+        academyShare: monthlyIncome,
         chemistryRevenue: 0,
         pendingReimbursements: 0,
         poolRevenue: 0,
@@ -228,6 +254,156 @@ exports.getDashboardStats = async (req, res) => {
     });
   } catch (error) {
     console.error("getDashboardStats Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// =====================================================================
+// RECORD STUDENT MISC PAYMENT — Trip, Test, Lab, Event fees etc.
+// =====================================================================
+exports.recordStudentMiscPayment = async (req, res) => {
+  try {
+    const { studentId, amount, paymentType, description, paymentMethod } = req.body;
+
+    if (!studentId || !amount || !paymentType) {
+      return res.status(400).json({
+        success: false,
+        message: "Student, amount, and payment type are required.",
+      });
+    }
+
+    const amountNum = Number(amount);
+    if (amountNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0.",
+      });
+    }
+
+    // Find the student
+    const Student = require("../models/Student");
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found.",
+      });
+    }
+
+    // Map payment types to Transaction categories
+    const categoryMap = {
+      trip: "Trip_Fee",
+      test: "Test_Fee",
+      lab: "Lab_Fee",
+      library: "Library_Fee",
+      sports: "Sports_Fee",
+      event: "Event_Fee",
+      misc: "Student_Misc",
+    };
+
+    const category = categoryMap[paymentType] || "Student_Misc";
+    const paymentLabel = paymentType.charAt(0).toUpperCase() + paymentType.slice(1);
+
+    // Generate receipt ID
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const receiptId = `MISC-${student.studentId}-${dateStr}-${randomSuffix}`;
+
+    // Create transaction in ledger
+    const transaction = await Transaction.create({
+      type: "INCOME",
+      category,
+      amount: amountNum,
+      description: description || `${paymentLabel} fee from ${student.studentName} (${student.studentId})`,
+      date: now,
+      collectedBy: req.user._id,
+      status: "FLOATING",
+      studentId: student._id,
+    });
+
+    // Send notification to owner
+    try {
+      const Notification = require("../models/Notification");
+      const User = require("../models/User");
+      const owner = await User.findOne({ role: "OWNER" });
+
+      if (owner) {
+        await Notification.create({
+          recipient: owner._id,
+          recipientRole: "OWNER",
+          message: `${paymentLabel} fee of PKR ${amountNum.toLocaleString()} collected from ${student.studentName} (${student.studentId})`,
+          type: "FINANCE",
+          relatedId: transaction._id.toString(),
+        });
+      }
+    } catch (notifErr) {
+      console.log("Notification skipped:", notifErr.message);
+    }
+
+    // Track collector's cash
+    if (req.user?._id) {
+      try {
+        const User = require("../models/User");
+        const collector = await User.findById(req.user._id);
+        if (collector) {
+          collector.totalCash = (collector.totalCash || 0) + amountNum;
+          await collector.save();
+        }
+      } catch (e) {
+        console.log("TotalCash update skipped:", e.message);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `${paymentLabel} fee of PKR ${amountNum.toLocaleString()} collected from ${student.studentName}.`,
+      data: {
+        transaction,
+        receiptData: {
+          receiptId,
+          studentId: student.studentId,
+          studentName: student.studentName,
+          fatherName: student.fatherName || "-",
+          class: student.class || "-",
+          contact: student.parentCell || student.studentCell || "-",
+          paymentType: paymentLabel,
+          category,
+          amount: amountNum,
+          description: description || `${paymentLabel} Fee`,
+          paymentMethod: paymentMethod || "Cash",
+          paymentDate: now,
+          collectedBy: req.user?.fullName || "Staff",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("RecordStudentMiscPayment Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// =====================================================================
+// GET STUDENT MISC PAYMENT HISTORY
+// =====================================================================
+exports.getStudentMiscPayments = async (req, res) => {
+  try {
+    const miscCategories = ["Trip_Fee", "Test_Fee", "Lab_Fee", "Library_Fee", "Sports_Fee", "Event_Fee", "Student_Misc"];
+
+    const transactions = await Transaction.find({
+      category: { $in: miscCategories },
+    })
+      .populate("studentId", "studentName studentId class fatherName parentCell")
+      .populate("collectedBy", "fullName")
+      .sort({ date: -1 })
+      .limit(200);
+
+    return res.json({
+      success: true,
+      data: transactions,
+    });
+  } catch (error) {
+    console.error("GetStudentMiscPayments Error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -487,11 +663,7 @@ exports.processTeacherPayout = async (req, res) => {
           notes: paymentRecord.notes,
           sessionName: paymentRecord.sessionName,
         },
-        remainingBalance:
-          compType === "fixed"
-            ? teacher.balance?.pending || 0
-            : (teacher.balance?.verified || 0) +
-              (teacher.balance?.floating || 0),
+        remainingBalance: teacher.balance?.pending || 0,
       },
     });
   } catch (error) {
@@ -891,14 +1063,13 @@ exports.getAnalyticsDashboard = async (req, res) => {
       });
     }
 
-    // Fee Collection Status
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const feeStats = await FeeRecord.aggregate([
-      { $match: { month: currentMonth } },
+    // Fee Collection Status - Using Student feeStatus and paidAmount
+    const feeStats = await Student.aggregate([
+      { $match: { studentStatus: "Active" } },
       {
         $group: {
-          _id: "$status",
-          total: { $sum: "$amount" },
+          _id: "$feeStatus",
+          total: { $sum: "$paidAmount" },
           count: { $sum: 1 },
         },
       },
@@ -906,16 +1077,16 @@ exports.getAnalyticsDashboard = async (req, res) => {
     const feeCollection = {
       paid: { amount: 0, count: 0 },
       pending: { amount: 0, count: 0 },
-      overdue: { amount: 0, count: 0 },
     };
     feeStats.forEach((f) => {
       const key = f._id?.toLowerCase();
-      if (key === "paid")
+      if (key === "paid") {
         feeCollection.paid = { amount: f.total, count: f.count };
-      else if (key === "pending")
-        feeCollection.pending = { amount: f.total, count: f.count };
-      else if (key === "overdue" || key === "refunded")
-        feeCollection.overdue = { amount: f.total, count: f.count };
+      } else if (key === "pending" || key === "partial") {
+        // Combine pending and partial into one "Pending" category
+        feeCollection.pending.amount += f.total;
+        feeCollection.pending.count += f.count;
+      }
     });
 
     // Expense Breakdown

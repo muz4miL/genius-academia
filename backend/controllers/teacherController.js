@@ -156,21 +156,29 @@ exports.createTeacher = async (req, res) => {
     // AUTO-GENERATE LOGIN CREDENTIALS
     // ========================================
 
-    // Generate username from name (e.g., "Ahmed Khan" → "ahmed_khan")
-    const baseUsername = name
-      .toLowerCase()
-      .replace(/[^a-z\s]/g, "") // Remove non-letters
-      .trim()
-      .replace(/\s+/g, "_"); // Replace spaces with underscores
+    // Generate username from name (e.g., "Ahmed Khan" → "ahmedkhan1234")
+    // Split name into parts
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join("") || "";
+    
+    // Generate username: firstName + lastName (lowercase, no spaces) + 4-digit random
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    let username = (firstName + lastName).toLowerCase().replace(/\s+/g, '') + randomSuffix;
 
     // Ensure unique username by checking for existing users
-    let username = baseUsername;
     let usernameExists = await User.findOne({ username });
     let counter = 1;
     while (usernameExists) {
-      username = `${baseUsername}${counter}`;
+      // Generate new random suffix for each attempt
+      const newRandomSuffix = Math.floor(1000 + Math.random() * 9000);
+      username = (firstName + lastName).toLowerCase().replace(/\s+/g, '') + newRandomSuffix;
       usernameExists = await User.findOne({ username });
       counter++;
+      // Safety check to prevent infinite loops
+      if (counter > 100) {
+        throw new Error("Unable to generate unique username after 100 attempts");
+      }
     }
 
     // Generate random 8-character password

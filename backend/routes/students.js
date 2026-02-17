@@ -7,7 +7,6 @@ const Configuration = require("../models/Configuration");
 const FeeRecord = require("../models/FeeRecord");
 const Transaction = require("../models/Transaction");
 const Notification = require("../models/Notification");
-const { distributeRevenue } = require("../controllers/financeController");
 const { protect } = require("../middleware/authMiddleware");
 const { handlePhotoUpload } = require("../middleware/upload");
 const {
@@ -353,11 +352,6 @@ router.post("/", async (req, res) => {
     // Record admission payment into finance if paidAmount > 0
     const paidAmount = Number(savedStudent.paidAmount) || 0;
     if (paidAmount > 0) {
-      const config = await Configuration.findOne().lean();
-      const teacherSharePct = config?.salaryConfig?.teacherShare ?? 70;
-      const teacherShare = Math.floor((paidAmount * teacherSharePct) / 100);
-      const academyShare = paidAmount - teacherShare;
-
       const monthLabel = new Date().toLocaleString("en-US", {
         month: "long",
         year: "numeric",
@@ -376,31 +370,21 @@ router.post("/", async (req, res) => {
         status: "PAID",
         collectedBy: req.user?._id,
         collectedByName: req.user?.fullName || "Staff",
-        isPartnerTeacher: false,
-        splitBreakdown: {
-          teacherShare,
-          academyShare,
-          teacherPercentage: teacherSharePct,
-          academyPercentage: 100 - teacherSharePct,
-        },
         paymentMethod: "CASH",
         notes: "Admission payment",
-        revenueSource: "configuration",
       });
 
-      try {
-        console.log(
-          "💰 Triggering Revenue Distribution for:",
-          savedStudent.studentName,
-        );
-        await distributeRevenue({
-          studentId: savedStudent._id,
-          paidAmount,
-          feeRecordId: feeRecord._id,
-        });
-      } catch (error) {
-        console.error("Revenue distribution failed:", error);
-      }
+      // Record FULL amount as INCOME (Manual Payroll Model)
+      await Transaction.create({
+        type: "INCOME",
+        category: "Tuition",
+        amount: paidAmount,
+        description: `Admission fee from ${savedStudent.studentName}`,
+        date: new Date(),
+        collectedBy: req.user?._id,
+        status: "FLOATING",
+        studentId: savedStudent._id,
+      });
 
       try {
         await Notification.create({
@@ -464,25 +448,26 @@ router.put("/:id", async (req, res) => {
     if (updateData.totalFee !== undefined) {
       updateData.totalFee = Number(updateData.totalFee);
     }
-    if (updateData.paidAmount !== undefined) {
-      updateData.paidAmount = Number(updateData.paidAmount);
-    }
 
-    // Never allow frontend to override studentId
+    // IMPORTANT: paidAmount should ONLY be updated via collectFee endpoint
+    // Remove it from update data to prevent accidental changes
+    delete updateData.paidAmount;
+    
+    // Never allow frontend to override these fields
     delete updateData.studentId;
     delete updateData._id;
+    delete updateData.feeStatus; // Auto-calculated by pre-save hook
 
     console.log("📝 Updating student:", student.studentId);
-    console.log("📝 Update data:", JSON.stringify(updateData, null, 2));
 
     // Step 3: Apply updates using Object.assign
     Object.assign(student, updateData);
 
-    // Step 4: Save (this triggers the pre-save hook!)
+    // Step 4: Save (this triggers the pre-save hook to recalculate feeStatus!)
     const updatedStudent = await student.save();
 
     console.log("✅ Student updated:", updatedStudent.studentId);
-    console.log("✅ New feeStatus:", updatedStudent.feeStatus);
+    console.log("✅ Fee Status:", updatedStudent.feeStatus);
 
     res.json({
       success: true,

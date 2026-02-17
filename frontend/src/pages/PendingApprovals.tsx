@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,7 @@ interface ClassInstance {
 
 export default function PendingApprovals() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<PendingStudent | null>(
     null,
@@ -209,14 +211,8 @@ export default function PendingApprovals() {
   };
 
   const openApproveDialog = (student: PendingStudent) => {
-    setStudentToApprove(student);
-    // Pre-select the class student requested if it exists
-    if (student.classRef) {
-      setSelectedClassId(student.classRef);
-    } else {
-      setSelectedClassId("");
-    }
-    setApproveDialogOpen(true);
+    // Navigate to Admissions page with pending student ID
+    navigate(`/admissions?pendingId=${student._id}`);
   };
 
   return (

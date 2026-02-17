@@ -45,9 +45,14 @@ import {
   CheckSquare,
   Receipt,
   Loader2,
+  CreditCard,
+  Search,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { pdf } from "@react-pdf/renderer";
+import { MiscPaymentPDF, type MiscPaymentPDFData } from "@/components/print/MiscPaymentPDF";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -316,23 +321,9 @@ const FinanceOverview = () => {
 };
 
 // ==================== ASSET REGISTRY TAB ====================
-const STORAGE_KEY = "genius_asset_registry";
-
-function loadAssets(): Asset[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAssets(assets: Asset[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
-}
 
 const AssetRegistry = () => {
-  const [assets, setAssets] = useState<Asset[]>(loadAssets);
+  const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
 
   // Form state
@@ -343,6 +334,28 @@ const AssetRegistry = () => {
   const [depreciationRate, setDepreciationRate] = useState("10");
   const [alsoRecordExpense, setAlsoRecordExpense] = useState(false);
 
+  // Fetch assets from API
+  const { data: assetsData, isLoading: assetsLoading } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch inventory");
+      return res.json();
+    },
+  });
+
+  const assets: (Asset & { _id?: string })[] = (assetsData?.data || []).map((a: any) => ({
+    id: a._id,
+    _id: a._id,
+    itemName: a.itemName,
+    investorName: a.investorName,
+    purchaseDate: a.purchaseDate,
+    originalCost: a.originalCost,
+    depreciationRate: a.depreciationRate,
+  }));
+
   const totalOriginal = assets.reduce((sum, a) => sum + a.originalCost, 0);
   const totalCurrent = assets.reduce(
     (sum, a) =>
@@ -351,67 +364,94 @@ const AssetRegistry = () => {
     0,
   );
 
-  const handleAdd = () => {
+  // Create asset mutation
+  const createMutation = useMutation({
+    mutationFn: async (newAsset: { itemName: string; investorName: string; purchaseDate: string; originalCost: number; depreciationRate: number }) => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newAsset),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to create asset");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+
+  // Delete asset mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/api/inventory/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete asset");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success("Asset removed");
+    },
+  });
+
+  const handleAdd = async () => {
     if (!itemName || !purchaseDate || !originalCost) {
       toast.error("Please fill all required fields");
       return;
     }
-    const newAsset: Asset = {
-      id: Date.now().toString(),
-      itemName,
-      investorName: investorName || "Academy",
-      purchaseDate,
-      originalCost: Number(originalCost),
-      depreciationRate: Number(depreciationRate),
-    };
-    const updated = [...assets, newAsset];
-    setAssets(updated);
-    saveAssets(updated);
-    toast.success(`${itemName} added to registry`);
 
-    // Also record as expense if checkbox is checked
-    if (alsoRecordExpense) {
-      const API_BASE_URL =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      fetch(`${API_BASE_URL}/api/finance/record-transaction`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          type: "expense",
-          category: "Equipment/Asset",
-          amount: Number(originalCost),
-          description: `Asset Purchase: ${itemName}${investorName ? ` (Investor: ${investorName})` : ""}`,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            toast.success("Expense record created automatically");
-          } else {
-            toast.info("Asset saved, but expense record could not be created");
-          }
+    try {
+      await createMutation.mutateAsync({
+        itemName,
+        investorName: investorName || "Academy",
+        purchaseDate,
+        originalCost: Number(originalCost),
+        depreciationRate: Number(depreciationRate),
+      });
+      toast.success(`${itemName} added to registry`);
+
+      // Also record as expense if checkbox is checked
+      if (alsoRecordExpense) {
+        fetch(`${API_BASE_URL}/api/finance/record-transaction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            type: "expense",
+            category: "Equipment/Asset",
+            amount: Number(originalCost),
+            description: `Asset Purchase: ${itemName}${investorName ? ` (Investor: ${investorName})` : ""}`,
+          }),
         })
-        .catch(() => {
-          toast.info("Asset saved locally. Expense record requires login.");
-        });
-    }
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              toast.success("Expense record created automatically");
+            }
+          })
+          .catch(() => {});
+      }
 
-    // Reset form
-    setItemName("");
-    setInvestorName("");
-    setPurchaseDate("");
-    setOriginalCost("");
-    setDepreciationRate("10");
-    setAlsoRecordExpense(false);
-    setShowDialog(false);
+      // Reset form
+      setItemName("");
+      setInvestorName("");
+      setPurchaseDate("");
+      setOriginalCost("");
+      setDepreciationRate("10");
+      setAlsoRecordExpense(false);
+      setShowDialog(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add asset");
+    }
   };
 
   const handleDelete = (id: string) => {
-    const updated = assets.filter((a) => a.id !== id);
-    setAssets(updated);
-    saveAssets(updated);
-    toast.success("Asset removed");
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -474,7 +514,12 @@ const AssetRegistry = () => {
           </Button>
         </CardHeader>
         <CardContent>
-          {assets.length === 0 ? (
+          {assetsLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mt-2">Loading assets...</p>
+            </div>
+          ) : assets.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No assets registered</p>
@@ -937,6 +982,427 @@ const DailyExpenses = () => {
   );
 };
 
+// ==================== STUDENT COLLECTIONS ====================
+const StudentCollections = () => {
+  const queryClient = useQueryClient();
+  const [showCollectDialog, setShowCollectDialog] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [paymentType, setPaymentType] = useState("trip");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [cachedLogo, setCachedLogo] = useState<string | null>(null);
+
+  // Load logo for PDF
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const response = await fetch("/logo.png");
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => setCachedLogo(reader.result as string);
+        reader.readAsDataURL(blob);
+      } catch (e) {
+        console.log("Logo load skipped");
+      }
+    };
+    loadLogo();
+  }, []);
+
+  // Search students
+  const { data: studentsData, isLoading: studentsLoading } = useQuery({
+    queryKey: ["students", "search", studentSearch],
+    queryFn: async () => {
+      const params = studentSearch ? `?search=${encodeURIComponent(studentSearch)}` : "";
+      const res = await fetch(`${API_BASE_URL}/api/students${params}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to search students");
+      return res.json();
+    },
+    enabled: showCollectDialog,
+  });
+
+  // Get misc payment history
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ["finance", "misc-payments"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/finance/student-misc-payments`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load misc payments");
+      return res.json();
+    },
+  });
+
+  const miscPayments = historyData?.data || [];
+  const filteredPayments = miscPayments.filter((p: any) => {
+    if (!searchFilter) return true;
+    const search = searchFilter.toLowerCase();
+    return (
+      p.description?.toLowerCase().includes(search) ||
+      p.category?.toLowerCase().includes(search) ||
+      p.studentId?.studentName?.toLowerCase().includes(search) ||
+      p.studentId?.studentId?.toLowerCase().includes(search)
+    );
+  });
+
+  const paymentTypes = [
+    { value: "trip", label: "Trip Fee" },
+    { value: "test", label: "Test Fee" },
+    { value: "lab", label: "Lab Fee" },
+    { value: "library", label: "Library Fee" },
+    { value: "sports", label: "Sports Fee" },
+    { value: "event", label: "Event Fee" },
+    { value: "misc", label: "Other / Misc" },
+  ];
+
+  // Collect misc payment mutation
+  const collectMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch(`${API_BASE_URL}/api/finance/student-misc-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to record payment");
+      }
+      return res.json();
+    },
+    onSuccess: async (data) => {
+      toast.success("Payment Recorded", {
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ["finance"] });
+
+      // Generate receipt PDF
+      const receiptData: MiscPaymentPDFData = data.data.receiptData;
+      try {
+        const blob = await pdf(
+          <MiscPaymentPDF data={receiptData} logoDataUrl={cachedLogo || undefined} />
+        ).toBlob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } catch (e) {
+        console.error("PDF generation error:", e);
+        toast.error("Receipt generation failed");
+      }
+
+      // Reset form
+      setShowCollectDialog(false);
+      setSelectedStudent(null);
+      setAmount("");
+      setDescription("");
+      setPaymentType("trip");
+      setPaymentMethod("Cash");
+      setStudentSearch("");
+    },
+    onError: (error: any) => {
+      toast.error("Payment Failed", { description: error.message });
+    },
+  });
+
+  const handleCollect = () => {
+    if (!selectedStudent || !amount || Number(amount) <= 0) {
+      toast.error("Please select a student and enter a valid amount");
+      return;
+    }
+    collectMutation.mutate({
+      studentId: selectedStudent._id,
+      amount: Number(amount),
+      paymentType,
+      description,
+      paymentMethod,
+    });
+  };
+
+  const formatDate = (d: string) => {
+    return new Date(d).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const categoryLabels: Record<string, string> = {
+    Trip_Fee: "Trip",
+    Test_Fee: "Test",
+    Lab_Fee: "Lab",
+    Library_Fee: "Library",
+    Sports_Fee: "Sports",
+    Event_Fee: "Event",
+    Student_Misc: "Misc",
+  };
+
+  const categoryColors: Record<string, string> = {
+    Trip_Fee: "bg-blue-100 text-blue-700",
+    Test_Fee: "bg-purple-100 text-purple-700",
+    Lab_Fee: "bg-amber-100 text-amber-700",
+    Library_Fee: "bg-emerald-100 text-emerald-700",
+    Sports_Fee: "bg-orange-100 text-orange-700",
+    Event_Fee: "bg-pink-100 text-pink-700",
+    Student_Misc: "bg-slate-100 text-slate-700",
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Card */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                Student Misc Collections
+              </CardTitle>
+              <CardDescription>
+                Collect & track non-tuition payments — trips, tests, labs, events, and more
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowCollectDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="mr-2 h-4 w-4" />
+              New Collection
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* History Table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Collection History</CardTitle>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by name, type, or description..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              <span className="ml-2 text-slate-500">Loading collections...</span>
+            </div>
+          ) : filteredPayments.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <CreditCard className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+              <p className="font-medium">No misc collections recorded yet</p>
+              <p className="text-sm mt-1">Click "New Collection" to record a student payment</p>
+            </div>
+          ) : (
+            <div className="max-h-[500px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Collected By</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.map((p: any) => (
+                    <TableRow key={p._id}>
+                      <TableCell className="text-slate-600">
+                        {formatDate(p.date || p.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={categoryColors[p.category] || "bg-slate-100 text-slate-700"}
+                        >
+                          {categoryLabels[p.category] || p.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">{p.studentId?.studentName || "-"}</span>
+                          {p.studentId?.studentId && (
+                            <span className="text-xs text-slate-400 ml-1">({p.studentId.studentId})</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-slate-600">
+                        {p.description || "-"}
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        {p.collectedBy?.fullName || "Staff"}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        PKR {p.amount?.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Collect Payment Dialog */}
+      <Dialog open={showCollectDialog} onOpenChange={setShowCollectDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-blue-600" />
+              Record Student Misc Payment
+            </DialogTitle>
+            <DialogDescription>
+              Collect a non-tuition payment for trips, tests, labs, events, etc.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Student Search */}
+            <div>
+              <Label>Student *</Label>
+              {selectedStudent ? (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md p-3 mt-1">
+                  <div>
+                    <span className="font-semibold">{selectedStudent.studentName}</span>
+                    <span className="text-xs ml-2 text-slate-500">({selectedStudent.studentId})</span>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {selectedStudent.class} | Father: {selectedStudent.fatherName || "-"}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search by name or student ID..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {studentsData?.data && studentsData.data.length > 0 && (
+                    <div className="max-h-40 overflow-auto border rounded-md mt-1 bg-white shadow-sm">
+                      {studentsData.data.slice(0, 8).map((s: any) => (
+                        <button
+                          key={s._id}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
+                          onClick={() => {
+                            setSelectedStudent(s);
+                            setStudentSearch("");
+                          }}
+                        >
+                          <span className="font-medium text-sm">{s.studentName}</span>
+                          <span className="text-xs ml-2 text-slate-400">({s.studentId})</span>
+                          <span className="text-xs ml-2 text-slate-500">{s.class}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Payment Type */}
+            <div>
+              <Label>Payment Type *</Label>
+              <Select value={paymentType} onValueChange={setPaymentType}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentTypes.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Amount & Method */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Amount (PKR) *</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="mt-1"
+                  min="1"
+                />
+              </div>
+              <div>
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Online">Online</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <Label>Description / Notes</Label>
+              <Textarea
+                placeholder="e.g., Annual trip to Swat Valley, March 2026"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCollectDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCollect}
+              disabled={collectMutation.isPending || !selectedStudent || !amount}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {collectMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Collect & Generate Receipt
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 // ==================== MAIN FINANCE COMPONENT ====================
 const Finance = () => {
   // Get tab from URL params
@@ -971,10 +1437,14 @@ const Finance = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="collections" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Collections
             </TabsTrigger>
             <TabsTrigger value="expenses" className="flex items-center gap-2">
               <Receipt className="h-4 w-4" />
@@ -988,6 +1458,10 @@ const Finance = () => {
 
           <TabsContent value="overview" className="mt-6">
             <FinanceOverview />
+          </TabsContent>
+
+          <TabsContent value="collections" className="mt-6">
+            <StudentCollections />
           </TabsContent>
 
           <TabsContent value="expenses" className="mt-6">

@@ -87,85 +87,48 @@ const checkScheduleConflict = async (
   return null; // No conflict
 };
 
-// ========== AUTO-GENERATE TIMETABLE ENTRIES ==========
-// Day name mapping (Class uses Mon, Timetable uses Monday)
-const dayNameMap = {
-  Mon: "Monday",
-  Tue: "Tuesday",
-  Wed: "Wednesday",
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
-  Sun: "Sunday",
-};
-
-const autoGenerateTimetable = async (classDoc) => {
-  if (!classDoc.days || !classDoc.days.length) {
-    console.log("⚠️ No days specified, skipping timetable generation");
-    return;
-  }
-
-  // Delete existing timetable entries for this class
-  await Timetable.deleteMany({ classId: classDoc._id });
-
-  // Create new entries for each day
-  const entries = [];
-  for (const shortDay of classDoc.days) {
-    const fullDay = dayNameMap[shortDay] || shortDay; // Map Mon -> Monday
-
-    // Skip if no teacher assigned (teacherId is required)
-    if (!classDoc.assignedTeacher) {
-      console.log(`⚠️ Skipping timetable for ${fullDay} - no teacher assigned`);
-      continue;
-    }
-
-    try {
-      const entry = await Timetable.create({
-        classId: classDoc._id,
-        teacherId: classDoc.assignedTeacher,
-        subject: classDoc.subjects?.[0]?.name || "General",
-        day: fullDay,
-        startTime: classDoc.startTime,
-        endTime: classDoc.endTime,
-        room: classDoc.roomNumber || "TBD",
-        status: "active",
-      });
-      entries.push(entry);
-    } catch (err) {
-      console.error(
-        `❌ Error creating timetable entry for ${fullDay}:`,
-        err.message,
-      );
-    }
-  }
-
-  console.log(
-    `📅 Auto-generated ${entries.length} timetable entries for ${classDoc.classTitle}`,
-  );
-  return entries;
-};
+// NOTE: Auto-generation removed — timetable entries are now created via
+// the dedicated /api/timetable endpoint (manual entry or bulk-generate).
+// This prevents the old bug where editing a class wiped all timetable entries
+// and only recreated them for the first subject.
 
 // @route   GET /api/classes
 // @desc    Get all classes with student count and revenue
 // @access  Public
 router.get("/", async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, assignedTeacher } = req.query;
 
     // Build query object
     let query = {};
+
+    // Filter by assigned teacher (used by Teacher Profile page)
+    if (assignedTeacher) {
+      const mongoose = require('mongoose');
+      const teacherObjId = new mongoose.Types.ObjectId(assignedTeacher);
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { assignedTeacher: teacherObjId },
+          { 'subjectTeachers.teacherId': teacherObjId }
+        ]
+      });
+    }
 
     if (status && status !== "all") {
       query.status = status;
     }
 
     if (search) {
-      query.$or = [
-        { classTitle: { $regex: search, $options: "i" } },
-        { gradeLevel: { $regex: search, $options: "i" } },
-        { section: { $regex: search, $options: "i" } },
-        { roomNumber: { $regex: search, $options: "i" } },
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { classTitle: { $regex: search, $options: "i" } },
+          { gradeLevel: { $regex: search, $options: "i" } },
+          { section: { $regex: search, $options: "i" } },
+          { roomNumber: { $regex: search, $options: "i" } },
+        ]
+      });
     }
 
     const classes = await Class.find(query)
@@ -205,6 +168,8 @@ router.get("/", async (req, res) => {
           ...cls,
           studentCount,
           currentRevenue,
+          totalRevenueCollected: currentRevenue,
+          estimatedTeacherShare: Math.round(currentRevenue * 0.7),
           totalExpected,
           totalPending,
         };
@@ -270,6 +235,8 @@ router.get("/:id", async (req, res) => {
         ...classDoc,
         studentCount,
         currentRevenue,
+        totalRevenueCollected: currentRevenue,
+        estimatedTeacherShare: Math.round(currentRevenue * 0.7),
         totalExpected,
         totalPending,
       },
@@ -346,9 +313,6 @@ router.post("/", async (req, res) => {
     const savedClass = await newClass.save();
 
     console.log("✅ Class created:", savedClass.classId, savedClass.classTitle);
-
-    // ========== AUTO-GENERATE TIMETABLE ==========
-    await autoGenerateTimetable(savedClass);
 
     res.status(201).json({
       success: true,
@@ -446,9 +410,6 @@ router.put("/:id", async (req, res) => {
 
     // Step 4: Save
     const updatedClass = await classDoc.save();
-
-    // ========== REGENERATE TIMETABLE ==========
-    await autoGenerateTimetable(updatedClass);
 
     // Get updated stats
     const studentCount = await Student.countDocuments({

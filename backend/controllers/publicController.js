@@ -75,17 +75,20 @@ exports.publicRegister = async (req, res) => {
       studentCell,
       email,
       address,
+      gender,
+      referralSource,
       class: classId,
       group,
       subjects,
+      session: sessionId,
     } = req.body;
 
-    // Validation (group is now optional)
-    if (!studentName || !fatherName || !parentCell || !classId) {
+    // Validation - group is required
+    if (!studentName || !fatherName || !parentCell || !classId || !group) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: studentName, fatherName, parentCell, class",
+          "Missing required fields: studentName, fatherName, parentCell, class, group",
       });
     }
 
@@ -105,15 +108,20 @@ exports.publicRegister = async (req, res) => {
       });
     }
 
-    // Get active session
-    const activeSession = await Session.findOne({ status: "active" }).lean();
+    // Get session - use provided sessionId or fall back to active session
+    let targetSession = null;
+    if (sessionId) {
+      targetSession = await Session.findById(sessionId).lean();
+    } else {
+      targetSession = await Session.findOne({ status: "active" }).lean();
+    }
 
     // Session-based pricing lookup
     let sessionRate = 0;
-    if (activeSession?._id) {
+    if (targetSession?._id) {
       const config = await Configuration.findOne().lean();
       const sessionPrice = config?.sessionPrices?.find(
-        (sp) => sp.sessionId?.toString() === activeSession._id.toString(),
+        (sp) => sp.sessionId?.toString() === targetSession._id.toString(),
       );
       sessionRate = Number(sessionPrice?.price) || 0;
     }
@@ -156,13 +164,15 @@ exports.publicRegister = async (req, res) => {
     const student = await Student.create({
       studentName,
       fatherName,
+      gender: gender || "Male",
       cnic,
       parentCell,
       studentCell,
       email,
       address,
+      referralSource,
       class: className,
-      group: group || "General", // Default to "General" if not provided
+      group,
       subjects: subjectsWithFees,
       totalFee,
       sessionRate,
@@ -172,7 +182,7 @@ exports.publicRegister = async (req, res) => {
       status: "inactive", // Not active until approved
       password: undefined, // NO PASSWORD - Admin generates on approval
       classRef,
-      sessionRef: activeSession?._id,
+      sessionRef: targetSession?._id,
     });
 
     console.log(
@@ -220,6 +230,41 @@ exports.getPendingRegistrations = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error fetching pending registrations",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get single pending registration by ID
+// @route   GET /api/public/pending/:id
+// @access  Protected (OWNER, OPERATOR)
+exports.getPendingStudent = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id).lean();
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    if (student.studentStatus !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Student is not in pending status",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: student,
+    });
+  } catch (error) {
+    console.error("❌ Error in getPendingStudent:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error fetching pending student",
       error: error.message,
     });
   }

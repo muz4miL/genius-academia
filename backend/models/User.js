@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["OWNER", "PARTNER", "STAFF", "TEACHER"],
+      enum: ["OWNER", "ADMIN", "OPERATOR", "PARTNER", "STAFF", "TEACHER"],
       required: true,
     },
     // RBAC: Permissions array controls which sidebar tabs the user can see

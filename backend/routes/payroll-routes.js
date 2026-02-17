@@ -1,9 +1,9 @@
 const router = require('express').Router();
 const { grantAdvance, getTeacherPayroll, finalizeSalary } = require('../controllers/finance/payroll-controller');
-const { verifyAdmin } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
-router.post('/advance', verifyAdmin, grantAdvance);
-router.get('/teacher/:teacherId', verifyAdmin, getTeacherPayroll);
-router.post('/finalize', verifyAdmin, finalizeSalary);
+router.post('/advance', protect, grantAdvance);
+router.get('/teacher/:teacherId', protect, getTeacherPayroll);
+router.post('/finalize', protect, finalizeSalary);
 
 module.exports = router;

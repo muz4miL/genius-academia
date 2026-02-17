@@ -6,82 +6,6 @@ const Class = require("../models/Class");
 const Configuration = require("../models/Configuration");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
-const { distributeRevenue } = require("./financeController");
-
-// Minimal revenue helper inline to avoid import errors
-const calculateRevenueSplit = async ({ fee, teacherRole, teacher, config }) => {
-  const isOwner = teacherRole === "OWNER";
-  const staffShare = config?.salaryConfig?.teacherShare || 70;
-
-  if (isOwner) {
-    // Owner keeps 100% of their own class fees
-    return {
-      teacherRevenue: fee,
-      poolRevenue: 0,
-      isPartner: false,
-      isOwner: true,
-      stream: "OWNER_DIRECT",
-      splitType: "OWNER_100",
-    };
-  }
-
-  const compType = teacher?.compensation?.type || "percentage";
-  if (compType === "fixed") {
-    return {
-      teacherRevenue: 0,
-      poolRevenue: fee,
-      isPartner: false,
-      isOwner: false,
-      stream: "STAFF_TUITION",
-      splitType: "FIXED_SALARY",
-      config: {
-        staffTeacherShare: 0,
-        staffAcademyShare: 100,
-      },
-    };
-  }
-
-  const teacherSharePct = teacher?.compensation?.teacherShare ?? staffShare;
-  const teacherAmt = Math.round((fee * teacherSharePct) / 100);
-  return {
-    teacherRevenue: teacherAmt,
-    poolRevenue: fee - teacherAmt,
-    isPartner: false,
-    isOwner: false,
-    stream: "STAFF_TUITION",
-    splitType: "STAFF_SPLIT",
-    config: {
-      staffTeacherShare: teacherSharePct,
-      staffAcademyShare: 100 - teacherSharePct,
-    },
-  };
-};
-
-const getTeacherRole = async (teacher) => {
-  if (!teacher) return "STAFF";
-  // Check the teacher's own role field first
-  if (teacher.role === "OWNER") return "OWNER";
-  if (teacher.role === "PARTNER") return "PARTNER";
-  // Check if teacher is linked to a User with an elevated role
-  if (teacher.userId) {
-    try {
-      const linkedUser = await User.findById(teacher.userId)
-        .select("role")
-        .lean();
-      if (linkedUser?.role === "OWNER") return "OWNER";
-    } catch (_) {
-      /* fallthrough */
-    }
-  }
-  return "STAFF";
-};
-
-// Academy's 30% pool share is retained by the owner (single-owner model)
-// No multi-partner distribution needed
-const distributePoolRevenue = async ({ poolAmount }) => {
-  // In single-owner mode, the academy share stays with the academy
-  return { academyShare: poolAmount };
-};
 
 // GET all students
 exports.getStudents = async (req, res) => {
@@ -109,8 +33,12 @@ exports.getStudent = async (req, res) => {
 
 // Helper: Calculate Fee Status — PAID only when Paid == Total, otherwise PENDING
 const calculateFeeStatus = (paidAmount, totalFee) => {
-  if (paidAmount >= totalFee && totalFee > 0) return "Paid";
-  return "Pending"; // default — includes partial payments
+  const paid = Number(paidAmount) || 0;
+  const total = Number(totalFee) || 0;
+
+  if (paid >= total && total > 0) return "paid";
+  if (paid > 0 && paid < total) return "partial";
+  return "pending";
 };
 
 // CREATE student
@@ -141,7 +69,41 @@ exports.createStudent = async (req, res) => {
       studentData.seatNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
     }
 
+    // Auto-generate password if not provided
+    if (!studentData.password) {
+      const phoneDigits = (studentData.parentCell || "0000")
+        .replace(/\D/g, "")
+        .slice(-4);
+      const namePart = (studentData.studentName || "student")
+        .replace(/\s/g, "")
+        .toLowerCase()
+        .slice(0, 4);
+      const defaultPassword = `${namePart}${phoneDigits}`;
+      studentData.password = defaultPassword;
+      studentData.plainPassword = defaultPassword;
+    } else if (!studentData.plainPassword) {
+      studentData.plainPassword = studentData.password;
+    }
+
     const student = await Student.create(studentData);
+
+    // Create INCOME transaction for admission fee (Sync with fee collection system)
+    if (paidAmount > 0) {
+      await Transaction.create({
+        type: "INCOME",
+        category: "Tuition",
+        amount: paidAmount,
+        description: `Admission fee from ${student.studentName} - ${student.class}`,
+        date: new Date(),
+        status: "FLOATING",
+        studentId: student._id,
+        classId: student.classRef,
+      });
+      console.log(
+        `💰 Created INCOME transaction for admission: PKR ${paidAmount}`,
+      );
+    }
+
     res.status(201).json({ success: true, data: student });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -177,7 +139,7 @@ exports.collectFee = async (req, res) => {
     const { amount, month, subject, teacherId, paymentMethod, notes } =
       req.body;
 
-    console.log("Collecting fee:", { id, amount, month, subject });
+    console.log("🎫 Collecting fee:", { id, amount, month, subject });
 
     if (!amount || !month) {
       return res
@@ -191,73 +153,71 @@ exports.collectFee = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Student not found" });
 
-    // Find teacher
-    let teacher = null;
-    if (teacherId) {
-      teacher = await Teacher.findById(teacherId);
+    const amountNum = Number(amount);
+
+    // Validate amount is positive
+    if (amountNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
     }
 
-    // Get role and calculate split
-    const teacherRole = teacher ? await getTeacherRole(teacher) : "STAFF";
-    const config = await Configuration.findOne();
-    const split = await calculateRevenueSplit({
-      fee: Number(amount),
-      teacherRole,
-      teacher,
-      config,
-    });
+    // Check if amount exceeds remaining balance
+    const remainingBalance =
+      (student.totalFee || 0) - (student.paidAmount || 0);
+    if (amountNum > remainingBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount (Rs. ${amountNum.toLocaleString()}) exceeds remaining balance (Rs. ${remainingBalance.toLocaleString()})`,
+      });
+    }
 
-    // Create Fee Record
+    // Create Fee Record (No automatic revenue split — Manual Payroll Model)
     const feeRecord = await FeeRecord.create({
       student: student._id,
       studentName: student.studentName,
       className: student.class,
       subject: subject || "General",
-      amount: Number(amount),
+      amount: amountNum,
       month,
       status: "PAID",
       collectedBy: req.user?._id,
       collectedByName: req.user?.fullName || "Staff",
-      teacher: teacher?._id,
-      teacherName: teacher?.name,
-      isPartnerTeacher: split.isOwner || false,
-      revenueSource: split.splitType,
-      splitBreakdown: {
-        teacherShare: split.teacherRevenue,
-        academyShare: split.poolRevenue,
-        teacherPercentage: split.isOwner
-          ? 100
-          : split.config?.staffTeacherShare || 70,
-        academyPercentage: split.isOwner
-          ? 0
-          : split.config?.staffAcademyShare || 30,
-      },
+      teacher: teacherId || undefined,
       paymentMethod: paymentMethod || "CASH",
       notes,
     });
 
-    student.paidAmount = (student.paidAmount || 0) + Number(amount);
+    console.log("💰 Old Paid Amount:", student.paidAmount);
+    const oldPaidAmount = student.paidAmount || 0;
+    student.paidAmount = (student.paidAmount || 0) + amountNum;
+    console.log("💰 New Paid Amount:", student.paidAmount);
+
+    const oldFeeStatus = student.feeStatus;
     student.feeStatus = calculateFeeStatus(
       student.paidAmount,
       student.totalFee || 0,
     );
     await student.save();
 
-    try {
-      console.log(
-        "💰 Triggering Revenue Distribution for:",
-        student.studentName,
-      );
-      await distributeRevenue({
-        studentId: student._id,
-        paidAmount: Number(amount),
-        feeRecordId: feeRecord._id,
-      });
-    } catch (error) {
-      console.error("Revenue distribution failed:", error);
-    }
+    // Record FULL amount as INCOME (Academy Revenue) in Transaction Ledger
+    const transaction = await Transaction.create({
+      type: "INCOME",
+      category: "Tuition",
+      amount: amountNum,
+      description: `Fee collected from ${student.studentName} (${month})`,
+      date: new Date(),
+      collectedBy: req.user?._id,
+      status: "FLOATING",
+      studentId: student._id,
+      classId: student.classRef, // Link to class for revenue tracking
+    });
 
-    if (req.user?._id && !split.isOwner) {
+    console.log("✅ Transaction created:", transaction._id);
+
+    // Track collector's cash (for daily closing verification)
+    if (req.user?._id) {
       try {
         const collector = await User.findById(req.user._id);
         if (collector) {
@@ -269,17 +229,55 @@ exports.collectFee = async (req, res) => {
       }
     }
 
-    // Academy's share is retained automatically (single-owner model)
-    if (split.poolRevenue > 0) {
-      console.log(
-        `Academy retains PKR ${split.poolRevenue} (30% of ${amount})`,
-      );
+    // SEND NOTIFICATION - When fee is collected
+    try {
+      const Notification = require("../models/Notification");
+      const User = require("../models/User");
+
+      // Find Academy Owner
+      const owner = await User.findOne({ role: "OWNER" });
+
+      if (owner) {
+        // Calculate new remaining balance after payment
+        const newRemainingBalance =
+          (student.totalFee || 0) - student.paidAmount;
+
+        // Notification for fee collection - show amount paid and remaining balance
+        const notificationMsg = `Fee collected from ${student.studentName} (${student.studentId}): Rs. ${amountNum.toLocaleString()} paid | Remaining Balance: Rs. ${newRemainingBalance.toLocaleString()}`;
+
+        await Notification.create({
+          recipient: owner._id,
+          recipientRole: "OWNER",
+          message: notificationMsg,
+          type: "FINANCE",
+          relatedId: transaction._id, // Link to transaction for tracking
+        });
+
+        console.log("🔔 Notification sent to owner:", notificationMsg);
+
+        // If balance is NOW fully paid, send special notification
+        if (student.feeStatus === "paid" && oldFeeStatus !== "paid") {
+          const paidMsg = `✅ ${student.studentName} (${student.studentId}) has FULLY PAID their fee of Rs. ${student.totalFee.toLocaleString()}`;
+
+          await Notification.create({
+            recipient: owner._id,
+            recipientRole: "OWNER",
+            message: paidMsg,
+            type: "FINANCE",
+            relatedId: student._id, // Link to student record
+          });
+
+          console.log("✅ Balance Paid Notification:", paidMsg);
+        }
+      }
+    } catch (e) {
+      console.log("⚠️ Notification creation skipped:", e.message);
     }
 
     res.status(201).json({
       success: true,
       message: `Fee collected! Receipt: ${feeRecord.receiptNumber}`,
-      data: { feeRecord, split },
+      data: { feeRecord },
     });
   } catch (error) {
     console.error("CollectFee Error:", error);

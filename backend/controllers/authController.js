@@ -339,14 +339,17 @@ exports.updateStaff = async (req, res) => {
 
 // ========================================
 // @route   POST /api/auth/reset-password
-// @desc    Reset a user's password (OWNER only)
+// @desc    Reset a user's or student's password (OWNER/Admin only)
 // @access  Private (OWNER)
 // ========================================
 exports.resetPassword = async (req, res) => {
     try {
         const { userId, newPassword } = req.body;
+        
+        console.log('🔐 PASSWORD RESET REQUEST:', { userId, passwordLength: newPassword?.length });
 
         if (!userId || !newPassword) {
+            console.log('❌ Missing userId or newPassword');
             return res.status(400).json({
                 success: false,
                 message: 'Please provide userId and newPassword.',
@@ -354,14 +357,16 @@ exports.resetPassword = async (req, res) => {
         }
 
         if (newPassword.length < 6) {
+            console.log('❌ Password too short');
             return res.status(400).json({
                 success: false,
                 message: 'Password must be at least 6 characters.',
             });
         }
 
-        // Find user by any identifier (userId, username, or _id)
-        const user = await User.findOne({
+        // First, try to find in User collection (staff/admin)
+        console.log('🔍 Searching in User collection...');
+        let user = await User.findOne({
             $or: [
                 { userId: userId },
                 { username: userId },
@@ -369,27 +374,72 @@ exports.resetPassword = async (req, res) => {
             ].filter(q => q !== undefined && Object.values(q)[0] !== undefined),
         });
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: '❌ User not found.',
+        if (user) {
+            // Set new password (will be hashed by pre-save hook)
+            user.password = newPassword;
+            await user.save();
+
+            console.log(`✅ Admin password reset for: ${user.fullName}`);
+            return res.status(200).json({
+                success: true,
+                message: `✅ Password reset successfully for ${user.fullName}.`,
+                user: {
+                    userId: user.userId,
+                    username: user.username,
+                    fullName: user.fullName,
+                    role: user.role,
+                },
             });
         }
 
-        // Set new password (will be hashed by pre-save hook)
-        user.password = newPassword;
-        await user.save();
-
-        res.status(200).json({
-            success: true,
-            message: `✅ Password reset successfully for ${user.fullName}.`,
-            user: {
-                userId: user.userId,
-                username: user.username,
-                fullName: user.fullName,
-                role: user.role,
-            },
+        // If not found in User, try Student collection
+        const Student = require('../models/Student');
+        console.log(`🔍 Searching for student with identifier: "${userId}"`);
+        
+        // First check what students exist
+        const allStudents = await Student.find({}, 'studentId barcodeId studentName').limit(5);
+        console.log('📋 Sample students in DB:', allStudents.map(s => ({ 
+            studentId: s.studentId, 
+            barcodeId: s.barcodeId, 
+            name: s.studentName 
+        })));
+        
+        const student = await Student.findOne({
+            $or: [
+                { studentId: String(userId) },
+                { barcodeId: String(userId) },
+                { email: typeof userId === 'string' ? userId.toLowerCase() : userId },
+                { _id: userId.match && userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+            ].filter(q => q && Object.values(q)[0]),
         });
+        
+        console.log(`🔍 Student search result: ${student ? `Found ${student.studentName} (${student.barcodeId})` : 'Not found'}`);
+
+        if (student) {
+            // Set new password (will be hashed by pre-save hook in Student model)
+            student.password = newPassword;
+            student.plainPassword = newPassword; // Store plain password for credentials display
+            await student.save();
+
+            console.log(`✅ Student password reset for: ${student.studentName} (${student.studentId})`);
+            return res.status(200).json({
+                success: true,
+                message: `✅ Password reset successfully for ${student.studentName}.`,
+                user: {
+                    studentId: student.studentId,
+                    barcodeId: student.barcodeId,
+                    studentName: student.studentName,
+                    role: 'student',
+                },
+            });
+        }
+
+        // Neither User nor Student found
+        return res.status(404).json({
+            success: false,
+            message: '❌ User not found.',
+        });
+
     } catch (error) {
         console.error('Reset Password Error:', error);
         res.status(500).json({

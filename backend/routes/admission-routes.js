@@ -1,9 +1,9 @@
 const router = require('express').Router();
 const { approveSignup, promoteToStudent, getPendingSignups } = require('../controllers/admission-controller');
-const { verifyAdmin } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
-router.get('/signups', verifyAdmin, getPendingSignups);
-router.post('/approve-signup/:signupId', verifyAdmin, approveSignup);
-router.post('/promote/:admissionId', verifyAdmin, promoteToStudent);
+router.get('/signups', protect, getPendingSignups);
+router.post('/approve-signup/:signupId', protect, approveSignup);
+router.post('/promote/:admissionId', protect, promoteToStudent);
 
 module.exports = router;

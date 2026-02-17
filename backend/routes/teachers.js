@@ -10,10 +10,89 @@ const {
 const TeacherPayment = require("../models/TeacherPayment");
 const Teacher = require("../models/Teacher");
 const User = require("../models/User");
+const Class = require("../models/Class");
+const Student = require("../models/Student");
+const Transaction = require("../models/Transaction");
+const Session = require("../models/Session");
 
 // @route   GET /api/teachers
 // @desc    Get all teachers
 router.get("/", getTeachers);
+
+// @route   GET /api/teachers/:id/revenue
+// @desc    Get teacher revenue data (total revenue, teacher share)
+// @access  Public
+router.get("/:id/revenue", async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).lean();
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: "Teacher not found" });
+    }
+
+    // Find active session
+    const activeSession = await Session.findOne({ status: "active" }).lean();
+
+    // Find classes assigned to this teacher
+    const classQuery = {
+      $or: [
+        { assignedTeacher: teacher._id },
+        { "subjectTeachers.teacherId": teacher._id },
+      ],
+    };
+    if (activeSession?._id) {
+      classQuery.session = activeSession._id;
+    }
+    const classes = await Class.find(classQuery).select("_id").lean();
+    const classIds = classes.map((c) => c._id);
+
+    // Calculate revenue from fee transactions linked to this teacher
+    const compType = teacher.compensation?.type || "percentage";
+    let totalRevenue = 0;
+    let teacherShare = 0;
+
+    if (compType === "percentage" || compType === "hybrid") {
+      // Get income transactions with this teacher's split
+      const txQuery = {
+        type: "INCOME",
+        "splitDetails.teacherId": teacher._id,
+      };
+      if (activeSession?._id) {
+        const sessionStudents = await Student.find({ sessionRef: activeSession._id }).select("_id").lean();
+        if (sessionStudents.length > 0) {
+          txQuery.studentId = { $in: sessionStudents.map((s) => s._id) };
+        }
+      }
+
+      const transactions = await Transaction.find(txQuery).lean();
+      for (const tx of transactions) {
+        totalRevenue += tx.amount || 0;
+        teacherShare += tx.splitDetails?.teacherShare || 0;
+      }
+    } else if (compType === "fixed") {
+      // For fixed salary, total revenue is from class students, teacher share is pending balance
+      if (classIds.length > 0) {
+        const revenueResult = await Student.aggregate([
+          { $match: { classRef: { $in: classIds } } },
+          { $group: { _id: null, total: { $sum: "$paidAmount" } } },
+        ]);
+        totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+      }
+      teacherShare = teacher.balance?.pending || 0;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        teacherShare,
+        compensationType: compType,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching teacher revenue:", error.message);
+    res.status(500).json({ success: false, message: "Failed to fetch revenue", error: error.message });
+  }
+});
 
 // @route   GET /api/teachers/:id
 // @desc    Get single teacher

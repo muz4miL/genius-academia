@@ -226,6 +226,12 @@ const studentSchema = new mongoose.Schema(
       trim: true,
       // Format: R-001 (Right Wing / Male), L-001 (Left Wing / Female)
     },
+    // Track seat changes for limiting (max 2 changes allowed)
+    seatChangeCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -360,6 +366,10 @@ studentSchema.pre("save", async function () {
   }
 });
 
+// NOTE: Password hashing is handled in the main pre-save hook above.
+// DO NOT add a second pre-save hook for password hashing — it causes double-hashing
+// which makes login permanently fail.
+
 // ========================================
 // INSTANCE METHODS
 // ========================================
@@ -393,6 +403,7 @@ studentSchema.methods.getStudentProfile = function () {
     barcodeId: this.barcodeId,
     name: this.studentName,
     fatherName: this.fatherName,
+    gender: this.gender,
     class: this.class,
     group: this.group,
     subjects: this.subjects,

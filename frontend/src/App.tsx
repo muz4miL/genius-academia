@@ -19,11 +19,16 @@ import Timetable from "./pages/Timetable";
 import Sessions from "./pages/Sessions";
 import Payroll from "./pages/Payroll";
 import Leads from "./pages/Leads";
+import PendingApprovals from "./pages/PendingApprovals";
+import KioskRegister from "./pages/KioskRegister";
+import SeatManagementPage from "./pages/SeatManagementPage";
 // Student Portal
 import StudentPortal from "./pages/StudentPortal";
 import StudentSeatSelection from "./pages/StudentSeatSelection";
 import NotFound from "./pages/NotFound";
 import PublicLanding from "./pages/PublicLanding";
+// Gatekeeper (reserved for SCA project)
+import Gatekeeper from "./pages/Gatekeeper";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +44,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/public" element={<PublicLanding />} />
             <Route path="/public-home" element={<Navigate to="/public" replace />} />
+            <Route path="/register" element={<KioskRegister />} />
 
             {/* Student Portal */}
             <Route path="/student-portal" element={<StudentPortal />} />
@@ -149,6 +155,31 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Leads />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/registrations"
+              element={
+                <ProtectedRoute>
+                  <PendingApprovals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/seat-management"
+              element={
+                <ProtectedRoute>
+                  <SeatManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Gatekeeper — reserved for SCA academy project */}
+            <Route
+              path="/gatekeeper"
+              element={
+                <ProtectedRoute>
+                  <Gatekeeper />
                 </ProtectedRoute>
               }
             />

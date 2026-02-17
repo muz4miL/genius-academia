@@ -66,7 +66,6 @@ const classRoutes = require("./routes/classes");
 const sessionRoutes = require("./routes/sessions");
 const timetableRoutes = require("./routes/timetable");
 const expenseRoutes = require("./routes/expenses");
-const userRoutes = require("./routes/users");
 const websiteRoutes = require("./routes/website");
 const payrollRoutes = require("./routes/payroll");
 const leadRoutes = require("./routes/leads");
@@ -74,9 +73,10 @@ const leadRoutes = require("./routes/leads");
 const gatekeeperRoutes = require("./routes/gatekeeper");
 const publicRoutes = require("./routes/public");
 const studentPortalRoutes = require("./routes/studentPortal");
-const lectureRoutes = require("./routes/lectureRoutes");
-const examRoutes = require("./routes/examRoutes");
+
 const notificationRoutes = require("./routes/notifications");
+const seatRoutes = require("./routes/seat-routes");
+const inventoryRoutes = require("./routes/inventory");
 
 // API Routes
 app.use("/api/auth", authRoutes);
@@ -88,7 +88,6 @@ app.use("/api/classes", classRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/expenses", expenseRoutes);
-app.use("/api/users", userRoutes);
 app.use("/api/website", websiteRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/leads", leadRoutes);
@@ -96,9 +95,10 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/gatekeeper", gatekeeperRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/student-portal", studentPortalRoutes);
-app.use("/api/lectures", lectureRoutes);
-app.use("/api/exams", examRoutes);
+
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/seats", seatRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {

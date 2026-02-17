@@ -1,13 +1,16 @@
-import { useRef, useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { pdf } from "@react-pdf/renderer";
 import {
   Banknote,
   Users,
   TrendingUp,
   AlertCircle,
   Loader2,
-  Calendar,
+  PlusCircle,
+  Search,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +37,17 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useReactToPrint } from "react-to-print";
-import TeacherPaymentReceipt from "@/components/dashboard/TeacherPaymentReceipt";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  TeacherPaymentPDF,
+  type TeacherPaymentPDFData,
+} from "@/components/print/TeacherPaymentPDF";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -50,17 +62,64 @@ export default function Payroll() {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payNotes, setPayNotes] = useState("");
-  const [reportTeacher, setReportTeacher] = useState<any>(null);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [receiptData, setReceiptData] = useState<any>(null);
 
-  const receiptRef = useRef<HTMLDivElement>(null);
-  const handlePrintReceipt = useReactToPrint({
-    contentRef: receiptRef,
-    documentTitle: receiptData
-      ? `Teacher-Payment-${receiptData.voucherId}`
-      : "Teacher Payment",
-  });
+  // Manual Credit State
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditNote, setCreditNote] = useState("");
+
+  // Filter State
+  const [sessionFilter, setSessionFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Logo cache for PDF
+  const [cachedLogo, setCachedLogo] = useState<string | null>(null);
+
+  const loadLogo = useCallback(async (): Promise<string> => {
+    if (cachedLogo) return cachedLogo;
+    try {
+      const response = await fetch("/logo.png");
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const url = reader.result as string;
+          setCachedLogo(url);
+          resolve(url);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return "";
+    }
+  }, [cachedLogo]);
+
+  const generatePaymentPDF = useCallback(
+    async (data: TeacherPaymentPDFData) => {
+      try {
+        const logoUrl = await loadLogo();
+        const pdfDoc = <TeacherPaymentPDF data={data} logoDataUrl={logoUrl} />;
+        const blob = await pdf(pdfDoc).toBlob();
+        const pdfUrl = URL.createObjectURL(blob);
+        const newTab = window.open(pdfUrl, "_blank");
+
+        if (!newTab) {
+          // Fallback: download if popup blocked
+          const link = document.createElement("a");
+          link.href = pdfUrl;
+          link.download = `Payment-${data.voucherId}.pdf`;
+          link.click();
+        }
+
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+      } catch (error) {
+        console.error("Error generating payment PDF:", error);
+      }
+    },
+    [loadLogo],
+  );
 
   // Redirect non-owners
   if (user?.role !== "OWNER") {
@@ -90,34 +149,27 @@ export default function Payroll() {
     },
   });
 
-  const generateSalariesMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/payroll/generate-session-salaries`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
-      );
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to generate salaries");
-      }
+  // Fetch sessions for filter
+  const { data: sessionsData } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/sessions`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch sessions");
       return res.json();
     },
-    onSuccess: (data) => {
-      toast({
-        title: "Session Salaries Generated",
-        description: data.message,
+  });
+
+  // Fetch classes for filter
+  const { data: classesData } = useQuery({
+    queryKey: ["classes"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/classes`, {
+        credentials: "include",
       });
-      queryClient.invalidateQueries({ queryKey: ["payroll-dashboard"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (!res.ok) throw new Error("Failed to fetch classes");
+      return res.json();
     },
   });
 
@@ -141,7 +193,7 @@ export default function Payroll() {
         description: data.message,
       });
       if (data?.data?.voucher) {
-        setReceiptData({
+        const receiptData: TeacherPaymentPDFData = {
           voucherId: data.data.voucher.voucherId,
           teacherName: data.data.voucher.teacherName,
           subject: data.data.voucher.subject,
@@ -151,10 +203,8 @@ export default function Payroll() {
           description: data.data.voucher.notes || "Teacher payout",
           sessionName: data.data.voucher.sessionName || "N/A",
           compensationType: selectedTeacher?.compensation?.type || "percentage",
-        });
-        setTimeout(() => {
-          handlePrintReceipt();
-        }, 400);
+        };
+        generatePaymentPDF(receiptData);
       }
       setPayDialogOpen(false);
       setSelectedTeacher(null);
@@ -175,12 +225,61 @@ export default function Payroll() {
     },
   });
 
+  // Manual Credit Mutation
+  const manualCreditMutation = useMutation({
+    mutationFn: async ({ teacherId, amount, description }: any) => {
+      const res = await fetch(`${API_BASE_URL}/payroll/credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ teacherId, amount, description }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to credit teacher");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Credit Added",
+        description: data.message,
+      });
+      setCreditDialogOpen(false);
+      setSelectedTeacher(null);
+      setCreditAmount("");
+      setCreditNote("");
+      queryClient.invalidateQueries({ queryKey: ["payroll-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["finance", "history"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Credit Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const dashboard = dashboardData?.data || {
     activeSession: null,
     totalPaidSession: 0,
     teachersWithBalances: [],
     totalTeacherLiability: 0,
   };
+
+  const sessions = sessionsData?.data || [];
+  const classes = classesData?.data || [];
+
+  // Filter teachers based on search and filters
+  const filteredTeachers = dashboard.teachersWithBalances.filter((teacher: any) => {
+    // Search filter
+    if (searchQuery && !teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
 
   if (isLoading) {
     return (
@@ -201,23 +300,7 @@ export default function Payroll() {
     <DashboardLayout title="Payroll Management">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-amber-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Active Session
-                  </p>
-                  <p className="text-lg font-semibold text-amber-700">
-                    {dashboard.activeSession?.sessionName || "No active session"}
-                  </p>
-                </div>
-                <Calendar className="h-8 w-8 text-amber-500" />
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-l-4 border-l-blue-500">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -271,31 +354,57 @@ export default function Payroll() {
 
         {/* Pending Requests Table */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-500" />
               Teachers Payroll
             </CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => generateSalariesMutation.mutate()}
-              disabled={generateSalariesMutation.isPending}
-            >
-              {generateSalariesMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                "Generate Session Salaries"
-              )}
-            </Button>
           </CardHeader>
           <CardContent>
-            {dashboard.teachersWithBalances.length === 0 ? (
+            {/* Filters */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or subject..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={sessionFilter} onValueChange={setSessionFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Session" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
+                  {sessions.map((session: any) => (
+                    <SelectItem key={session._id} value={session._id}>
+                      {session.sessionName}
+                      {session.status === "active" && " (Active)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={classFilter} onValueChange={setClassFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {classes.map((cls: any) => (
+                    <SelectItem key={cls._id} value={cls._id}>
+                      {cls.classTitle || cls.className}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {filteredTeachers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No active teachers found</p>
+                <p>No teachers found matching filters</p>
               </div>
             ) : (
               <Table>
@@ -311,7 +420,7 @@ export default function Payroll() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dashboard.teachersWithBalances.map((teacher: any) => (
+                  {filteredTeachers.map((teacher: any) => (
                     <TableRow key={teacher._id} className="hover:bg-muted/50">
                       <TableCell className="font-medium">
                         {teacher.name}
@@ -335,13 +444,14 @@ export default function Payroll() {
                         <div className="flex gap-2 justify-end">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="secondary"
                             onClick={() => {
-                              setReportTeacher(teacher);
-                              setReportOpen(true);
+                              setSelectedTeacher(teacher);
+                              setCreditDialogOpen(true);
                             }}
                           >
-                            Report
+                            <PlusCircle className="h-3.5 w-3.5 mr-1" />
+                            Credit
                           </Button>
                           <Button
                             size="sm"
@@ -473,318 +583,93 @@ export default function Payroll() {
         </DialogContent>
       </Dialog>
 
-      {receiptData && (
-        <TeacherPaymentReceipt
-          ref={receiptRef}
-          voucherId={receiptData.voucherId}
-          teacherName={receiptData.teacherName}
-          subject={receiptData.subject}
-          amountPaid={receiptData.amountPaid}
-          remainingBalance={receiptData.remainingBalance}
-          paymentDate={receiptData.paymentDate}
-          description={receiptData.description}
-          sessionName={receiptData.sessionName}
-          compensationType={receiptData.compensationType}
-        />
-      )}
 
-      {/* Teacher Report Dialog */}
+
+      {/* Manual Credit Dialog */}
       <Dialog
-        open={reportOpen}
+        open={creditDialogOpen}
         onOpenChange={(open) => {
-          setReportOpen(open);
-          if (!open) setReportTeacher(null);
+          setCreditDialogOpen(open);
+          if (!open) {
+            setSelectedTeacher(null);
+            setCreditAmount("");
+            setCreditNote("");
+          }
         }}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Teacher Payroll Report</DialogTitle>
+            <DialogTitle>Add Manual Credit</DialogTitle>
             <DialogDescription>
-              {reportTeacher ? `${reportTeacher.name} (${reportTeacher.subject})` : ""}
+              {selectedTeacher
+                ? `Credit ${selectedTeacher.name}'s balance. This records a liability (debt owed), not a cash payout.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
-          {reportTeacher && (
-            <TeacherReport teacherId={reportTeacher._id} />
-          )}
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount (PKR) *</label>
+              <Input
+                type="number"
+                placeholder="e.g. 14000"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                min={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Note / Description *</label>
+              <Textarea
+                placeholder="e.g. Jan Session Share, Chemistry Classes Dec..."
+                value={creditNote}
+                onChange={(e) => setCreditNote(e.target.value)}
+              />
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <strong>Note:</strong> This will increase the teacher's payable balance.
+              The amount will appear in their Payroll as owed. Use the "Pay" button
+              to record actual cash payouts.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() =>
+                manualCreditMutation.mutate({
+                  teacherId: selectedTeacher?._id,
+                  amount: Number(creditAmount),
+                  description: creditNote,
+                })
+              }
+              disabled={
+                !selectedTeacher ||
+                !creditAmount ||
+                Number(creditAmount) <= 0 ||
+                !creditNote.trim() ||
+                manualCreditMutation.isPending
+              }
+            >
+              {manualCreditMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Crediting...
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Credit
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
   );
 }
-
-const TeacherReport = ({ teacherId }: { teacherId: string }) => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["teacher-report", teacherId],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/payroll/teacher-report/${teacherId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to load report");
-      return res.json();
-    },
-    enabled: !!teacherId,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="py-6">
-        <Skeleton className="h-6 w-1/3 mb-4" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
-
-  const report = data?.data;
-  if (!report) return null;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Payable Balance</p>
-            <p className="text-xl font-bold text-emerald-600">
-              Rs. {report.balances.payable.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Paid This Session</p>
-            <p className="text-xl font-bold text-blue-600">
-              Rs. {report.payouts.totalPaidSession.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Session</p>
-            <p className="text-sm font-medium">
-              {report.session?.sessionName || "No active session"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {report.teacher.compensation?.type === "percentage" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Split (Session)</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Teacher Share</p>
-              <p className="text-lg font-semibold text-emerald-700">
-                Rs. {report.incomeTotals.teacherShare.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Academy Share</p>
-              <p className="text-lg font-semibold text-blue-700">
-                Rs. {report.incomeTotals.academyShare.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-semibold">
-                Rs. {report.incomeTotals.totalRevenue.toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Fixed Salary (Session)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Accrued Amount</p>
-            <p className="text-lg font-semibold text-emerald-700">
-              Rs. {report.fixedSalaryAccrual?.amount?.toLocaleString() || 0}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Classes & Students (Session)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Classes</p>
-              <p className="text-lg font-semibold">
-                {report.classSummary?.totalClasses || 0}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Students</p>
-              <p className="text-lg font-semibold">
-                {report.classSummary?.totalStudents || 0}
-              </p>
-            </div>
-          </div>
-          {report.classes?.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Group</TableHead>
-                  <TableHead>Shift</TableHead>
-                  <TableHead className="text-right">Students</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.classes.map((c: any) => (
-                  <TableRow key={c._id}>
-                    <TableCell>{c.classTitle}</TableCell>
-                    <TableCell>{c.group || "—"}</TableCell>
-                    <TableCell>{c.shift || "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {c.studentCount || 0}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No classes linked to this teacher for the active session.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {report.teacher.compensation?.type === "percentage" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue by Class (Session)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {report.classRevenueBreakdown?.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Class</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Teacher</TableHead>
-                    <TableHead className="text-right">Academy</TableHead>
-                    <TableHead className="text-right">Transactions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.classRevenueBreakdown.map((row: any) => (
-                    <TableRow key={row.classId || row.classTitle}>
-                      <TableCell>{row.classTitle || "Unknown"}</TableCell>
-                      <TableCell className="text-right">
-                        Rs. {row.totalRevenue.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-emerald-700">
-                        Rs. {row.teacherShare.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-blue-700">
-                        Rs. {row.academyShare.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.transactionCount}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No revenue transactions yet for this session.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {report.teacher.compensation?.type === "percentage" && report.incomeTransactions?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Fee Breakdown (Session)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Detailed list of fees collected from students showing your share
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Total Fee</TableHead>
-                  <TableHead className="text-right">Your Share</TableHead>
-                  <TableHead className="text-right">Academy Share</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.incomeTransactions.slice(0, 50).map((tx: any) => (
-                  <TableRow key={tx._id}>
-                    <TableCell className="font-medium">{tx.studentName}</TableCell>
-                    <TableCell>{tx.studentClass}</TableCell>
-                    <TableCell className="text-xs">
-                      {new Date(tx.date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      Rs. {tx.amount.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right text-emerald-700 font-semibold">
-                      Rs. {tx.teacherShare.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right text-blue-700">
-                      Rs. {tx.academyShare.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {report.incomeTransactions.length > 50 && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Showing first 50 of {report.incomeTransactions.length} transactions
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Payouts (Session)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.payouts.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No payouts yet</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.payouts.items.map((p: any) => (
-                  <TableRow key={p._id}>
-                    <TableCell>
-                      {new Date(p.paymentDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="font-semibold text-emerald-700">
-                      Rs. {p.amountPaid.toLocaleString()}
-                    </TableCell>
-                    <TableCell>{p.notes || "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-};

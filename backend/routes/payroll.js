@@ -10,6 +10,7 @@ const {
   getPayrollDashboard,
   generateSessionSalaries,
   getTeacherReport,
+  manualCreditTeacher,
 } = require("../controllers/payrollController");
 
 // @route   POST /api/payroll/request
@@ -70,6 +71,16 @@ router.get(
   protect,
   restrictTo("OWNER"),
   getTeacherReport,
+);
+
+// @route   POST /api/payroll/credit
+// @desc    Manually credit a teacher's pending balance (Liability entry)
+// @access  Protected (OWNER only)
+router.post(
+  "/credit",
+  protect,
+  restrictTo("OWNER"),
+  manualCreditTeacher,
 );
 
 module.exports = router;
