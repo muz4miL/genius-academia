@@ -46,6 +46,7 @@ import {
   Power,
   Pencil,
   X,
+  Camera,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -98,18 +99,36 @@ const Configuration = () => {
   // Edit Mode & Permissions
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(["dashboard"]);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([
+    "dashboard",
+  ]);
 
   // Delete Confirmation State
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [staffToDelete, setStaffToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [staffToDelete, setStaffToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // System Reset Confirmation State
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   // Subject Deletion Confirmation State
-  const [subjectToDelete, setSubjectToDelete] = useState<{ name: string; index: number } | null>(null);
+  const [subjectToDelete, setSubjectToDelete] = useState<{
+    name: string;
+    index: number;
+  } | null>(null);
   const [subjectConfirmOpen, setSubjectConfirmOpen] = useState(false);
+
+  // --- Profile Picture Settings ---
+  const [profilePictureSettings, setProfilePictureSettings] = useState({
+    maxChangesPerStudent: 3,
+    allowStudentPictureChanges: true,
+    pictureDisplayOnSlip: true,
+    fallbackEmoji: "👤",
+    maxFileSizeMB: 5,
+    allowedFormats: ["jpg", "jpeg", "png", "webp"],
+  });
 
   // All available permissions for the permission matrix
   const allPermissions = [
@@ -169,6 +188,14 @@ const Configuration = () => {
           // Session Rate Master
           if (data.sessionPrices) {
             setSessionPrices(data.sessionPrices);
+          }
+
+          // Profile Picture Settings
+          if (data.studentProfilePictureSettings) {
+            setProfilePictureSettings((prev) => ({
+              ...prev,
+              ...data.studentProfilePictureSettings,
+            }));
           }
         }
       } catch (error) {
@@ -242,10 +269,7 @@ const Configuration = () => {
 
   // --- Create/Update Staff Handler ---
   const handleCreateOrUpdateStaff = async () => {
-    if (
-      !newStaffUsername.trim() ||
-      !newStaffFullName.trim()
-    ) {
+    if (!newStaffUsername.trim() || !newStaffFullName.trim()) {
       toast({
         title: "Missing Information",
         description: "Please fill in username and full name.",
@@ -317,8 +341,8 @@ const Configuration = () => {
             prev.map((s) =>
               s._id === editingStaffId || s.userId === editingStaffId
                 ? result.user
-                : s
-            )
+                : s,
+            ),
           );
         } else {
           setStaffList((prev) => [result.user, ...prev]);
@@ -327,7 +351,9 @@ const Configuration = () => {
         console.error("❌ Staff creation failed:", result);
         toast({
           title: "Error Creating Staff",
-          description: result.message || `Failed to ${isEditMode ? 'update' : 'create'} staff account.`,
+          description:
+            result.message ||
+            `Failed to ${isEditMode ? "update" : "create"} staff account.`,
           variant: "destructive",
         });
       }
@@ -335,7 +361,9 @@ const Configuration = () => {
       console.error("❌ Staff creation error:", error);
       toast({
         title: "Network Error",
-        description: error.message || `Failed to ${isEditMode ? 'update' : 'create'} staff account.`,
+        description:
+          error.message ||
+          `Failed to ${isEditMode ? "update" : "create"} staff account.`,
         variant: "destructive",
       });
     } finally {
@@ -447,7 +475,9 @@ const Configuration = () => {
       const result = await response.json();
 
       if (result.success) {
-        setStaffList((prev) => prev.filter((s) => s._id !== staffId && s.userId !== staffId));
+        setStaffList((prev) =>
+          prev.filter((s) => s._id !== staffId && s.userId !== staffId),
+        );
         toast({
           title: "Staff Deleted",
           description: `${staffName} has been removed from the system.`,
@@ -472,11 +502,14 @@ const Configuration = () => {
     }
   };
 
-
   // --- Instant Save Helper ---
   const saveConfigToBackend = async (
     subjects: Array<{ name: string; fee: number }>,
-    sessionPricesOverride?: Array<{ sessionId: string; sessionName: string; price: number }>,
+    sessionPricesOverride?: Array<{
+      sessionId: string;
+      sessionName: string;
+      price: number;
+    }>,
   ) => {
     try {
       const settingsData = {
@@ -485,6 +518,7 @@ const Configuration = () => {
         academyPhone,
         defaultSubjectFees: subjects,
         sessionPrices: sessionPricesOverride || sessionPrices,
+        studentProfilePictureSettings: profilePictureSettings,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/config`, {
@@ -544,6 +578,7 @@ const Configuration = () => {
         academyPhone,
         defaultSubjectFees,
         sessionPrices,
+        studentProfilePictureSettings: profilePictureSettings,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/config`, {
@@ -772,12 +807,13 @@ const Configuration = () => {
                                   onBlur={async (e) => {
                                     const newPrice =
                                       Number(e.target.value) || 0;
-                                    const nextSessionPrices = buildSessionPrices(
-                                      session._id,
-                                      session.sessionName,
-                                      newPrice,
-                                      sessionPrices,
-                                    );
+                                    const nextSessionPrices =
+                                      buildSessionPrices(
+                                        session._id,
+                                        session.sessionName,
+                                        newPrice,
+                                        sessionPrices,
+                                      );
                                     try {
                                       await saveConfigToBackend(
                                         defaultSubjectFees,
@@ -814,9 +850,7 @@ const Configuration = () => {
                     <Banknote className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">
-                      Master Subjects
-                    </CardTitle>
+                    <CardTitle className="text-lg">Master Subjects</CardTitle>
                     <CardDescription>
                       Global subject list for admissions and classes
                     </CardDescription>
@@ -931,7 +965,8 @@ const Configuration = () => {
                       Staff Access Management
                     </CardTitle>
                     <CardDescription>
-                      Create and manage operator/staff login accounts with granular permissions
+                      Create and manage operator/staff login accounts with
+                      granular permissions
                     </CardDescription>
                   </div>
                 </div>
@@ -941,7 +976,9 @@ const Configuration = () => {
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-semibold text-foreground">
-                      {isEditMode ? "Edit Staff Account" : "Create New Staff Account"}
+                      {isEditMode
+                        ? "Edit Staff Account"
+                        : "Create New Staff Account"}
                     </p>
                     {isEditMode && (
                       <Button
@@ -979,12 +1016,17 @@ const Configuration = () => {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">
-                        Password {isEditMode ? "(leave blank to keep current)" : "*"}
+                        Password{" "}
+                        {isEditMode ? "(leave blank to keep current)" : "*"}
                       </Label>
                       <div className="relative">
                         <Input
                           type={showNewPassword ? "text" : "password"}
-                          placeholder={isEditMode ? "Leave blank to keep" : "Min 6 characters"}
+                          placeholder={
+                            isEditMode
+                              ? "Leave blank to keep"
+                              : "Min 6 characters"
+                          }
                           value={newStaffPassword}
                           onChange={(e) => setNewStaffPassword(e.target.value)}
                           className="h-10 pr-10"
@@ -1006,7 +1048,9 @@ const Configuration = () => {
 
                   {/* Permission Matrix */}
                   <div className="space-y-2 mb-4">
-                    <Label className="text-xs font-semibold">Access Permissions</Label>
+                    <Label className="text-xs font-semibold">
+                      Access Permissions
+                    </Label>
                     <p className="text-xs text-muted-foreground mb-2">
                       Select which tabs this staff member can access
                     </p>
@@ -1167,7 +1211,7 @@ const Configuration = () => {
                             onClick={() =>
                               handleDeleteStaff(
                                 staff._id || staff.userId,
-                                staff.fullName
+                                staff.fullName,
                               )
                             }
                             title="Delete staff account"
@@ -1179,6 +1223,142 @@ const Configuration = () => {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* ========== STUDENT PROFILE PICTURE SETTINGS ========== */}
+            <Card className="border-border mt-8">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Camera className="h-5 w-5 text-primary" />
+                  Student Profile Picture Settings
+                </CardTitle>
+                <CardDescription>
+                  Control how students can manage their profile pictures and how
+                  photos appear on admission slips.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Toggle: Allow Picture Changes */}
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      Allow Students to Change Picture
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      When enabled, students can update their profile picture
+                      from the Student Portal.
+                    </p>
+                  </div>
+                  <Checkbox
+                    checked={profilePictureSettings.allowStudentPictureChanges}
+                    onCheckedChange={(checked) =>
+                      setProfilePictureSettings((prev) => ({
+                        ...prev,
+                        allowStudentPictureChanges: !!checked,
+                      }))
+                    }
+                  />
+                </div>
+
+                {/* Toggle: Show on Slip */}
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      Display Photo on Admission Slip
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Show the student's profile picture on printed admission
+                      slips and PDF receipts.
+                    </p>
+                  </div>
+                  <Checkbox
+                    checked={profilePictureSettings.pictureDisplayOnSlip}
+                    onCheckedChange={(checked) =>
+                      setProfilePictureSettings((prev) => ({
+                        ...prev,
+                        pictureDisplayOnSlip: !!checked,
+                      }))
+                    }
+                  />
+                </div>
+
+                {/* Max Changes */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      Max Picture Changes per Student
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                      How many times a student can change their photo.
+                    </p>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={profilePictureSettings.maxChangesPerStudent}
+                      onChange={(e) =>
+                        setProfilePictureSettings((prev) => ({
+                          ...prev,
+                          maxChangesPerStudent: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-24"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      Max File Size (MB)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                      Maximum upload size for profile pictures.
+                    </p>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={profilePictureSettings.maxFileSizeMB}
+                      onChange={(e) =>
+                        setProfilePictureSettings((prev) => ({
+                          ...prev,
+                          maxFileSizeMB: parseInt(e.target.value) || 5,
+                        }))
+                      }
+                      className="w-24"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      Fallback Emoji
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                      Shown when student has no photo.
+                    </p>
+                    <Input
+                      type="text"
+                      maxLength={2}
+                      value={profilePictureSettings.fallbackEmoji}
+                      onChange={(e) =>
+                        setProfilePictureSettings((prev) => ({
+                          ...prev,
+                          fallbackEmoji: e.target.value || "👤",
+                        }))
+                      }
+                      className="w-24 text-center text-xl"
+                    />
+                  </div>
+                </div>
+
+                {/* Allowed Formats (read-only info) */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  Allowed formats:{" "}
+                  {profilePictureSettings.allowedFormats
+                    ?.join(", ")
+                    .toUpperCase() || "JPG, PNG, WEBP"}
+                </div>
               </CardContent>
             </Card>
 
@@ -1252,8 +1432,13 @@ const Configuration = () => {
               Confirm Staff Deletion
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-600 text-lg py-2">
-              Are you sure you want to delete <span className="font-bold text-red-600">{staffToDelete?.name}</span>?
-              This action <span className="underline font-semibold">cannot be undone</span> and all access for this user will be revoked immediately.
+              Are you sure you want to delete{" "}
+              <span className="font-bold text-red-600">
+                {staffToDelete?.name}
+              </span>
+              ? This action{" "}
+              <span className="underline font-semibold">cannot be undone</span>{" "}
+              and all access for this user will be revoked immediately.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
@@ -1279,13 +1464,19 @@ const Configuration = () => {
               Extreme Warning
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-900 font-medium text-lg border-l-4 border-red-500 pl-4 py-2 bg-red-50/50">
-              This will <span className="text-red-600 font-black">WIPE EVERYTHING</span>.
-              <br /><br />
-              All financial records, student data, and account balances will be permanently deleted. This is for academy owners during terminal reset only.
+              This will{" "}
+              <span className="text-red-600 font-black">WIPE EVERYTHING</span>.
+              <br />
+              <br />
+              All financial records, student data, and account balances will be
+              permanently deleted. This is for academy owners during terminal
+              reset only.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel className="h-12 font-semibold">Cancel Safety</AlertDialogCancel>
+            <AlertDialogCancel className="h-12 font-semibold">
+              Cancel Safety
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 try {
@@ -1305,7 +1496,8 @@ const Configuration = () => {
                   if (data.success) {
                     toast({
                       title: "System Reset Complete",
-                      description: "Database wiped. All balances reset to 0. Reloading...",
+                      description:
+                        "Database wiped. All balances reset to 0. Reloading...",
                       className: "bg-green-50 border-green-200",
                     });
                     setTimeout(() => {
@@ -1338,7 +1530,10 @@ const Configuration = () => {
       </AlertDialog>
 
       {/* Subject Deletion Confirmation */}
-      <AlertDialog open={subjectConfirmOpen} onOpenChange={setSubjectConfirmOpen}>
+      <AlertDialog
+        open={subjectConfirmOpen}
+        onOpenChange={setSubjectConfirmOpen}
+      >
         <AlertDialogContent className="max-w-md border-b-4 border-red-500 shadow-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -1346,8 +1541,11 @@ const Configuration = () => {
               Remove Subject
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-600">
-              Are you sure you want to remove <span className="font-bold text-slate-900">{subjectToDelete?.name}</span>?
-              This will update the default subjects for all future sessions.
+              Are you sure you want to remove{" "}
+              <span className="font-bold text-slate-900">
+                {subjectToDelete?.name}
+              </span>
+              ? This will update the default subjects for all future sessions.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1356,20 +1554,23 @@ const Configuration = () => {
               onClick={async () => {
                 if (!subjectToDelete) return;
                 const { index, name } = subjectToDelete;
-                const newSubjects = defaultSubjectFees.filter((_, i) => i !== index);
+                const newSubjects = defaultSubjectFees.filter(
+                  (_, i) => i !== index,
+                );
                 setDefaultSubjectFees(newSubjects);
                 try {
                   await saveConfigToBackend(newSubjects);
                   toast({
                     title: "Subject Removed",
                     description: `${name} has been taken off the list.`,
-                    className: "bg-green-50 border-green-200"
+                    className: "bg-green-50 border-green-200",
                   });
                 } catch (error) {
                   setDefaultSubjectFees(defaultSubjectFees);
                   toast({
                     title: "Error",
-                    description: "Something went wrong while removing the subject.",
+                    description:
+                      "Something went wrong while removing the subject.",
                     variant: "destructive",
                   });
                 } finally {
@@ -1384,8 +1585,6 @@ const Configuration = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-
     </DashboardLayout>
   );
 };

@@ -49,6 +49,9 @@ import {
   FileText,
   CheckCircle2,
   UserCircle,
+  Camera,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -74,6 +77,12 @@ interface StudentProfile {
   studentStatus: string;
   session?: { name: string; startDate: string; endDate: string };
   classRef?: any;
+  profilePictureChangeCount?: number;
+  profilePictureSettings?: {
+    maxChangesPerStudent: number;
+    allowStudentPictureChanges: boolean;
+    changesRemaining: number;
+  };
 }
 
 interface TimetableEntry {
@@ -87,8 +96,6 @@ interface TimetableEntry {
     name: string;
   };
 }
-
-
 
 // Subject color mapping with gradients
 const SUBJECT_COLORS: Record<
@@ -170,6 +177,11 @@ export function StudentPortal() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
 
+  // Profile Picture Upload State
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   // Mouse position for spotlight effect
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -214,15 +226,29 @@ export function StudentPortal() {
     },
   });
 
-
-
-  // Fetch student schedule/timetable (Role-Based — filtered by student's class)
-  const studentClassId = profile?.classRef?._id || profile?.classRef;
-  const { data: scheduleData } = useQuery({
-    queryKey: ["student-timetable", token, studentClassId],
+  // Fetch full profile (with profilePictureSettings) after login
+  useQuery({
+    queryKey: ["student-full-profile", token],
     queryFn: async () => {
-      const classFilter = studentClassId ? `?classId=${studentClassId}` : "";
-      const res = await fetch(`${API_BASE_URL}/api/timetable${classFilter}`, {
+      const res = await fetch(`${API_BASE_URL}/api/student-portal/me`, {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      const result = await res.json();
+      if (result.success && result.data) {
+        setProfile(result.data);
+      }
+      return result;
+    },
+    enabled: isLoggedIn && !!token,
+  });
+
+  // Fetch student schedule/timetable from student portal endpoint
+  const { data: scheduleData } = useQuery({
+    queryKey: ["student-timetable", token],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/student-portal/schedule`, {
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -286,8 +312,6 @@ export function StudentPortal() {
 
   const { current: currentSession, next: nextSession } = getCurrentSession();
 
-
-
   // Handle login
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,7 +330,7 @@ export function StudentPortal() {
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch { }
+    } catch {}
     setIsLoggedIn(false);
     setToken(null);
     setProfile(null);
@@ -334,7 +358,90 @@ export function StudentPortal() {
     }
   };
 
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (file: File) => {
+    if (!file || !token) return;
 
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Invalid file type", {
+        description: "Only JPEG, PNG and WebP images are allowed.",
+      });
+      return;
+    }
+
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("File too large", {
+        description: "Maximum file size is 5MB. Please compress your image.",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/student-portal/profile-picture`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success("Profile picture updated!", {
+          description: `${data.data.changesRemaining} change${data.data.changesRemaining !== 1 ? "s" : ""} remaining.`,
+        });
+
+        // Update profile with new photo
+        if (profile) {
+          setProfile({
+            ...profile,
+            photo: data.data.photoUrl,
+            profilePictureChangeCount: data.data.changesUsed,
+            profilePictureSettings: profile.profilePictureSettings
+              ? {
+                  ...profile.profilePictureSettings,
+                  changesRemaining: data.data.changesRemaining,
+                }
+              : undefined,
+          });
+        }
+        setShowPhotoDialog(false);
+      } else {
+        toast.error("Upload failed", {
+          description: data.message || "Please try again.",
+        });
+      }
+    } catch (error) {
+      toast.error("Upload failed", {
+        description: "Network error. Please try again.",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleProfilePictureUpload(file);
+    // Reset input so the same file can be re-selected
+    if (e.target) e.target.value = "";
+  };
+
+  const picSettings = profile?.profilePictureSettings;
+  const canChangePicture =
+    picSettings?.allowStudentPictureChanges &&
+    (picSettings?.changesRemaining ?? 0) > 0;
 
   // --- UI HELPERS ---
   const MagneticWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -600,9 +707,10 @@ export function StudentPortal() {
   }
 
   // Calculate fee percentage (cap at 100% to prevent overpayment display issues)
-  const feePercentage = profile && profile.totalFee > 0
-    ? Math.min(100, Math.round((profile.paidAmount / profile.totalFee) * 100))
-    : 0;
+  const feePercentage =
+    profile && profile.totalFee > 0
+      ? Math.min(100, Math.round((profile.paidAmount / profile.totalFee) * 100))
+      : 0;
 
   // MAIN DASHBOARD - LUXURY ACADEMIC AESTHETIC
   return (
@@ -661,7 +769,12 @@ export function StudentPortal() {
                   <div className="w-10 h-10 rounded-xl bg-brand-gold overflow-hidden flex items-center justify-center shadow-lg shadow-brand-gold/20">
                     {profile?.photo ? (
                       <img
-                        src={profile.photo}
+                        src={
+                          profile.photo.startsWith("data:") ||
+                          profile.photo.startsWith("http")
+                            ? profile.photo
+                            : `${API_BASE_URL}${profile.photo}`
+                        }
                         alt={profile.name}
                         className="w-full h-full object-cover"
                       />
@@ -706,12 +819,24 @@ export function StudentPortal() {
                         gender: (profile as any).gender || "Male",
                         class: profile.class,
                         classId: profile.classRef?._id || profile.classRef,
-                        session: profile.session ? {
-                          _id: typeof profile.session === "string" ? profile.session : (profile.session as any)?._id,
-                          name: typeof profile.session === "string" ? profile.session : (profile.session as any)?.name || (profile.session as any)?.sessionName,
-                        } : undefined,
+                        session: profile.session
+                          ? {
+                              _id:
+                                typeof profile.session === "string"
+                                  ? profile.session
+                                  : (profile.session as any)?._id,
+                              name:
+                                typeof profile.session === "string"
+                                  ? profile.session
+                                  : (profile.session as any)?.name ||
+                                    (profile.session as any)?.sessionName,
+                            }
+                          : undefined,
                       };
-                      localStorage.setItem("studentInfo", JSON.stringify(studentInfo));
+                      localStorage.setItem(
+                        "studentInfo",
+                        JSON.stringify(studentInfo),
+                      );
                     }
                     navigate("/student-portal/seat-selection");
                   }}
@@ -974,44 +1099,108 @@ export function StudentPortal() {
 
                   {/* Profile Photo */}
                   <div className="flex flex-col items-center mb-6">
-                    <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden border-2 border-brand-gold/30 shadow-xl shadow-brand-gold/10 mb-4">
-                      {profile?.photo ? (
-                        <img
-                          src={profile.photo.startsWith('http') ? profile.photo : `${API_BASE_URL}${profile.photo}`}
-                          alt={profile.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img
-                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.studentId}`}
-                          alt={profile?.name}
-                          className="w-full h-full object-cover bg-brand-gold/5"
-                        />
+                    <div className="relative group/photo mb-4">
+                      <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden border-2 border-brand-gold/30 shadow-xl shadow-brand-gold/10">
+                        {profile?.photo ? (
+                          <img
+                            src={
+                              profile.photo.startsWith("data:") ||
+                              profile.photo.startsWith("http")
+                                ? profile.photo
+                                : `${API_BASE_URL}${profile.photo}`
+                            }
+                            alt={profile.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.studentId}`}
+                            alt={profile?.name}
+                            className="w-full h-full object-cover bg-brand-gold/5"
+                          />
+                        )}
+                      </div>
+                      {/* Camera overlay for changing photo */}
+                      {canChangePicture && (
+                        <button
+                          onClick={() => photoInputRef.current?.click()}
+                          disabled={isUploadingPhoto}
+                          className="absolute inset-0 rounded-[1.5rem] bg-black/50 opacity-0 group-hover/photo:opacity-100 transition-all duration-300 flex items-center justify-center cursor-pointer"
+                        >
+                          {isUploadingPhoto ? (
+                            <Loader2 className="h-6 w-6 text-white animate-spin" />
+                          ) : (
+                            <Camera className="h-6 w-6 text-white" />
+                          )}
+                        </button>
                       )}
                     </div>
+                    {/* Hidden file input */}
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      aria-label="Upload profile picture"
+                    />
                     <p className="text-lg font-serif font-bold text-white text-center">
                       {profile?.name}
                     </p>
                     <p className="text-[10px] font-black text-brand-gold/70 uppercase tracking-widest mt-1 font-mono">
                       {profile?.barcodeId || profile?.studentId}
                     </p>
+                    {/* Change photo info */}
+                    {picSettings?.allowStudentPictureChanges && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        {canChangePicture ? (
+                          <button
+                            onClick={() => photoInputRef.current?.click()}
+                            disabled={isUploadingPhoto}
+                            className="flex items-center gap-1.5 text-[10px] font-bold text-brand-gold/60 hover:text-brand-gold transition-colors uppercase tracking-widest"
+                          >
+                            <Camera className="h-3 w-3" />
+                            Change Photo
+                            <span className="text-brand-gold/40">
+                              ({picSettings.changesRemaining} left)
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                            No photo changes remaining
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Quick Info */}
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Father</span>
-                      <span className="text-xs font-bold text-slate-300">{profile?.fatherName}</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Father
+                      </span>
+                      <span className="text-xs font-bold text-slate-300">
+                        {profile?.fatherName}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Session</span>
-                      <span className="text-xs font-bold text-slate-300">{profile?.session?.name || "Not Assigned"}</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Session
+                      </span>
+                      <span className="text-xs font-bold text-slate-300">
+                        {profile?.session?.name || "Not Assigned"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Status
+                      </span>
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        <span className="text-xs font-bold text-emerald-400">{profile?.studentStatus}</span>
+                        <span className="text-xs font-bold text-emerald-400">
+                          {profile?.studentStatus}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1020,7 +1209,8 @@ export function StudentPortal() {
                   <Button
                     onClick={() => {
                       toast.info("Admission Slip", {
-                        description: "Please visit the administration office or contact your class coordinator to obtain your official admission slip.",
+                        description:
+                          "Please visit the administration office or contact your class coordinator to obtain your official admission slip.",
                       });
                     }}
                     className="w-full h-12 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/20 text-brand-gold font-black uppercase tracking-widest text-xs rounded-xl transition-all group"
@@ -1031,8 +1221,6 @@ export function StudentPortal() {
                 </CardContent>
               </Card>
             </motion.div>
-
-
           </div>
 
           {/* Weekly Timetable - Full Width */}
@@ -1083,7 +1271,7 @@ export function StudentPortal() {
                             ? "bg-brand-gold/10 border border-brand-gold/20 shadow-xl shadow-brand-gold/5"
                             : "bg-white/5 border border-white/5 opacity-50 hover:opacity-100",
                           isToday &&
-                          "ring-2 ring-brand-gold ring-offset-4 ring-offset-brand-primary scale-105 z-10",
+                            "ring-2 ring-brand-gold ring-offset-4 ring-offset-brand-primary scale-105 z-10",
                         )}
                       >
                         {/* Day Header */}
@@ -1123,7 +1311,8 @@ export function StudentPortal() {
                                 <div className="flex items-center gap-2 mt-2 opacity-60">
                                   <Clock className="h-2.5 w-2.5 text-slate-400" />
                                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                                    {entry.startTime} — {entry.endTime} | Room {entry.room || "TBA"}
+                                    {entry.startTime} — {entry.endTime} | Room{" "}
+                                    {entry.room || "TBA"}
                                   </span>
                                 </div>
                               </div>

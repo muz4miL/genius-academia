@@ -315,7 +315,14 @@ exports.trackPrint = async (req, res) => {
     student.printHistory.push({ receiptId, printedAt: new Date(), version });
     await student.save();
 
-    res.json({ success: true, data: { receiptId, version, student } });
+    // Include photo URL in the student data for receipt generation
+    const studentData = student.toObject();
+    studentData.photo = student.photo || student.imageUrl || null;
+
+    res.json({
+      success: true,
+      data: { receiptId, version, student: studentData },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

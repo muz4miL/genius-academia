@@ -9,7 +9,7 @@ if (!fs.existsSync(uploadDir)) {
   console.log("Created upload directory:", uploadDir);
 }
 
-// Configure storage for student photos
+// Configure storage for student photos (admin upload - uses req.params.id)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -23,22 +23,36 @@ const storage = multer.diskStorage({
   },
 });
 
+// Configure storage for student portal self-upload (uses req.student)
+const portalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Format: profile-{studentId}-{timestamp}.{ext}
+    const studentId = req.student?.studentId || req.student?._id || "unknown";
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    cb(null, `profile-${studentId}-${timestamp}${ext}`);
+  },
+});
+
 // File filter - only accept images
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png/;
+  const allowedTypes = /jpeg|jpg|png|webp/;
   const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
+    path.extname(file.originalname).toLowerCase(),
   );
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (extname && mimetype) {
     cb(null, true);
   } else {
-    cb(new Error("Only JPEG and PNG images are allowed"), false);
+    cb(new Error("Only JPEG, PNG and WebP images are allowed"), false);
   }
 };
 
-// Configure multer
+// Configure multer for admin photo upload
 const uploadStudentPhoto = multer({
   storage,
   fileFilter,
@@ -47,7 +61,16 @@ const uploadStudentPhoto = multer({
   },
 }).single("photo");
 
-// Wrapper middleware with error handling
+// Configure multer for student portal photo upload
+const uploadStudentPortalPhoto = multer({
+  storage: portalStorage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
+}).single("photo");
+
+// Wrapper middleware with error handling (admin)
 const handlePhotoUpload = (req, res, next) => {
   uploadStudentPhoto(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -73,4 +96,33 @@ const handlePhotoUpload = (req, res, next) => {
   });
 };
 
-module.exports = { handlePhotoUpload, uploadDir };
+// Wrapper middleware with error handling (student portal)
+const handleStudentProfilePhotoUpload = (req, res, next) => {
+  uploadStudentPortalPhoto(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "File too large. Maximum size is 5MB. Please compress your image and try again.",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
+    next();
+  });
+};
+
+module.exports = {
+  handlePhotoUpload,
+  handleStudentProfilePhotoUpload,
+  uploadDir,
+};

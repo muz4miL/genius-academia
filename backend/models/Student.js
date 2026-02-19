@@ -103,6 +103,27 @@ const studentSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Profile Picture Change Tracking
+    profilePictureChangeCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    profilePictureChangeLog: [
+      {
+        changedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        oldPhotoUrl: String,
+        newPhotoUrl: String,
+        changedBy: {
+          type: String,
+          enum: ["student", "admin"],
+          default: "student",
+        },
+      },
+    ],
     // Last scanned timestamp for audit trails
     lastScannedAt: {
       type: Date,
@@ -408,7 +429,8 @@ studentSchema.methods.getStudentProfile = function () {
     group: this.group,
     subjects: this.subjects,
     email: this.email,
-    photo: this.photo || defaultPhoto,
+    photo: this.photo || this.imageUrl || defaultPhoto,
+    profilePictureChangeCount: this.profilePictureChangeCount || 0,
     studentStatus: this.studentStatus,
     feeStatus: this.feeStatus,
     totalFee: this.totalFee,

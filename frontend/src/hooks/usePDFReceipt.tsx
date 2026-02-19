@@ -14,6 +14,7 @@ type PrintReason = "admission" | "verification" | "reprint" | "lost";
 interface PrintReceiptResult {
   student: StudentPDFData;
   receiptConfig: ReceiptPDFConfig;
+  studentPhotoDataUrl?: string;
 }
 
 /**
@@ -32,6 +33,28 @@ async function loadLogoAsDataUrl(): Promise<string> {
     });
   } catch (error) {
     console.error("Error loading logo:", error);
+    return "";
+  }
+}
+
+/**
+ * Load a remote image and convert to Base64 Data URL
+ */
+async function loadImageAsDataUrl(url: string): Promise<string> {
+  try {
+    // Handle relative URLs
+    const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+    const response = await fetch(fullUrl);
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(""); // Don't fail on image load error
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error loading image:", error);
     return "";
   }
 }
@@ -115,12 +138,26 @@ export function usePDFReceipt() {
           cachedLogoDataUrl = await loadLogoAsDataUrl();
         }
 
+        // Load student photo as data URL if available
+        let studentPhotoDataUrl = data.studentPhotoDataUrl || "";
+        const studentPhoto = data.student.photo;
+        if (!studentPhotoDataUrl && studentPhoto) {
+          // If it's already a data URL (base64), use it directly
+          if (studentPhoto.startsWith("data:")) {
+            studentPhotoDataUrl = studentPhoto;
+          } else {
+            // Load from server
+            studentPhotoDataUrl = await loadImageAsDataUrl(studentPhoto);
+          }
+        }
+
         // Create PDF document
         const pdfDoc = (
           <ReceiptPDF
             student={data.student}
             receiptConfig={data.receiptConfig}
             logoDataUrl={cachedLogoDataUrl}
+            studentPhotoDataUrl={studentPhotoDataUrl || undefined}
           />
         );
 

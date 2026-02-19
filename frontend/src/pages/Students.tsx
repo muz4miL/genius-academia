@@ -565,7 +565,23 @@ const Students = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white font-bold text-sm shadow-md">
+                            {(student.photo || student.imageUrl) ? (
+                              <img
+                                src={
+                                  (student.photo || student.imageUrl).startsWith("data:") ||
+                                  (student.photo || student.imageUrl).startsWith("http")
+                                    ? (student.photo || student.imageUrl)
+                                    : `${API_BASE_URL}${student.photo || student.imageUrl}`
+                                }
+                                alt={student.studentName}
+                                className="h-10 w-10 shrink-0 rounded-full object-cover shadow-md"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white font-bold text-sm shadow-md ${(student.photo || student.imageUrl) ? 'hidden' : ''}`}>
                               <span className="flex items-center justify-center">
                                 {initials}
                               </span>

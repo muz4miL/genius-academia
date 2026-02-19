@@ -35,7 +35,7 @@ exports.updateConfig = async (req, res) => {
   if (req.user.role !== "OWNER")
     return res.status(403).json({ success: false });
 
-  const { defaultSubjectFees, sessionPrices } =
+  const { defaultSubjectFees, sessionPrices, studentProfilePictureSettings } =
     req.body;
 
   // Legacy partner splits no longer validated (single-owner model)
@@ -98,7 +98,7 @@ exports.getSessionPrice = async (req, res) => {
 
     // Find the session price
     const sessionPrice = config.sessionPrices?.find(
-      (sp) => sp.sessionId?.toString() === sessionId
+      (sp) => sp.sessionId?.toString() === sessionId,
     );
 
     if (!sessionPrice) {
