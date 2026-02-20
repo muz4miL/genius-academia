@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { HeaderBanner } from "@/components/dashboard/HeaderBanner";
 import { Button } from "@/components/ui/button";
@@ -118,8 +118,17 @@ const Admissions = () => {
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [isLoadingPendingData, setIsLoadingPendingData] = useState(false);
 
-  // TASK 1: Load Draft on Component Mount
+  // Guard flag (ref — NOT state, so changing it won't re-trigger dependent useEffects)
+  // Prevents cascading useEffects (group→clear class, class→clear subjects)
+  // from interfering while we bulk-set form values from pending registration data
+  const isInitializingFromPendingRef = useRef(false);
+
+  // Track whether pending data has been fully synced (classes + sessions loaded & applied)
+  const [pendingDataSynced, setPendingDataSynced] = useState(!pendingId);
+
+  // TASK 1: Load Draft on Component Mount (skip if loading from pending registration)
   useEffect(() => {
+    if (pendingId) return; // Don't load draft — pending data takes priority
     const savedDraft = localStorage.getItem(ADMISSION_DRAFT_KEY);
     if (savedDraft) {
       try {
@@ -147,9 +156,10 @@ const Admissions = () => {
         console.error("❌ Error loading draft:", error);
       }
     }
-  }, []);
+  }, [pendingId]);
 
   // Load Pending Student from Registration Approval
+  // This fetches the student data early and stores it, then waits for classes+sessions to sync
   useEffect(() => {
     const loadPendingStudent = async () => {
       if (!pendingId) return;
@@ -162,6 +172,7 @@ const Admissions = () => {
         
         if (!res.ok) {
           toast.error("Failed to load pending student");
+          setPendingDataSynced(true); // unblock UI even on error
           return;
         }
 
@@ -169,12 +180,11 @@ const Admissions = () => {
         const student = data.data;
 
         console.log("📋 Full pending student data:", JSON.stringify(student, null, 2));
-        console.log("🔍 classRef field:", student.classRef, "Type:", typeof student.classRef);
-        console.log("🔍 sclassName field:", student.sclassName, "Type:", typeof student.sclassName);
-        console.log("🔍 currentSession field:", student.currentSession, "Type:", typeof student.currentSession);
-        console.log("🔍 sessionRef field:", student.sessionRef, "Type:", typeof student.sessionRef);
 
-        // Pre-fill form with pending student data
+        // Enable initialization guard — prevents cascading effects from clearing state
+        isInitializingFromPendingRef.current = true;
+
+        // Pre-fill simple text fields immediately
         setStudentName(student.studentName || student.name || "");
         setFatherName(student.fatherName || "");
         setGender(student.gender || "Male");
@@ -184,8 +194,7 @@ const Admissions = () => {
         setReferralSource(student.referralSource || "");
         setGroup(student.group || "");
         
-        // Handle class - classRef is the primary field for pending students
-        // Convert ObjectId to string if needed
+        // Extract class ID from pending data
         let classIdToSet = "";
         if (student.classRef) {
           if (typeof student.classRef === 'object' && student.classRef._id) {
@@ -202,11 +211,9 @@ const Admissions = () => {
         }
         
         console.log("🎓 Extracted class ID:", classIdToSet);
-        console.log("📚 Available classes count:", classes.length);
-        
         setPendingClassId(classIdToSet || null);
         
-        // Handle session
+        // Extract session ID from pending data
         let sessionIdToSet = "";
         if (student.sessionRef) {
           if (typeof student.sessionRef === 'object' && student.sessionRef._id) {
@@ -223,14 +230,13 @@ const Admissions = () => {
         }
         
         console.log("📅 Extracted session ID:", sessionIdToSet);
-        console.log("📚 Available sessions count:", sessions.length);
-        
         setPendingSessionId(sessionIdToSet || null);
 
         toast.success(`Loaded registration: ${student.studentName || student.name}`);
       } catch (error) {
         console.error("Error loading pending student:", error);
         toast.error("Failed to load pending student");
+        setPendingDataSynced(true); // unblock UI even on error
       } finally {
         setIsLoadingPendingData(false);
       }
@@ -239,38 +245,55 @@ const Admissions = () => {
     loadPendingStudent();
   }, [pendingId]);
 
-  // Set class and session once data is loaded
+  // Synchronize pending data with classes & sessions once both are available
+  // This is the SINGLE place where class + session get set from pending data
   useEffect(() => {
-    if (pendingClassId && classes.length > 0 && !selectedClassId) {
-      console.log("✅ Setting class from pending data:", pendingClassId);
-      console.log("Available classes:", classes.map((c: any) => ({ id: c._id, name: c.classTitle })));
-      
-      // Verify the classId exists in the classes array
+    // Nothing to sync if no pending data or already synced
+    if (!pendingId || pendingDataSynced) return;
+    // Need pending student data to be fetched first
+    if (isLoadingPendingData) return;
+    // Wait for classes to be available
+    if (classes.length === 0) return;
+    // Wait for sessions to be available (if we have a session to set)
+    if (pendingSessionId && sessions.length === 0) return;
+
+    console.log("🔄 Syncing pending data — classes and sessions are ready");
+
+    // Enable guard to prevent cascading effects
+    isInitializingFromPendingRef.current = true;
+
+    // Set class
+    if (pendingClassId) {
       const classExists = classes.some((c: any) => c._id === pendingClassId);
       if (classExists) {
         setSelectedClassId(pendingClassId);
-        console.log("✅ Class successfully set!");
+        console.log("✅ Class successfully set:", pendingClassId);
       } else {
         console.warn("⚠️ Pending class ID not found in available classes:", pendingClassId);
       }
     }
-  }, [pendingClassId, classes, selectedClassId]);
 
-  useEffect(() => {
-    if (pendingSessionId && sessions.length > 0 && !selectedSessionId) {
-      console.log("✅ Setting session from pending data:", pendingSessionId);
-      console.log("Available sessions:", sessions.map((s: any) => ({ id: s._id, name: s.sessionName })));
-      
-      // Verify the sessionId exists in the sessions array
+    // Set session
+    if (pendingSessionId) {
       const sessionExists = sessions.some((s: any) => s._id === pendingSessionId);
       if (sessionExists) {
         setSelectedSessionId(pendingSessionId);
-        console.log("✅ Session successfully set!");
+        console.log("✅ Session successfully set:", pendingSessionId);
       } else {
         console.warn("⚠️ Pending session ID not found in available sessions:", pendingSessionId);
       }
     }
-  }, [pendingSessionId, sessions, selectedSessionId]);
+
+    // Mark sync complete and disable guard after React processes the state updates
+    // Use requestAnimationFrame + setTimeout to ensure all state is flushed
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        isInitializingFromPendingRef.current = false;
+        setPendingDataSynced(true);
+        console.log("✅ Pending data fully synced, guard released");
+      }, 100);
+    });
+  }, [pendingId, pendingDataSynced, isLoadingPendingData, pendingClassId, pendingSessionId, classes, sessions]);
 
   // TASK 1: Save Draft to localStorage whenever form state changes
   useEffect(() => {
@@ -421,7 +444,9 @@ const Admissions = () => {
   }, [isCustomFeeMode, isSessionPriceMode, sessionPrice]);
 
   // Reset class selection when group changes (cascading behavior)
+  // GUARDED: Skip during pending data initialization to prevent clearing the incoming class
   useEffect(() => {
+    if (isInitializingFromPendingRef.current) return; // Guard: don't clear during pending sync
     if (group) {
       // Clear class selection when group changes
       setSelectedClassId("");
@@ -692,6 +717,38 @@ const Admissions = () => {
 
       </HeaderBanner>
 
+      {/* Loading Overlay — shown while pending registration data is being synced with classes/sessions */}
+      {pendingId && !pendingDataSynced && (
+        <div className="mt-6 flex flex-col items-center justify-center py-32 animate-in fade-in duration-300">
+          <div className="relative mb-8">
+            <div className="h-16 w-16 rounded-full border-4 border-muted animate-pulse" />
+            <Loader2 className="absolute inset-0 m-auto h-8 w-8 animate-spin text-primary" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Loading Registration Data</h3>
+          <p className="text-sm text-muted-foreground text-center max-w-md">
+            Syncing student information, class assignment, and session details...
+          </p>
+          <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className={`flex items-center gap-1.5 ${!isLoadingPendingData ? 'text-green-600' : ''}`}>
+              {!isLoadingPendingData ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Student data
+            </span>
+            <span className="text-border">•</span>
+            <span className={`flex items-center gap-1.5 ${classes.length > 0 ? 'text-green-600' : ''}`}>
+              {classes.length > 0 ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Classes
+            </span>
+            <span className="text-border">•</span>
+            <span className={`flex items-center gap-1.5 ${sessions.length > 0 ? 'text-green-600' : ''}`}>
+              {sessions.length > 0 ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Sessions
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Form — only render after pending data sync is complete (or if no pending data) */}
+      {pendingDataSynced && (
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Student Information */}
         <div className="lg:col-span-2">
@@ -778,17 +835,9 @@ const Admissions = () => {
                 <Select
                   value={selectedClassId}
                   onValueChange={setSelectedClassId}
-                  disabled={isLoadingPendingData}
                 >
                   <SelectTrigger className="bg-background">
-                    {isLoadingPendingData ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Loading class...</span>
-                      </div>
-                    ) : (
-                      <SelectValue placeholder="Select class" />
-                    )}
+                    <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((cls: any) => (
@@ -1184,6 +1233,7 @@ const Admissions = () => {
           </div>
         </div>
       </div>
+      )} {/* End pendingDataSynced conditional */}
 
       {/* Success Modal - Elegant Compact Design */}
       <AdmissionSuccessModal
