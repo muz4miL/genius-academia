@@ -1164,7 +1164,7 @@ exports.getAnalyticsDashboard = async (req, res) => {
     const weekStart = new Date(today);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
-    const [todayRev, weeklyRev, monthlyRev] = await Promise.all([
+    const [todayRev, weeklyRev, monthlyRev, todayRefund, weeklyRefund, monthlyRefund] = await Promise.all([
       Transaction.aggregate([
         { $match: { type: "INCOME", date: { $gte: today, $lt: tmr } } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -1175,6 +1175,18 @@ exports.getAnalyticsDashboard = async (req, res) => {
       ]),
       Transaction.aggregate([
         { $match: { type: "INCOME", date: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { type: "REFUND", date: { $gte: today, $lt: tmr } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { type: "REFUND", date: { $gte: weekStart } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { type: "REFUND", date: { $gte: startOfMonth } } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
     ]);
@@ -1190,9 +1202,9 @@ exports.getAnalyticsDashboard = async (req, res) => {
         feeCollection,
         expenseCategories,
         quickStats: {
-          todayRevenue: todayRev[0]?.total || 0,
-          weeklyRevenue: weeklyRev[0]?.total || 0,
-          monthlyRevenue: monthlyRev[0]?.total || 0,
+          todayRevenue: (todayRev[0]?.total || 0) - (todayRefund[0]?.total || 0),
+          weeklyRevenue: (weeklyRev[0]?.total || 0) - (weeklyRefund[0]?.total || 0),
+          monthlyRevenue: (monthlyRev[0]?.total || 0) - (monthlyRefund[0]?.total || 0),
           totalStudents,
           totalTeachers,
         },

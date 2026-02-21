@@ -1,6 +1,7 @@
 const Class = require("../models/Class");
 const Session = require("../models/Session");
 const Student = require("../models/Student");
+const Configuration = require("../models/Configuration");
 
 // Create a new class
 exports.createClass = async (req, res) => {
@@ -39,12 +40,15 @@ exports.getClasses = async (req, res) => {
     );
 
     // Aggregate revenue for each class
+    const config = await Configuration.findOne();
+    const teacherSharePct = config?.salaryConfig?.teacherShare ?? 70;
+
     const classesWithRevenue = await Promise.all(
       classes.map(async (classDoc) => {
-        // Get all students enrolled in this class
+        // Get all students enrolled in this class (only Active)
         const students = await Student.find({
           classRef: classDoc._id,
-          studentStatus: "Active",
+          status: "active",
         }).lean();
 
         // Sum up paid amounts
@@ -53,13 +57,14 @@ exports.getClasses = async (req, res) => {
           0,
         );
 
-        // Calculate estimated teacher share (70%)
-        const estimatedTeacherShare = Math.round(totalRevenueCollected * 0.7);
+        // Calculate estimated teacher share from configuration
+        const estimatedTeacherShare = Math.round(totalRevenueCollected * (teacherSharePct / 100));
 
         return {
           ...classDoc.toObject(),
           totalRevenueCollected,
           estimatedTeacherShare,
+          teacherSharePct,
           enrolledStudents: students.length,
         };
       }),

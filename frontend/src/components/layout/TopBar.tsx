@@ -45,6 +45,7 @@ export function TopBar({ title }: TopBarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications
@@ -99,6 +100,7 @@ export function TopBar({ title }: TopBarProps) {
         !notificationRef.current.contains(event.target as Node)
       ) {
         setShowNotifications(false);
+        setShowAllNotifications(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -175,7 +177,7 @@ export function TopBar({ title }: TopBarProps) {
                       </button>
                     )}
                     <button
-                      onClick={() => setShowNotifications(false)}
+                      onClick={() => { setShowNotifications(false); setShowAllNotifications(false); }}
                       className="text-gray-400 hover:text-gray-600"
                       title="Close notifications"
                       aria-label="Close notifications"
@@ -186,14 +188,14 @@ export function TopBar({ title }: TopBarProps) {
                 </div>
 
                 {/* Notification List */}
-                <div className="max-h-80 overflow-y-auto">
+                <div className={`overflow-y-auto ${showAllNotifications ? "max-h-[70vh]" : "max-h-80"}`}>
                   {notifications.length === 0 ? (
                     <div className="p-6 text-center text-gray-500">
                       <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                       <p className="text-sm">No new notifications</p>
                     </div>
                   ) : (
-                    notifications.slice(0, 5).map((notification) => (
+                    notifications.slice(0, showAllNotifications ? notifications.length : 5).map((notification) => (
                       <div
                         key={notification._id}
                         className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
@@ -225,8 +227,11 @@ export function TopBar({ title }: TopBarProps) {
                 {/* Footer */}
                 {notifications.length > 5 && (
                   <div className="px-4 py-2 text-center border-t border-gray-100 bg-gray-50">
-                    <button className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                      View all notifications
+                    <button
+                      onClick={() => setShowAllNotifications(!showAllNotifications)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {showAllNotifications ? "Show recent only" : `View all notifications (${notifications.length})`}
                     </button>
                   </div>
                 )}

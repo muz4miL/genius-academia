@@ -795,7 +795,7 @@ export default function Classes() {
     () => ({
       total: classes.length,
       active: classes.filter((c) => c.status === "active").length,
-      students: classes.reduce((sum, c) => sum + (c.studentCount || 0), 0),
+      students: classes.reduce((sum, c) => sum + (c.enrolledStudents || c.studentCount || 0), 0),
       linked: classes.filter((c) => getSessionInfo(c.session).found).length,
     }),
     [classes, getSessionInfo],
@@ -880,9 +880,9 @@ export default function Classes() {
               <SelectValue placeholder="Filter by Session" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Academic Sessions</SelectItem>
-              {mergedSessions.map((session) => {
-                const sessionId = session._id || session.sessionId;
+              <SelectItem value="all">All Sessions</SelectItem>
+              {sessions.map((session) => {
+                const sessionId = session._id;
                 if (!sessionId) return null;
                 return (
                   <SelectItem key={sessionId} value={sessionId}>
@@ -1025,7 +1025,7 @@ export default function Classes() {
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-lg font-bold text-primary">
-                            {classDoc.studentCount || 0}
+                            {classDoc.enrolledStudents || classDoc.studentCount || 0}
                           </span>
                           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                             Enrolled
@@ -1039,7 +1039,7 @@ export default function Classes() {
                           </span>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
-                              70% = PKR {(classDoc.estimatedTeacherShare || 0).toLocaleString()}
+                              {classDoc.teacherSharePct || 70}% = PKR {(classDoc.estimatedTeacherShare || 0).toLocaleString()}
                             </span>
                           </div>
                         </div>

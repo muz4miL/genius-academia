@@ -289,7 +289,9 @@ const FinanceOverview = () => {
                           className={
                             item.type === "EXPENSE"
                               ? "text-red-600"
-                              : "text-emerald-600"
+                              : item.type === "REFUND"
+                                ? "text-amber-600"
+                                : "text-emerald-600"
                           }
                         >
                           {item.type}
@@ -303,7 +305,9 @@ const FinanceOverview = () => {
                         className={
                           item.type === "EXPENSE"
                             ? "text-right font-bold text-red-600"
-                            : "text-right font-bold text-emerald-700"
+                            : item.type === "REFUND"
+                              ? "text-right font-bold text-amber-600"
+                              : "text-right font-bold text-emerald-700"
                         }
                       >
                         {formatCurrency(item.amount)}
