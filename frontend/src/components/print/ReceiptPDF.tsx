@@ -236,6 +236,17 @@ const styles = StyleSheet.create({
     color: "#334155",
     fontWeight: 600,
   },
+  subjectTimingText: {
+    fontSize: 5.5,
+    color: "#64748b",
+    marginTop: 1,
+  },
+  subjectTimingNotSet: {
+    fontSize: 5.5,
+    color: "#94a3b8",
+    fontStyle: "italic",
+    marginTop: 1,
+  },
 
   // Divider
   verticalDivider: {
@@ -376,7 +387,15 @@ export interface StudentPDFData {
   discountAmount?: number;
   feeStatus: string;
   admissionDate?: string | Date;
-  subjects?: Array<{ name: string; fee: number }>;
+  subjects?: Array<{
+    name: string;
+    fee: number;
+    timings?: Array<{
+      day: string;
+      startTime: string;
+      endTime: string;
+    }>;
+  }>;
   photo?: string | null;
 }
 
@@ -565,16 +584,38 @@ export const ReceiptPDF = ({
                 </View>
               </View>
 
-              {/* Subjects as chips */}
+              {/* Subjects as chips with timings */}
               {student.subjects && student.subjects.length > 0 && (
                 <View style={styles.subjectsRow}>
                   <Text style={styles.subjectsLabel}>Subjects</Text>
                   <View style={styles.subjectsList}>
-                    {student.subjects.map((s, i) => (
-                      <View key={i} style={styles.subjectChip}>
-                        <Text style={styles.subjectChipText}>{s.name}</Text>
-                      </View>
-                    ))}
+                    {student.subjects.map((s, i) => {
+                      // Format timing display for this subject
+                      const hasTimings = s.timings && s.timings.length > 0;
+                      const timingDisplay = hasTimings
+                        ? s.timings!
+                            .map(
+                              (t) =>
+                                `${t.day.slice(0, 3)} ${t.startTime}-${t.endTime}`,
+                            )
+                            .join(", ")
+                        : null;
+
+                      return (
+                        <View key={i} style={styles.subjectChip}>
+                          <Text style={styles.subjectChipText}>{s.name}</Text>
+                          {hasTimings ? (
+                            <Text style={styles.subjectTimingText}>
+                              {timingDisplay}
+                            </Text>
+                          ) : (
+                            <Text style={styles.subjectTimingNotSet}>
+                              Time: Not Set
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               )}

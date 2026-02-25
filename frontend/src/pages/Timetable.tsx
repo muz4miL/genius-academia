@@ -1,7 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { pdf } from "@react-pdf/renderer";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { HeaderBanner } from "@/components/dashboard/HeaderBanner";
 import { Button } from "@/components/ui/button";
+import { TimetablePDF } from "@/components/print/TimetablePDF";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +43,7 @@ import {
   Zap,
   AlertTriangle,
   Trash,
+  Printer,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { timetableApi, classApi, teacherApi } from "@/lib/api";
@@ -234,6 +237,9 @@ const Timetable = () => {
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
   const [formRoom, setFormRoom] = useState("");
+
+  // Print state
+  const [isPrintingTimetable, setIsPrintingTimetable] = useState(false);
 
   // Bulk generation states
   const [bulkClassId, setBulkClassId] = useState("");
@@ -639,6 +645,84 @@ const Timetable = () => {
     );
   };
 
+  // ========== PRINT TIMETABLE ==========
+  const handlePrintTimetable = useCallback(async () => {
+    if (filterClassId === "all") {
+      toast.error("Please select a class first", {
+        description: "Choose a specific class from the filter to print its timetable.",
+      });
+      return;
+    }
+
+    if (filteredEntries.length === 0) {
+      toast.error("No entries to print", {
+        description: "This class has no timetable entries set.",
+      });
+      return;
+    }
+
+    setIsPrintingTimetable(true);
+    try {
+      // Get class display name
+      const selectedClass = classes.find((c: any) => c._id === filterClassId);
+      const classDisplayName = selectedClass
+        ? `${selectedClass.classTitle || selectedClass.className} (${selectedClass.gradeLevel || selectedClass.section || ""})`
+        : "Unknown Class";
+
+      // Load logo
+      let logoDataUrl = "";
+      try {
+        const response = await fetch("/logo.png");
+        const blob = await response.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        // Logo is optional
+      }
+
+      const pdfDoc = (
+        <TimetablePDF
+          className={classDisplayName}
+          entries={filteredEntries}
+          logoDataUrl={logoDataUrl || undefined}
+        />
+      );
+
+      const blob = await pdf(pdfDoc).toBlob();
+      const pdfUrl = URL.createObjectURL(blob);
+      const newTab = window.open(pdfUrl, "_blank");
+
+      if (newTab) {
+        newTab.document.title = `Timetable-${classDisplayName}`;
+      } else {
+        const link = document.createElement("a");
+        link.href = pdfUrl;
+        link.download = `Timetable-${classDisplayName}.pdf`;
+        link.click();
+        toast.info("PDF downloaded", {
+          description: "Pop-up was blocked. The PDF has been downloaded instead.",
+        });
+      }
+
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+
+      toast.success("Timetable generated", {
+        description: `PDF for ${classDisplayName} opened in new tab.`,
+      });
+    } catch (error: any) {
+      console.error("Error generating timetable PDF:", error);
+      toast.error("Failed to generate timetable PDF", {
+        description: error.message || "Please try again.",
+      });
+    } finally {
+      setIsPrintingTimetable(false);
+    }
+  }, [filterClassId, filteredEntries, classes]);
+
   // ========== FORM FIELDS (shared by Add & Edit modals) ==========
   const renderFormFields = () => {
     const classSubjects =
@@ -798,6 +882,21 @@ const Timetable = () => {
         subtitle={`Showing ${filteredEntries.length} of ${entries.length} entries`}
       >
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="bg-primary-foreground/80 text-primary hover:bg-primary-foreground"
+            onClick={handlePrintTimetable}
+            disabled={isPrintingTimetable || filterClassId === "all"}
+            style={{ borderRadius: "0.75rem" }}
+            title={filterClassId === "all" ? "Select a class to print" : "Print timetable for selected class"}
+          >
+            {isPrintingTimetable ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Printer className="mr-2 h-4 w-4" />
+            )}
+            Print Timetable
+          </Button>
           <Button
             variant="outline"
             className="bg-primary-foreground/80 text-primary hover:bg-primary-foreground"

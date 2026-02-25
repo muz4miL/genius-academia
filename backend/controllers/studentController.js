@@ -6,6 +6,7 @@ const Class = require("../models/Class");
 const Configuration = require("../models/Configuration");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
+const Timetable = require("../models/Timetable");
 
 // GET all students
 exports.getStudents = async (req, res) => {
@@ -318,6 +319,41 @@ exports.trackPrint = async (req, res) => {
     // Include photo URL in the student data for receipt generation
     const studentData = student.toObject();
     studentData.photo = student.photo || student.imageUrl || null;
+
+    // Fetch timetable timings for the student's subjects
+    if (student.classRef && student.subjects && student.subjects.length > 0) {
+      try {
+        const subjectNames = student.subjects.map((s) => s.name);
+        const timetableEntries = await Timetable.find({
+          classId: student.classRef,
+          status: "active",
+          subject: {
+            $in: subjectNames.map((name) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")),
+          },
+        }).lean();
+
+        // Build a map: subject name -> array of { day, startTime, endTime }
+        const timingsMap = {};
+        for (const entry of timetableEntries) {
+          const key = entry.subject.toLowerCase();
+          if (!timingsMap[key]) timingsMap[key] = [];
+          timingsMap[key].push({
+            day: entry.day,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+          });
+        }
+
+        // Attach timings to each subject in studentData
+        studentData.subjects = studentData.subjects.map((s) => {
+          const timings = timingsMap[s.name.toLowerCase()] || [];
+          return { ...s, timings };
+        });
+      } catch (timetableErr) {
+        console.error("Error fetching timetable for receipt:", timetableErr);
+        // Non-fatal: receipt will still generate without timings
+      }
+    }
 
     res.json({
       success: true,
