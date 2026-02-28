@@ -131,21 +131,21 @@ const Configuration = () => {
   });
 
   // All available permissions for the permission matrix
+  // Permissions match sidebar items exactly
   const allPermissions = [
     { key: "dashboard", label: "Dashboard" },
     { key: "admissions", label: "Admissions" },
     { key: "registrations", label: "Registrations" },
     { key: "students", label: "Students" },
     { key: "teachers", label: "Teachers" },
-    { key: "finance", label: "Finance & Expenses" },
-    { key: "collections", label: "Student Collections" },
+    { key: "finance", label: "Finance" },
     { key: "classes", label: "Classes" },
     { key: "seat_management", label: "Seat Management" },
     { key: "timetable", label: "Timetable" },
     { key: "sessions", label: "Sessions" },
     { key: "inquiries", label: "Inquiries" },
-    { key: "payroll", label: "Payroll (Admin Only)" },
-    { key: "configuration", label: "Configuration (Admin Only)" },
+    { key: "payroll", label: "Payroll (Owner Only)" },
+    { key: "configuration", label: "Configuration (Owner Only)" },
   ];
 
   // --- Check Owner Access ---
@@ -348,9 +348,9 @@ const Configuration = () => {
           setStaffList((prev) => [result.user, ...prev]);
         }
       } else {
-        console.error("❌ Staff creation failed:", result);
+        console.error("❌ Staff operation failed:", result);
         toast({
-          title: "Error Creating Staff",
+          title: isEditMode ? "Error Updating Staff" : "Error Creating Staff",
           description:
             result.message ||
             `Failed to ${isEditMode ? "update" : "create"} staff account.`,

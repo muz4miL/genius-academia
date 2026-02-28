@@ -5,10 +5,12 @@ const bcrypt = require("bcryptjs");
 const PERMISSION_VALUES = [
   "dashboard",
   "admissions",
+  "registrations",
   "students",
   "teachers",
   "finance",
   "classes",
+  "seat_management",
   "timetable",
   "sessions",
   "configuration",
@@ -194,15 +196,15 @@ userSchema.methods.getPublicProfile = function () {
   const walletBalance =
     this.walletBalance && typeof this.walletBalance === "object"
       ? {
-        floating:
-          typeof this.walletBalance.floating === "number"
-            ? this.walletBalance.floating
-            : 0,
-        verified:
-          typeof this.walletBalance.verified === "number"
-            ? this.walletBalance.verified
-            : 0,
-      }
+          floating:
+            typeof this.walletBalance.floating === "number"
+              ? this.walletBalance.floating
+              : 0,
+          verified:
+            typeof this.walletBalance.verified === "number"
+              ? this.walletBalance.verified
+              : 0,
+        }
       : { floating: 0, verified: 0 };
 
   // OWNER gets all permissions automatically
@@ -211,10 +213,12 @@ userSchema.methods.getPublicProfile = function () {
     permissions = [
       "dashboard",
       "admissions",
+      "registrations",
       "students",
       "teachers",
       "finance",
       "classes",
+      "seat_management",
       "timetable",
       "sessions",
       "configuration",

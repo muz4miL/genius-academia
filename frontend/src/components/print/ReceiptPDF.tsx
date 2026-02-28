@@ -593,8 +593,8 @@ export const ReceiptPDF = ({
                       // Format timing display for this subject
                       const hasTimings = s.timings && s.timings.length > 0;
                       const timingDisplay = hasTimings
-                        ? s.timings!
-                            .map(
+                        ? s
+                            .timings!.map(
                               (t) =>
                                 `${t.day.slice(0, 3)} ${t.startTime}-${t.endTime}`,
                             )

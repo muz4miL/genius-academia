@@ -42,7 +42,7 @@ const navItems = [
     icon: ClipboardList,
     label: "Registrations",
     path: "/registrations",
-    permission: "admissions",
+    permission: "registrations",
   },
   { icon: Users, label: "Students", path: "/students", permission: "students" },
   {
@@ -62,7 +62,7 @@ const navItems = [
     icon: Armchair,
     label: "Seat Management",
     path: "/seat-management",
-    permission: "classes",
+    permission: "seat_management",
   },
   {
     icon: Clock,
