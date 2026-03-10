@@ -114,8 +114,12 @@ exports.createStudent = async (req, res) => {
 // UPDATE student
 exports.updateStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, {
+    // Strip computed fields that should only be set by pre-save hooks
+    const { feeStatus, balance, ...updateData } = req.body;
+
+    const student = await Student.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
+      runValidators: true,
     });
     res.json({ success: true, data: student });
   } catch (error) {
@@ -328,7 +332,13 @@ exports.trackPrint = async (req, res) => {
           classId: student.classRef,
           status: "active",
           subject: {
-            $in: subjectNames.map((name) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")),
+            $in: subjectNames.map(
+              (name) =>
+                new RegExp(
+                  `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+                  "i",
+                ),
+            ),
           },
         }).lean();
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -107,7 +107,14 @@ const API_BASE_URL = getApiBaseUrl();
 // ========================================
 // 👑 OWNER DASHBOARD COMPONENT
 // ========================================
-const CHART_COLORS = ["#0EA5E9", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
+const CHART_COLORS = [
+  "#0EA5E9",
+  "#EF4444",
+  "#10B981",
+  "#F59E0B",
+  "#8B5CF6",
+  "#EC4899",
+];
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -131,6 +138,9 @@ const OwnerDashboard = () => {
   // Analytics data
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  // System admin name from Configuration
+  const [systemAdminName, setSystemAdminName] = useState("");
 
   // Report modal
   const [reportOpen, setReportOpen] = useState(false);
@@ -179,7 +189,7 @@ const OwnerDashboard = () => {
       setReportOpen(true);
       const res = await fetch(
         `${API_BASE_URL}/finance/generate-report?period=${period}`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const data = await res.json();
       if (data.success) {
@@ -318,6 +328,19 @@ const OwnerDashboard = () => {
         // Fetch analytics
         await fetchAnalytics();
 
+        // Fetch system admin name from config
+        try {
+          const configRes = await fetch(`${API_BASE_URL}/config`, {
+            credentials: "include",
+          });
+          const configData = await configRes.json();
+          if (configData.success && configData.data?.systemAdminName) {
+            setSystemAdminName(configData.data.systemAdminName);
+          }
+        } catch (e) {
+          // Non-critical, fallback to user name
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("Error:", err);
@@ -356,7 +379,9 @@ const OwnerDashboard = () => {
           <div className="relative z-10">
             <h1 className="text-4xl font-bold text-white mb-2">
               Welcome back,{" "}
-              <span className="text-red-400">{user?.fullName || "Owner"}</span>
+              <span className="text-red-400">
+                {systemAdminName || user?.fullName || "Owner"}
+              </span>
             </h1>
             <p className="text-slate-300 text-lg">
               Genius Islamian's Academy — Management Dashboard
@@ -408,9 +433,16 @@ const OwnerDashboard = () => {
           <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Revenue</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Net Revenue
+                </p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
-                  PKR {(analytics?.quickStats?.monthlyRevenue || stats.ownerNetRevenue || 0).toLocaleString()}
+                  PKR{" "}
+                  {(
+                    analytics?.quickStats?.monthlyRevenue ||
+                    stats.ownerNetRevenue ||
+                    0
+                  ).toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">This month</p>
               </div>
@@ -423,9 +455,12 @@ const OwnerDashboard = () => {
           <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-sky-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today's Revenue</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Today's Revenue
+                </p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
-                  PKR {(analytics?.quickStats?.todayRevenue || 0).toLocaleString()}
+                  PKR{" "}
+                  {(analytics?.quickStats?.todayRevenue || 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">Today so far</p>
               </div>
@@ -438,7 +473,9 @@ const OwnerDashboard = () => {
           <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-emerald-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Students</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Students
+                </p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
                   {analytics?.quickStats?.totalStudents || activeStudents || 0}
                 </p>
@@ -453,7 +490,9 @@ const OwnerDashboard = () => {
           <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-violet-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Teachers</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Teachers
+                </p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
                   {analytics?.quickStats?.totalTeachers || 0}
                 </p>
@@ -489,17 +528,43 @@ const OwnerDashboard = () => {
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.revenueVsExpenses} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <BarChart
+                        data={analytics.revenueVsExpenses}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
-                        <YAxis tick={{ fontSize: 12, fill: "#64748b" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                          tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                        />
                         <RechartsTooltip
-                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                          formatter={(value: number) => [`PKR ${value.toLocaleString()}`, undefined]}
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "1px solid #e2e8f0",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                          formatter={(value: number) => [
+                            `PKR ${value.toLocaleString()}`,
+                            undefined,
+                          ]}
                         />
                         <Legend />
-                        <Bar dataKey="revenue" name="Revenue" fill="#10B981" radius={[6, 6, 0, 0]} />
-                        <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[6, 6, 0, 0]} />
+                        <Bar
+                          dataKey="revenue"
+                          name="Revenue"
+                          fill="#10B981"
+                          radius={[6, 6, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="expenses"
+                          name="Expenses"
+                          fill="#EF4444"
+                          radius={[6, 6, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -518,22 +583,58 @@ const OwnerDashboard = () => {
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={analytics.enrollmentData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <AreaChart
+                        data={analytics.enrollmentData}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                      >
                         <defs>
-                          <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0} />
+                          <linearGradient
+                            id="colorStudents"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor="#0EA5E9"
+                              stopOpacity={0.3}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor="#0EA5E9"
+                              stopOpacity={0}
+                            />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                        />
                         <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                         <RechartsTooltip
-                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "1px solid #e2e8f0",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
                         />
                         <Legend />
-                        <Area type="monotone" dataKey="totalStudents" name="Total Students" stroke="#0EA5E9" fill="url(#colorStudents)" strokeWidth={2} />
-                        <Bar dataKey="newStudents" name="New Enrollments" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                        <Area
+                          type="monotone"
+                          dataKey="totalStudents"
+                          name="Total Students"
+                          stroke="#0EA5E9"
+                          fill="url(#colorStudents)"
+                          strokeWidth={2}
+                        />
+                        <Bar
+                          dataKey="newStudents"
+                          name="New Enrollments"
+                          fill="#8B5CF6"
+                          radius={[4, 4, 0, 0]}
+                        />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -555,15 +656,37 @@ const OwnerDashboard = () => {
                 <CardContent>
                   <div className="h-56">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={analytics.revenueVsExpenses} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <LineChart
+                        data={analytics.revenueVsExpenses}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
-                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-                        <RechartsTooltip
-                          contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }}
-                          formatter={(value: number) => [`PKR ${value.toLocaleString()}`, "Profit"]}
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 11, fill: "#64748b" }}
                         />
-                        <Line type="monotone" dataKey="profit" name="Profit" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: "#8B5CF6", r: 4 }} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: "#64748b" }}
+                          tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "1px solid #e2e8f0",
+                          }}
+                          formatter={(value: number) => [
+                            `PKR ${value.toLocaleString()}`,
+                            "Profit",
+                          ]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="profit"
+                          name="Profit"
+                          stroke="#8B5CF6"
+                          strokeWidth={3}
+                          dot={{ fill: "#8B5CF6", r: 4 }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -584,21 +707,40 @@ const OwnerDashboard = () => {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
                       <div className="flex items-center gap-3">
                         <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
-                        <span className="text-sm font-medium text-emerald-800">Paid</span>
+                        <span className="text-sm font-medium text-emerald-800">
+                          Paid
+                        </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-emerald-900">PKR {(analytics.feeCollection?.paid?.amount || 0).toLocaleString()}</p>
-                        <p className="text-xs text-emerald-600">{analytics.feeCollection?.paid?.count || 0} students</p>
+                        <p className="text-sm font-bold text-emerald-900">
+                          PKR{" "}
+                          {(
+                            analytics.feeCollection?.paid?.amount || 0
+                          ).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-emerald-600">
+                          {analytics.feeCollection?.paid?.count || 0} students
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
                       <div className="flex items-center gap-3">
                         <div className="h-3 w-3 rounded-full bg-amber-500"></div>
-                        <span className="text-sm font-medium text-amber-800">Pending</span>
+                        <span className="text-sm font-medium text-amber-800">
+                          Pending
+                        </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-amber-900">PKR {(analytics.feeCollection?.pending?.amount || 0).toLocaleString()}</p>
-                        <p className="text-xs text-amber-600">{analytics.feeCollection?.pending?.count || 0} students</p>
+                        <p className="text-sm font-bold text-amber-900">
+                          PKR{" "}
+                          {(
+                            analytics.feeCollection?.pending?.amount || 0
+                          ).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          {analytics.feeCollection?.pending?.count || 0}{" "}
+                          students
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -615,7 +757,8 @@ const OwnerDashboard = () => {
                   <CardDescription>This month by category</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {analytics.expenseCategories && analytics.expenseCategories.length > 0 ? (
+                  {analytics.expenseCategories &&
+                  analytics.expenseCategories.length > 0 ? (
                     <div className="h-56">
                       <ResponsiveContainer width="100%" height="100%">
                         <RechartsPieChart>
@@ -629,13 +772,24 @@ const OwnerDashboard = () => {
                             nameKey="category"
                             paddingAngle={3}
                           >
-                            {analytics.expenseCategories.map((_: any, idx: number) => (
-                              <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                            ))}
+                            {analytics.expenseCategories.map(
+                              (_: any, idx: number) => (
+                                <Cell
+                                  key={idx}
+                                  fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                                />
+                              ),
+                            )}
                           </Pie>
                           <RechartsTooltip
-                            contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }}
-                            formatter={(value: number) => [`PKR ${value.toLocaleString()}`, undefined]}
+                            contentStyle={{
+                              borderRadius: "12px",
+                              border: "1px solid #e2e8f0",
+                            }}
+                            formatter={(value: number) => [
+                              `PKR ${value.toLocaleString()}`,
+                              undefined,
+                            ]}
                           />
                           <Legend wrapperStyle={{ fontSize: "12px" }} />
                         </RechartsPieChart>
@@ -796,20 +950,28 @@ const OwnerDashboard = () => {
                 {/* Summary Cards */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
-                    <p className="text-xs font-semibold text-emerald-600 uppercase">Revenue</p>
+                    <p className="text-xs font-semibold text-emerald-600 uppercase">
+                      Revenue
+                    </p>
                     <p className="text-xl font-bold text-emerald-900 mt-1">
                       PKR {reportData.totalRevenue?.toLocaleString()}
                     </p>
                   </div>
                   <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-center">
-                    <p className="text-xs font-semibold text-red-600 uppercase">Expenses</p>
+                    <p className="text-xs font-semibold text-red-600 uppercase">
+                      Expenses
+                    </p>
                     <p className="text-xl font-bold text-red-900 mt-1">
                       PKR {reportData.totalExpenses?.toLocaleString()}
                     </p>
                   </div>
                   <div className="rounded-xl bg-sky-50 border border-sky-200 p-4 text-center">
-                    <p className="text-xs font-semibold text-sky-600 uppercase">Net Profit</p>
-                    <p className={`text-xl font-bold mt-1 ${reportData.netProfit >= 0 ? "text-emerald-900" : "text-red-900"}`}>
+                    <p className="text-xs font-semibold text-sky-600 uppercase">
+                      Net Profit
+                    </p>
+                    <p
+                      className={`text-xl font-bold mt-1 ${reportData.netProfit >= 0 ? "text-emerald-900" : "text-red-900"}`}
+                    >
                       PKR {reportData.netProfit?.toLocaleString()}
                     </p>
                   </div>
@@ -824,11 +986,20 @@ const OwnerDashboard = () => {
                     </h3>
                     <div className="space-y-2">
                       {reportData.revenueByCategory.map((r: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                          <span className="text-sm text-slate-700">{r.category}</span>
+                        <div
+                          key={i}
+                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50"
+                        >
+                          <span className="text-sm text-slate-700">
+                            {r.category}
+                          </span>
                           <div className="text-right">
-                            <span className="text-sm font-semibold text-emerald-700">PKR {r.amount?.toLocaleString()}</span>
-                            <span className="text-xs text-slate-400 ml-2">({r.transactions} txn)</span>
+                            <span className="text-sm font-semibold text-emerald-700">
+                              PKR {r.amount?.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-2">
+                              ({r.transactions} txn)
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -845,11 +1016,20 @@ const OwnerDashboard = () => {
                     </h3>
                     <div className="space-y-2">
                       {reportData.expenseByCategory.map((e: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                          <span className="text-sm text-slate-700">{e.category}</span>
+                        <div
+                          key={i}
+                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50"
+                        >
+                          <span className="text-sm text-slate-700">
+                            {e.category}
+                          </span>
                           <div className="text-right">
-                            <span className="text-sm font-semibold text-red-700">PKR {e.amount?.toLocaleString()}</span>
-                            <span className="text-xs text-slate-400 ml-2">({e.transactions} txn)</span>
+                            <span className="text-sm font-semibold text-red-700">
+                              PKR {e.amount?.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-2">
+                              ({e.transactions} txn)
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -859,10 +1039,17 @@ const OwnerDashboard = () => {
 
                 {/* Fee Collection */}
                 <div className="rounded-xl bg-sky-50 border border-sky-200 p-4">
-                  <h3 className="text-sm font-semibold text-sky-800 mb-1">Fee Collection</h3>
+                  <h3 className="text-sm font-semibold text-sky-800 mb-1">
+                    Fee Collection
+                  </h3>
                   <p className="text-sm text-sky-700">
-                    Collected <strong>PKR {reportData.feesCollected?.total?.toLocaleString() || 0}</strong> from{" "}
-                    <strong>{reportData.feesCollected?.count || 0}</strong> fee records
+                    Collected{" "}
+                    <strong>
+                      PKR{" "}
+                      {reportData.feesCollected?.total?.toLocaleString() || 0}
+                    </strong>{" "}
+                    from <strong>{reportData.feesCollected?.count || 0}</strong>{" "}
+                    fee records
                   </p>
                 </div>
               </div>
@@ -895,11 +1082,20 @@ const OwnerDashboard = () => {
               </AlertDialogTitle>
               <AlertDialogDescription className="text-slate-600 py-3 text-lg">
                 <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 mb-6 shadow-inner">
-                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-700 mb-1">Cash to be Vaulted</p>
-                  <p className="text-4xl font-black text-emerald-950">PKR {(stats.floatingCash || 0).toLocaleString()}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-700 mb-1">
+                    Cash to be Vaulted
+                  </p>
+                  <p className="text-4xl font-black text-emerald-950">
+                    PKR {(stats.floatingCash || 0).toLocaleString()}
+                  </p>
                 </div>
-                Are you sure you want to move your floating cash to the <span className="font-bold text-slate-900 underline">Verified Accounts</span>?
-                <br /><br />
+                Are you sure you want to move your floating cash to the{" "}
+                <span className="font-bold text-slate-900 underline">
+                  Verified Accounts
+                </span>
+                ?
+                <br />
+                <br />
                 This will lock the amount for today's session.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -916,7 +1112,6 @@ const OwnerDashboard = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
       </DashboardLayout>
     </TooltipProvider>
   );
@@ -999,7 +1194,7 @@ const PartnerDashboard = () => {
       toast({
         title: "Nothing to close",
         description: "No floating cash available to close at this time.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -1075,7 +1270,7 @@ const PartnerDashboard = () => {
       if (data.success) {
         setSuccessMessage(
           data.message ||
-          `✅ Payment of PKR ${amount.toLocaleString()} recorded successfully!`,
+            `✅ Payment of PKR ${amount.toLocaleString()} recorded successfully!`,
         );
         setPaymentModalOpen(false);
         setPaymentAmount("");
@@ -1213,10 +1408,11 @@ const PartnerDashboard = () => {
 
         {/* 3. Expense Debt (Red - Warning) - SRS 3.0 Module 3 */}
         <div
-          className={`group relative overflow-hidden rounded-2xl backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 ${stats.expenseDebt > 0
-            ? "bg-red-50 border-red-500 animate-pulse"
-            : "bg-white/90 border-slate-300"
-            }`}
+          className={`group relative overflow-hidden rounded-2xl backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 ${
+            stats.expenseDebt > 0
+              ? "bg-red-50 border-red-500 animate-pulse"
+              : "bg-white/90 border-slate-300"
+          }`}
         >
           {/* Prominent Alert Badge for Outstanding Debt */}
           {stats.expenseDebt > 0 && (
@@ -1260,10 +1456,11 @@ const PartnerDashboard = () => {
               )}
             </div>
             <div
-              className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-lg ${stats.expenseDebt > 0
-                ? "bg-red-500 text-white"
-                : "bg-green-100 text-green-600"
-                }`}
+              className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-lg ${
+                stats.expenseDebt > 0
+                  ? "bg-red-500 text-white"
+                  : "bg-green-100 text-green-600"
+              }`}
             >
               {stats.expenseDebt > 0 ? (
                 <AlertCircle className="h-7 w-7" />
@@ -1335,10 +1532,15 @@ const PartnerDashboard = () => {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-600 py-3 text-lg">
               <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-6 shadow-inner">
-                <p className="text-xs uppercase tracking-[0.2em] font-bold text-blue-700 mb-1">Cash to be Reported</p>
-                <p className="text-4xl font-black text-blue-950">PKR {(stats.floatingCash || 0).toLocaleString()}</p>
+                <p className="text-xs uppercase tracking-[0.2em] font-bold text-blue-700 mb-1">
+                  Cash to be Reported
+                </p>
+                <p className="text-4xl font-black text-blue-950">
+                  PKR {(stats.floatingCash || 0).toLocaleString()}
+                </p>
               </div>
-              Lock this amount into the verified balance? This will finalize your collections for today.
+              Lock this amount into the verified balance? This will finalize
+              your collections for today.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-3">
@@ -1369,7 +1571,15 @@ const TeacherDashboard = () => {
   const [timetable, setTimetable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const dayOrder = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
 
   useEffect(() => {
     const fetchTeacherData = async () => {
@@ -1378,9 +1588,12 @@ const TeacherDashboard = () => {
 
         // Fetch teacher profile details
         if (user?.teacherId) {
-          const profileRes = await fetch(`${API_BASE_URL}/teachers/${user.teacherId}`, {
-            credentials: "include",
-          });
+          const profileRes = await fetch(
+            `${API_BASE_URL}/teachers/${user.teacherId}`,
+            {
+              credentials: "include",
+            },
+          );
           const profileData = await profileRes.json();
           if (profileData.success) {
             setTeacherProfile(profileData.data);
@@ -1412,11 +1625,19 @@ const TeacherDashboard = () => {
 
   const capitalizeSubject = (s: string) => {
     const map: Record<string, string> = {
-      biology: "Biology", chemistry: "Chemistry", physics: "Physics",
-      math: "Mathematics", english: "English", urdu: "Urdu",
-      islamiat: "Islamiat", computer: "Computer Science",
+      biology: "Biology",
+      chemistry: "Chemistry",
+      physics: "Physics",
+      math: "Mathematics",
+      english: "English",
+      urdu: "Urdu",
+      islamiat: "Islamiat",
+      computer: "Computer Science",
     };
-    return map[s?.toLowerCase()] || (s ? s.charAt(0).toUpperCase() + s.slice(1) : "N/A");
+    return (
+      map[s?.toLowerCase()] ||
+      (s ? s.charAt(0).toUpperCase() + s.slice(1) : "N/A")
+    );
   };
 
   // Get today's day name
@@ -1436,7 +1657,9 @@ const TeacherDashboard = () => {
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+            <p className="text-lg text-muted-foreground">
+              Loading your dashboard...
+            </p>
           </div>
         </div>
       </DashboardLayout>
@@ -1468,7 +1691,10 @@ const TeacherDashboard = () => {
           {/* Teacher Info */}
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-white mb-1">
-              Welcome, <span className="text-emerald-400">{user?.fullName || "Teacher"}</span>
+              Welcome,{" "}
+              <span className="text-emerald-400">
+                {user?.fullName || "Teacher"}
+              </span>
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-medium border border-emerald-500/30">
@@ -1477,7 +1703,9 @@ const TeacherDashboard = () => {
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/20 text-slate-300 text-sm font-medium border border-slate-500/30">
                 <GraduationCap className="h-4 w-4" />
-                {teacherProfile?.status === "active" ? "Active Teacher" : "Teacher"}
+                {teacherProfile?.status === "active"
+                  ? "Active Teacher"
+                  : "Teacher"}
               </span>
               {user?.phone && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/20 text-slate-300 text-sm font-medium border border-slate-500/30">
@@ -1486,7 +1714,13 @@ const TeacherDashboard = () => {
               )}
             </div>
             <p className="text-slate-400 text-sm mt-2">
-              Genius Islamian's Academy — {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              Genius Islamian's Academy —{" "}
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
           </div>
         </div>
@@ -1497,8 +1731,12 @@ const TeacherDashboard = () => {
         <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-emerald-500">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 mb-2">Today's Classes</p>
-              <p className="text-4xl font-bold text-slate-900">{todayClasses.length}</p>
+              <p className="text-sm font-medium text-slate-600 mb-2">
+                Today's Classes
+              </p>
+              <p className="text-4xl font-bold text-slate-900">
+                {todayClasses.length}
+              </p>
               <p className="text-xs text-slate-500 mt-1">{today}</p>
             </div>
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
@@ -1510,8 +1748,12 @@ const TeacherDashboard = () => {
         <div className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-6 shadow-xl hover:shadow-2xl transition-all duration-300 border-l-4 border-blue-500">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 mb-2">Total Weekly Classes</p>
-              <p className="text-4xl font-bold text-slate-900">{timetable.length}</p>
+              <p className="text-sm font-medium text-slate-600 mb-2">
+                Total Weekly Classes
+              </p>
+              <p className="text-4xl font-bold text-slate-900">
+                {timetable.length}
+              </p>
               <p className="text-xs text-slate-500 mt-1">Classes per week</p>
             </div>
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
@@ -1524,7 +1766,9 @@ const TeacherDashboard = () => {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Subject</p>
-              <p className="text-2xl font-bold text-slate-900">{capitalizeSubject(teacherProfile?.subject || "")}</p>
+              <p className="text-2xl font-bold text-slate-900">
+                {capitalizeSubject(teacherProfile?.subject || "")}
+              </p>
               <p className="text-xs text-slate-500 mt-1">Assigned subject</p>
             </div>
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
@@ -1560,10 +1804,19 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-slate-900">
-                      {entry.classId?.classTitle || entry.classId?.className || entry.subject || "Class"}
-                      {entry.classId?.gradeLevel ? ` — ${entry.classId.gradeLevel}` : entry.classId?.section ? ` — ${entry.classId.section}` : ""}
+                      {entry.classId?.classTitle ||
+                        entry.classId?.className ||
+                        entry.subject ||
+                        "Class"}
+                      {entry.classId?.gradeLevel
+                        ? ` — ${entry.classId.gradeLevel}`
+                        : entry.classId?.section
+                          ? ` — ${entry.classId.section}`
+                          : ""}
                     </p>
-                    <p className="text-sm text-slate-500">{capitalizeSubject(entry.subject)}</p>
+                    <p className="text-sm text-slate-500">
+                      {capitalizeSubject(entry.subject)}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-emerald-700">
@@ -1599,53 +1852,73 @@ const TeacherDashboard = () => {
           {timetable.length === 0 ? (
             <div className="text-center py-12">
               <CalendarDays className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-              <h3 className="text-lg font-semibold text-slate-700 mb-2">No Timetable Set</h3>
-              <p className="text-slate-500">Your timetable hasn't been assigned yet. Please contact the admin.</p>
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                No Timetable Set
+              </h3>
+              <p className="text-slate-500">
+                Your timetable hasn't been assigned yet. Please contact the
+                admin.
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {dayOrder.filter(day => groupedByDay[day]).map((day) => (
-                <div key={day}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className={`text-sm font-bold uppercase tracking-wider ${day === today ? "text-emerald-600" : "text-slate-500"}`}>
-                      {day}
-                    </h3>
-                    {day === today && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
-                        Today
-                      </span>
-                    )}
-                    <div className="flex-1 h-px bg-slate-200" />
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {groupedByDay[day].map((entry: any, idx: number) => (
-                      <div
-                        key={entry._id || idx}
-                        className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${day === today
-                          ? "bg-emerald-50 border-emerald-200"
-                          : "bg-slate-50 border-slate-200"
-                          }`}
+              {dayOrder
+                .filter((day) => groupedByDay[day])
+                .map((day) => (
+                  <div key={day}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3
+                        className={`text-sm font-bold uppercase tracking-wider ${day === today ? "text-emerald-600" : "text-slate-500"}`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`text-sm font-bold ${day === today ? "text-emerald-700" : "text-slate-700"}`}>
-                            {entry.startTime} — {entry.endTime}
-                          </span>
-                          {entry.room && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                              <MapPin className="h-3 w-3" /> {entry.room}
+                        {day}
+                      </h3>
+                      {day === today && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
+                          Today
+                        </span>
+                      )}
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {groupedByDay[day].map((entry: any, idx: number) => (
+                        <div
+                          key={entry._id || idx}
+                          className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
+                            day === today
+                              ? "bg-emerald-50 border-emerald-200"
+                              : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span
+                              className={`text-sm font-bold ${day === today ? "text-emerald-700" : "text-slate-700"}`}
+                            >
+                              {entry.startTime} — {entry.endTime}
                             </span>
-                          )}
+                            {entry.room && (
+                              <span className="text-xs text-slate-500 flex items-center gap-1">
+                                <MapPin className="h-3 w-3" /> {entry.room}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-medium text-slate-900">
+                            {entry.classId?.classTitle ||
+                              entry.classId?.className ||
+                              "Class"}
+                            {entry.classId?.gradeLevel
+                              ? ` (${entry.classId.gradeLevel})`
+                              : entry.classId?.section
+                                ? ` (${entry.classId.section})`
+                                : ""}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {capitalizeSubject(entry.subject)}
+                          </p>
                         </div>
-                        <p className="font-medium text-slate-900">
-                          {entry.classId?.classTitle || entry.classId?.className || "Class"}
-                          {entry.classId?.gradeLevel ? ` (${entry.classId.gradeLevel})` : entry.classId?.section ? ` (${entry.classId.section})` : ""}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">{capitalizeSubject(entry.subject)}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </CardContent>
@@ -1683,7 +1956,7 @@ const StaffDashboard = () => {
           promises.push(
             fetch(`${API_BASE_URL}/students`, { credentials: "include" })
               .then((r) => r.json())
-              .catch(() => ({ success: false }))
+              .catch(() => ({ success: false })),
           );
         } else {
           promises.push(Promise.resolve(null));
@@ -1693,7 +1966,7 @@ const StaffDashboard = () => {
           promises.push(
             fetch(`${API_BASE_URL}/teachers`, { credentials: "include" })
               .then((r) => r.json())
-              .catch(() => ({ success: false }))
+              .catch(() => ({ success: false })),
           );
         } else {
           promises.push(Promise.resolve(null));
@@ -1703,18 +1976,22 @@ const StaffDashboard = () => {
           promises.push(
             fetch(`${API_BASE_URL}/classes`, { credentials: "include" })
               .then((r) => r.json())
-              .catch(() => ({ success: false }))
+              .catch(() => ({ success: false })),
           );
         } else {
           promises.push(Promise.resolve(null));
         }
 
-        const [studentsData, teachersData, classesData] = await Promise.all(promises);
+        const [studentsData, teachersData, classesData] =
+          await Promise.all(promises);
 
         setStaffStats({
-          totalStudents: studentsData?.data?.length || studentsData?.students?.length || 0,
-          totalTeachers: teachersData?.data?.length || teachersData?.teachers?.length || 0,
-          totalClasses: classesData?.data?.length || classesData?.classes?.length || 0,
+          totalStudents:
+            studentsData?.data?.length || studentsData?.students?.length || 0,
+          totalTeachers:
+            teachersData?.data?.length || teachersData?.teachers?.length || 0,
+          totalClasses:
+            classesData?.data?.length || classesData?.classes?.length || 0,
         });
       } catch (err) {
         console.error("Staff dashboard error:", err);
@@ -1727,14 +2004,62 @@ const StaffDashboard = () => {
 
   // Quick action items based on permissions
   const quickActions = [
-    { perm: "admissions", label: "New Admission", icon: UserPlus, href: "/admissions", color: "from-emerald-500 to-emerald-600" },
-    { perm: "students", label: "View Students", icon: GraduationCap, href: "/students", color: "from-sky-500 to-sky-600" },
-    { perm: "teachers", label: "View Teachers", icon: Users, href: "/teachers", color: "from-violet-500 to-violet-600" },
-    { perm: "finance", label: "Finance", icon: DollarSign, href: "/finance", color: "from-amber-500 to-amber-600" },
-    { perm: "classes", label: "Classes", icon: BookOpen, href: "/classes", color: "from-rose-500 to-rose-600" },
-    { perm: "timetable", label: "Timetable", icon: CalendarDays, href: "/timetable", color: "from-indigo-500 to-indigo-600" },
-    { perm: "sessions", label: "Sessions", icon: Clock, href: "/sessions", color: "from-teal-500 to-teal-600" },
-    { perm: "inquiries", label: "Inquiries", icon: ClipboardCheck, href: "/inquiries", color: "from-orange-500 to-orange-600" },
+    {
+      perm: "admissions",
+      label: "New Admission",
+      icon: UserPlus,
+      href: "/admissions",
+      color: "from-emerald-500 to-emerald-600",
+    },
+    {
+      perm: "students",
+      label: "View Students",
+      icon: GraduationCap,
+      href: "/students",
+      color: "from-sky-500 to-sky-600",
+    },
+    {
+      perm: "teachers",
+      label: "View Teachers",
+      icon: Users,
+      href: "/teachers",
+      color: "from-violet-500 to-violet-600",
+    },
+    {
+      perm: "finance",
+      label: "Finance",
+      icon: DollarSign,
+      href: "/finance",
+      color: "from-amber-500 to-amber-600",
+    },
+    {
+      perm: "classes",
+      label: "Classes",
+      icon: BookOpen,
+      href: "/classes",
+      color: "from-rose-500 to-rose-600",
+    },
+    {
+      perm: "timetable",
+      label: "Timetable",
+      icon: CalendarDays,
+      href: "/timetable",
+      color: "from-indigo-500 to-indigo-600",
+    },
+    {
+      perm: "sessions",
+      label: "Sessions",
+      icon: Clock,
+      href: "/sessions",
+      color: "from-teal-500 to-teal-600",
+    },
+    {
+      perm: "inquiries",
+      label: "Inquiries",
+      icon: ClipboardCheck,
+      href: "/inquiries",
+      color: "from-orange-500 to-orange-600",
+    },
   ].filter((a) => hasPerm(a.perm));
 
   if (loading) {
@@ -1743,7 +2068,9 @@ const StaffDashboard = () => {
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+            <p className="text-lg text-muted-foreground">
+              Loading your dashboard...
+            </p>
           </div>
         </div>
       </DashboardLayout>
@@ -1777,11 +2104,18 @@ const StaffDashboard = () => {
       {/* Stats Cards - Permission Based */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {hasPerm("students") && (
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-sky-500 cursor-pointer" onClick={() => window.location.href = "/students"}>
+          <div
+            className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-sky-500 cursor-pointer"
+            onClick={() => (window.location.href = "/students")}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Students</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalStudents}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Students
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  {staffStats.totalStudents}
+                </p>
                 <p className="text-xs text-slate-400 mt-1">Enrolled students</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-lg">
@@ -1792,11 +2126,18 @@ const StaffDashboard = () => {
         )}
 
         {hasPerm("teachers") && (
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-violet-500 cursor-pointer" onClick={() => window.location.href = "/teachers"}>
+          <div
+            className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-violet-500 cursor-pointer"
+            onClick={() => (window.location.href = "/teachers")}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Teachers</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalTeachers}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Teachers
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  {staffStats.totalTeachers}
+                </p>
                 <p className="text-xs text-slate-400 mt-1">Active teachers</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-lg">
@@ -1807,11 +2148,18 @@ const StaffDashboard = () => {
         )}
 
         {hasPerm("classes") && (
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-emerald-500 cursor-pointer" onClick={() => window.location.href = "/classes"}>
+          <div
+            className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-emerald-500 cursor-pointer"
+            onClick={() => (window.location.href = "/classes")}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Classes</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalClasses}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Classes
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
+                  {staffStats.totalClasses}
+                </p>
                 <p className="text-xs text-slate-400 mt-1">Active classes</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
@@ -1859,7 +2207,9 @@ const StaffDashboard = () => {
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             Your Access Permissions
           </CardTitle>
-          <CardDescription>Modules assigned to your account by the administrator</CardDescription>
+          <CardDescription>
+            Modules assigned to your account by the administrator
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">

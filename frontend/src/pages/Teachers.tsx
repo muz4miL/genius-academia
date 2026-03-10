@@ -158,8 +158,16 @@ const Teachers = () => {
   };
 
   const handleResetPassword = async () => {
-    if (!credentialTeacher || !resetPasswordValue || resetPasswordValue.length < 6) {
-      toast({ title: "Invalid Password", description: "Password must be at least 6 characters.", variant: "destructive" });
+    if (
+      !credentialTeacher ||
+      !resetPasswordValue ||
+      resetPasswordValue.length < 6
+    ) {
+      toast({
+        title: "Invalid Password",
+        description: "Password must be at least 6 characters.",
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -169,18 +177,36 @@ const Teachers = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ userId: username, newPassword: resetPasswordValue }),
+        body: JSON.stringify({
+          userId: username,
+          newPassword: resetPasswordValue,
+        }),
       });
       const data = await res.json();
       if (data.success) {
         setResetSuccess(true);
-        setCredentialTeacher({ ...credentialTeacher, plainPassword: resetPasswordValue });
-        toast({ title: "\u2705 Password Reset", description: `Password updated for ${credentialTeacher.name}. You can now print the updated slip.`, className: "bg-green-50 border-green-200" });
+        setCredentialTeacher({
+          ...credentialTeacher,
+          plainPassword: resetPasswordValue,
+        });
+        toast({
+          title: "\u2705 Password Reset",
+          description: `Password updated for ${credentialTeacher.name}. You can now print the updated slip.`,
+          className: "bg-green-50 border-green-200",
+        });
       } else {
-        toast({ title: "\u274c Reset Failed", description: data.message || "Failed to reset password.", variant: "destructive" });
+        toast({
+          title: "\u274c Reset Failed",
+          description: data.message || "Failed to reset password.",
+          variant: "destructive",
+        });
       }
     } catch (err: any) {
-      toast({ title: "\u274c Error", description: err.message || "Server error.", variant: "destructive" });
+      toast({
+        title: "\u274c Error",
+        description: err.message || "Server error.",
+        variant: "destructive",
+      });
     } finally {
       setIsResettingPassword(false);
     }
@@ -361,163 +387,165 @@ const Teachers = () => {
           </div>
         ) : (
           // Table with Data
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary hover:bg-secondary">
-                <TableHead className="font-semibold">Teacher</TableHead>
-                <TableHead className="font-semibold">Subject</TableHead>
-                <TableHead className="font-semibold">Contact</TableHead>
-                <TableHead className="font-semibold">Joining Date</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold text-right">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teachers.map((teacher: any) => (
-                <TableRow key={teacher._id} className="hover:bg-secondary/50">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {teacher.profileImage ? (
-                        <img
-                          src={teacher.profileImage}
-                          alt={teacher.name}
-                          className="h-9 w-9 rounded-full object-cover border border-border"
-                        />
-                      ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success text-success-foreground font-medium">
-                          {teacher.name.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <p
-                          className="font-medium text-foreground hover:text-primary hover:underline cursor-pointer transition-colors"
-                          onClick={() => handleView(teacher)}
-                        >
-                          {teacher.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {teacher.phone}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="rounded-full bg-primary-light px-3 py-1 text-sm font-medium text-primary">
-                      {capitalizeSubject(teacher.subject)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                      </svg>
-                      {teacher.phone}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(teacher.joiningDate).toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        },
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={teacher.status} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Credentials Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
-                        onClick={() => handleShowCredentials(teacher)}
-                        title="View Credentials"
-                      >
-                        <KeyRound className="h-4 w-4" />
-                      </Button>
-
-                      {/* View Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
-                        onClick={() => handleView(teacher)}
-                        title="View Details"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                      </Button>
-
-                      {/* Edit Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
-                        onClick={() => handleEdit(teacher)}
-                        title="Edit Teacher"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </Button>
-
-                      {/* Delete Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => handleDelete(teacher)}
-                        title="Delete Teacher"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-secondary hover:bg-secondary">
+                  <TableHead className="font-semibold">Teacher</TableHead>
+                  <TableHead className="font-semibold">Subject</TableHead>
+                  <TableHead className="font-semibold">Contact</TableHead>
+                  <TableHead className="font-semibold">Joining Date</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold text-right">
+                    Actions
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {teachers.map((teacher: any) => (
+                  <TableRow key={teacher._id} className="hover:bg-secondary/50">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {teacher.profileImage ? (
+                          <img
+                            src={teacher.profileImage}
+                            alt={teacher.name}
+                            className="h-9 w-9 rounded-full object-cover border border-border"
+                          />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success text-success-foreground font-medium">
+                            {teacher.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <p
+                            className="font-medium text-foreground hover:text-primary hover:underline cursor-pointer transition-colors"
+                            onClick={() => handleView(teacher)}
+                          >
+                            {teacher.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {teacher.phone}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="rounded-full bg-primary-light px-3 py-1 text-sm font-medium text-primary">
+                        {capitalizeSubject(teacher.subject)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        {teacher.phone}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(teacher.joiningDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={teacher.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Credentials Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
+                          onClick={() => handleShowCredentials(teacher)}
+                          title="View Credentials"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+
+                        {/* View Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                          onClick={() => handleView(teacher)}
+                          title="View Details"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                          </svg>
+                        </Button>
+
+                        {/* Edit Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                          onClick={() => handleEdit(teacher)}
+                          title="Edit Teacher"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleDelete(teacher)}
+                          title="Delete Teacher"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
@@ -668,7 +696,9 @@ const Teachers = () => {
               {resetSuccess ? (
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-700 font-medium">Password updated successfully!</span>
+                  <span className="text-sm text-green-700 font-medium">
+                    Password updated successfully!
+                  </span>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -682,10 +712,16 @@ const Teachers = () => {
                   <Button
                     size="sm"
                     onClick={handleResetPassword}
-                    disabled={isResettingPassword || resetPasswordValue.length < 6}
+                    disabled={
+                      isResettingPassword || resetPasswordValue.length < 6
+                    }
                     className="bg-amber-600 hover:bg-amber-700 text-white h-auto px-4"
                   >
-                    {isResettingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset"}
+                    {isResettingPassword ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Reset"
+                    )}
                   </Button>
                 </div>
               )}

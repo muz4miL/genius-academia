@@ -156,8 +156,15 @@ const Students = () => {
 
   // Withdraw mutation (soft-delete with optional refund)
   const withdrawStudentMutation = useMutation({
-    mutationFn: ({ id, refundAmount, refundReason }: { id: string; refundAmount?: number; refundReason?: string }) =>
-      studentApi.withdraw(id, { refundAmount, refundReason }),
+    mutationFn: ({
+      id,
+      refundAmount,
+      refundReason,
+    }: {
+      id: string;
+      refundAmount?: number;
+      refundReason?: string;
+    }) => studentApi.withdraw(id, { refundAmount, refundReason }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -359,32 +366,50 @@ const Students = () => {
   };
 
   const handleResetStudentPassword = async () => {
-    if (!credentialStudent || !resetPasswordValue || resetPasswordValue.length < 6) {
+    if (
+      !credentialStudent ||
+      !resetPasswordValue ||
+      resetPasswordValue.length < 6
+    ) {
       toast.error("Password must be at least 6 characters.");
       return;
     }
     try {
       setIsResettingPassword(true);
       // Try multiple identifiers: barcodeId, studentId, or username
-      const username = credentialStudent.barcodeId || credentialStudent.studentId || credentialStudent.username;
-      console.log('🔑 Resetting password for student:', { username, student: credentialStudent });
+      const username =
+        credentialStudent.barcodeId ||
+        credentialStudent.studentId ||
+        credentialStudent.username;
+      console.log("🔑 Resetting password for student:", {
+        username,
+        student: credentialStudent,
+      });
       const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ userId: username, newPassword: resetPasswordValue }),
+        body: JSON.stringify({
+          userId: username,
+          newPassword: resetPasswordValue,
+        }),
       });
       const data = await res.json();
-      console.log('📡 Reset password response:', data);
+      console.log("📡 Reset password response:", data);
       if (data.success) {
         setResetSuccess(true);
-        setCredentialStudent({ ...credentialStudent, plainPassword: resetPasswordValue });
-        toast.success(`Password updated for ${credentialStudent.studentName}. You can now print the updated slip.`);
+        setCredentialStudent({
+          ...credentialStudent,
+          plainPassword: resetPasswordValue,
+        });
+        toast.success(
+          `Password updated for ${credentialStudent.studentName}. You can now print the updated slip.`,
+        );
       } else {
         toast.error(data.message || "Failed to reset password.");
       }
     } catch (err: any) {
-      console.error('❌ Reset password error:', err);
+      console.error("❌ Reset password error:", err);
       toast.error(err.message || "Server error.");
     } finally {
       setIsResettingPassword(false);
@@ -477,7 +502,10 @@ const Students = () => {
             <SelectContent className="bg-popover">
               <SelectItem value="all">All Classes</SelectItem>
               {classOptions.map((cls: any) => (
-                <SelectItem key={cls._id} value={cls.classTitle || cls.className}>
+                <SelectItem
+                  key={cls._id}
+                  value={cls.classTitle || cls.className}
+                >
                   {cls.classTitle || cls.className}
                   {cls.group ? ` (${cls.group})` : ""}
                 </SelectItem>
@@ -536,258 +564,274 @@ const Students = () => {
             </Button>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary hover:bg-secondary">
-                <TableHead className="font-semibold">ID</TableHead>
-                <TableHead className="font-semibold">Student</TableHead>
-                <TableHead className="font-semibold">Seat</TableHead>
-                <TableHead className="font-semibold">Class</TableHead>
-                <TableHead className="font-semibold">Group</TableHead>
-                <TableHead className="font-semibold">Subjects</TableHead>
-                <TableHead className="font-semibold text-center">
-                  Status
-                </TableHead>
-                <TableHead className="font-semibold text-center">
-                  Fee Status
-                </TableHead>
-                <TableHead className="font-semibold text-right">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students && students.length > 0 ? (
-                students.map((student: any) => {
-                  try {
-                    const initials = getInitials(student?.studentName || "NA");
-                    const subjects = student?.subjects || [];
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-secondary hover:bg-secondary">
+                  <TableHead className="font-semibold">ID</TableHead>
+                  <TableHead className="font-semibold">Student</TableHead>
+                  <TableHead className="font-semibold">Seat</TableHead>
+                  <TableHead className="font-semibold">Class</TableHead>
+                  <TableHead className="font-semibold">Group</TableHead>
+                  <TableHead className="font-semibold">Subjects</TableHead>
+                  <TableHead className="font-semibold text-center">
+                    Status
+                  </TableHead>
+                  <TableHead className="font-semibold text-center">
+                    Fee Status
+                  </TableHead>
+                  <TableHead className="font-semibold text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {students && students.length > 0 ? (
+                  students.map((student: any) => {
+                    try {
+                      const initials = getInitials(
+                        student?.studentName || "NA",
+                      );
+                      const subjects = student?.subjects || [];
 
-                    return (
-                      <TableRow
-                        key={student?._id || Math.random()}
-                        className={`hover:bg-secondary/50 ${student.studentStatus === "Withdrawn" ? "opacity-50" : ""}`}
-                      >
-                        <TableCell className="font-medium font-mono text-xs text-muted-foreground">
-                          {student.studentId}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {(student.photo || student.imageUrl) ? (
-                              <img
-                                src={
-                                  (student.photo || student.imageUrl).startsWith("data:") ||
-                                  (student.photo || student.imageUrl).startsWith("http")
-                                    ? (student.photo || student.imageUrl)
-                                    : `${API_BASE_URL}${student.photo || student.imageUrl}`
-                                }
-                                alt={student.studentName}
-                                className="h-10 w-10 shrink-0 rounded-full object-cover shadow-md"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
-                            ) : null}
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white font-bold text-sm shadow-md ${(student.photo || student.imageUrl) ? 'hidden' : ''}`}>
-                              <span className="flex items-center justify-center">
-                                {initials}
-                              </span>
+                      return (
+                        <TableRow
+                          key={student?._id || Math.random()}
+                          className={`hover:bg-secondary/50 ${student.studentStatus === "Withdrawn" ? "opacity-50" : ""}`}
+                        >
+                          <TableCell className="font-medium font-mono text-xs text-muted-foreground">
+                            {student.studentId}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {student.photo || student.imageUrl ? (
+                                <img
+                                  src={
+                                    (
+                                      student.photo || student.imageUrl
+                                    ).startsWith("data:") ||
+                                    (
+                                      student.photo || student.imageUrl
+                                    ).startsWith("http")
+                                      ? student.photo || student.imageUrl
+                                      : `${API_BASE_URL}${student.photo || student.imageUrl}`
+                                  }
+                                  alt={student.studentName}
+                                  className="h-10 w-10 shrink-0 rounded-full object-cover shadow-md"
+                                  onError={(e) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none";
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).nextElementSibling?.classList.remove(
+                                      "hidden",
+                                    );
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white font-bold text-sm shadow-md ${student.photo || student.imageUrl ? "hidden" : ""}`}
+                              >
+                                <span className="flex items-center justify-center">
+                                  {initials}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground">
+                                  {student.studentName}
+                                </p>
+                                {student.fatherName === "To be updated" ? (
+                                  <p className="text-[11px] italic text-slate-400">
+                                    {student.fatherName}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    {student.fatherName}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-foreground">
-                                {student.studentName}
-                              </p>
-                              {student.fatherName === "To be updated" ? (
-                                <p className="text-[11px] italic text-slate-400">
-                                  {student.fatherName}
-                                </p>
+                          </TableCell>
+                          <TableCell>
+                            {student.seatNumber ? (
+                              <span
+                                className={`px-2 py-1 rounded-md text-xs font-bold font-mono ${
+                                  student.seatNumber?.startsWith("L")
+                                    ? "bg-pink-100 text-pink-700 border border-pink-200"
+                                    : "bg-sky-100 text-sky-700 border border-sky-200"
+                                }`}
+                              >
+                                {student.seatNumber}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {student.class}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {student.group}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {/* TASK 3: Enterprise Subject Pills - Handles both string and object format */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {subjects.length > 0 ? (
+                                <>
+                                  {subjects
+                                    .slice(0, 2)
+                                    .map((subject: any, idx: number) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 border border-slate-200 text-slate-700"
+                                      >
+                                        {getSubjectName(subject)}
+                                      </span>
+                                    ))}
+                                  {subjects.length > 2 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 border border-sky-200 text-sky-700">
+                                      +{subjects.length - 2}
+                                    </span>
+                                  )}
+                                </>
                               ) : (
-                                <p className="text-xs text-muted-foreground">
-                                  {student.fatherName}
-                                </p>
+                                <span className="text-xs text-muted-foreground italic">
+                                  No subjects
+                                </span>
                               )}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {student.seatNumber ? (
-                            <span
-                              className={`px-2 py-1 rounded-md text-xs font-bold font-mono ${
-                                student.seatNumber?.startsWith("L")
-                                  ? "bg-pink-100 text-pink-700 border border-pink-200"
-                                  : "bg-sky-100 text-sky-700 border border-sky-200"
-                              }`}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div
+                              className="inline-flex items-center justify-center"
+                              style={{
+                                filter:
+                                  student.studentStatus === "Withdrawn"
+                                    ? "drop-shadow(0 0 8px rgba(234, 88, 12, 0.3))"
+                                    : student.status === "active"
+                                      ? "drop-shadow(0 0 8px rgba(34, 197, 94, 0.3))"
+                                      : "drop-shadow(0 0 8px rgba(148, 163, 184, 0.2))",
+                              }}
                             >
-                              {student.seatNumber}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {student.class}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {student.group}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {/* TASK 3: Enterprise Subject Pills - Handles both string and object format */}
-                          <div className="flex flex-wrap gap-1.5">
-                            {subjects.length > 0 ? (
-                              <>
-                                {subjects
-                                  .slice(0, 2)
-                                  .map((subject: any, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 border border-slate-200 text-slate-700"
-                                    >
-                                      {getSubjectName(subject)}
-                                    </span>
-                                  ))}
-                                {subjects.length > 2 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 border border-sky-200 text-sky-700">
-                                    +{subjects.length - 2}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">
-                                No subjects
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div
-                            className="inline-flex items-center justify-center"
-                            style={{
-                              filter:
-                                student.studentStatus === "Withdrawn"
-                                  ? "drop-shadow(0 0 8px rgba(234, 88, 12, 0.3))"
-                                  : student.status === "active"
+                              {student.studentStatus === "Withdrawn" ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                                  Withdrawn
+                                </span>
+                              ) : (
+                                <StatusBadge status={student.status} />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div
+                              className="inline-flex items-center justify-center"
+                              style={{
+                                filter:
+                                  student.feeStatus === "paid" ||
+                                  student.feeStatus === "Paid"
                                     ? "drop-shadow(0 0 8px rgba(34, 197, 94, 0.3))"
-                                    : "drop-shadow(0 0 8px rgba(148, 163, 184, 0.2))",
-                            }}
-                          >
-                            {student.studentStatus === "Withdrawn" ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-                                Withdrawn
-                              </span>
-                            ) : (
-                              <StatusBadge status={student.status} />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div
-                            className="inline-flex items-center justify-center"
-                            style={{
-                              filter:
-                                student.feeStatus === "paid" ||
-                                student.feeStatus === "Paid"
-                                  ? "drop-shadow(0 0 8px rgba(34, 197, 94, 0.3))"
-                                  : "drop-shadow(0 0 8px rgba(217, 119, 6, 0.3))",
-                            }}
-                          >
-                            <StatusBadge status={student.feeStatus} />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
-                              onClick={() => handleShowCredentials(student)}
-                              title="View Credentials"
+                                    : "drop-shadow(0 0 8px rgba(217, 119, 6, 0.3))",
+                              }}
                             >
-                              <KeyRound className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600"
-                              onClick={() =>
-                                generatePDF(student._id, "reprint")
-                              }
-                              disabled={isPrinting}
-                              title="Print Receipt"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            {student.studentStatus !== "Withdrawn" && (
+                              <StatusBadge status={student.feeStatus} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
-                                onClick={() => handleCollectFee(student)}
-                                title="Collect Fee"
+                                className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
+                                onClick={() => handleShowCredentials(student)}
+                                title="View Credentials"
                               >
-                                <DollarSign className="h-4 w-4" />
+                                <KeyRound className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-sky-50 hover:text-sky-600"
-                              onClick={() => handleView(student)}
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {student.studentStatus !== "Withdrawn" && (
-                              <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600"
+                                onClick={() =>
+                                  generatePDF(student._id, "reprint")
+                                }
+                                disabled={isPrinting}
+                                title="Print Receipt"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                              {student.studentStatus !== "Withdrawn" && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
-                                  onClick={() => handleEdit(student)}
-                                  title="Edit Student"
+                                  className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
+                                  onClick={() => handleCollectFee(student)}
+                                  title="Collect Fee"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <DollarSign className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
-                                  onClick={() => handleDelete(student)}
-                                  disabled={withdrawStudentMutation.isPending}
-                                  title="Withdraw Student"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  } catch (error) {
-                    console.error(
-                      "Error rendering student row:",
-                      student,
-                      error,
-                    );
-                    return null;
-                  }
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={10} className="h-24 text-center">
-                    <p className="text-muted-foreground">
-                      No students to display
-                    </p>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-sky-50 hover:text-sky-600"
+                                onClick={() => handleView(student)}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {student.studentStatus !== "Withdrawn" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
+                                    onClick={() => handleEdit(student)}
+                                    title="Edit Student"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                                    onClick={() => handleDelete(student)}
+                                    disabled={withdrawStudentMutation.isPending}
+                                    title="Withdraw Student"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Error rendering student row:",
+                        student,
+                        error,
+                      );
+                      return null;
+                    }
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-24 text-center">
+                      <p className="text-muted-foreground">
+                        No students to display
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
@@ -857,7 +901,10 @@ const Students = () => {
               </div>
 
               <DialogFooter>
-                <Button onClick={closeFeeModal} className="w-full bg-green-600 hover:bg-green-700">
+                <Button
+                  onClick={closeFeeModal}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
                   Done
                 </Button>
               </DialogFooter>
@@ -870,21 +917,32 @@ const Students = () => {
                 <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Total Fee</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Total Fee
+                      </p>
                       <p className="font-semibold text-blue-700 dark:text-blue-300">
                         Rs. {Number(feeStudent.totalFee || 0).toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Paid Amount</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Paid Amount
+                      </p>
                       <p className="font-semibold text-green-700 dark:text-green-300">
-                        Rs. {Number(feeStudent.paidAmount || 0).toLocaleString()}
+                        Rs.{" "}
+                        {Number(feeStudent.paidAmount || 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="col-span-2 pt-2 border-t border-blue-200 dark:border-blue-800">
-                      <p className="text-xs text-muted-foreground mb-1">Remaining Balance</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Remaining Balance
+                      </p>
                       <p className="font-bold text-lg text-purple-700 dark:text-purple-300">
-                        Rs. {(Number(feeStudent.totalFee || 0) - Number(feeStudent.paidAmount || 0)).toLocaleString()}
+                        Rs.{" "}
+                        {(
+                          Number(feeStudent.totalFee || 0) -
+                          Number(feeStudent.paidAmount || 0)
+                        ).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -987,7 +1045,9 @@ const Students = () => {
               </Label>
               <div className="flex">
                 <div className="flex-1 px-4 py-2.5 bg-gray-50 border border-r-0 border-gray-200 rounded-l-lg font-mono text-sm text-gray-700">
-                  {credentialStudent?.barcodeId || credentialStudent?.studentId || "N/A"}
+                  {credentialStudent?.barcodeId ||
+                    credentialStudent?.studentId ||
+                    "N/A"}
                 </div>
                 <Button
                   size="sm"
@@ -995,7 +1055,9 @@ const Students = () => {
                   className="rounded-l-none border border-l-0 border-gray-200 h-auto"
                   onClick={() =>
                     copyCredential(
-                      credentialStudent?.barcodeId || credentialStudent?.studentId || "",
+                      credentialStudent?.barcodeId ||
+                        credentialStudent?.studentId ||
+                        "",
                       "username",
                     )
                   }
@@ -1062,7 +1124,9 @@ const Students = () => {
               {resetSuccess ? (
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-700 font-medium">Password updated successfully!</span>
+                  <span className="text-sm text-green-700 font-medium">
+                    Password updated successfully!
+                  </span>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -1076,10 +1140,16 @@ const Students = () => {
                   <Button
                     size="sm"
                     onClick={handleResetStudentPassword}
-                    disabled={isResettingPassword || resetPasswordValue.length < 6}
+                    disabled={
+                      isResettingPassword || resetPasswordValue.length < 6
+                    }
                     className="bg-amber-600 hover:bg-amber-700 text-white h-auto px-4"
                   >
-                    {isResettingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset"}
+                    {isResettingPassword ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Reset"
+                    )}
                   </Button>
                 </div>
               )}

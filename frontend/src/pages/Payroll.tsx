@@ -121,23 +121,9 @@ export default function Payroll() {
     [loadLogo],
   );
 
-  // Redirect non-owners
-  if (user?.role !== "OWNER") {
-    return (
-      <DashboardLayout title="Payroll">
-        <div className="flex flex-col items-center justify-center h-96 gap-4">
-          <AlertCircle className="h-16 w-16 text-red-500" />
-          <h2 className="text-xl font-semibold">Access Denied</h2>
-          <p className="text-muted-foreground">
-            Only the Owner can access the Payroll dashboard.
-          </p>
-          <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Fetch payroll dashboard data (hooks MUST be above conditional returns)
+  const isOwner = user?.role === "OWNER";
 
-  // Fetch payroll dashboard data
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ["payroll-dashboard"],
     queryFn: async () => {
@@ -147,6 +133,7 @@ export default function Payroll() {
       if (!res.ok) throw new Error("Failed to fetch payroll data");
       return res.json();
     },
+    enabled: isOwner,
   });
 
   // Fetch sessions for filter
@@ -159,6 +146,7 @@ export default function Payroll() {
       if (!res.ok) throw new Error("Failed to fetch sessions");
       return res.json();
     },
+    enabled: isOwner,
   });
 
   // Fetch classes for filter
@@ -171,6 +159,7 @@ export default function Payroll() {
       if (!res.ok) throw new Error("Failed to fetch classes");
       return res.json();
     },
+    enabled: isOwner,
   });
 
   const payTeacherMutation = useMutation({
@@ -261,6 +250,22 @@ export default function Payroll() {
     },
   });
 
+  // Redirect non-owners (AFTER all hooks)
+  if (!isOwner) {
+    return (
+      <DashboardLayout title="Payroll">
+        <div className="flex flex-col items-center justify-center h-96 gap-4">
+          <AlertCircle className="h-16 w-16 text-red-500" />
+          <h2 className="text-xl font-semibold">Access Denied</h2>
+          <p className="text-muted-foreground">
+            Only the Owner can access the Payroll dashboard.
+          </p>
+          <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const dashboard = dashboardData?.data || {
     activeSession: null,
     totalPaidSession: 0,
@@ -272,14 +277,19 @@ export default function Payroll() {
   const classes = classesData?.data || [];
 
   // Filter teachers based on search and filters
-  const filteredTeachers = dashboard.teachersWithBalances.filter((teacher: any) => {
-    // Search filter
-    if (searchQuery && !teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+  const filteredTeachers = dashboard.teachersWithBalances.filter(
+    (teacher: any) => {
+      // Search filter
+      if (
+        searchQuery &&
+        !teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
+    },
+  );
 
   if (isLoading) {
     return (
@@ -341,9 +351,11 @@ export default function Payroll() {
                     Teachers With Payable
                   </p>
                   <p className="text-2xl font-bold text-red-600">
-                    {dashboard.teachersWithBalances.filter(
-                      (t: any) => (t.netPayable || 0) > 0,
-                    ).length}
+                    {
+                      dashboard.teachersWithBalances.filter(
+                        (t: any) => (t.netPayable || 0) > 0,
+                      ).length
+                    }
                   </p>
                 </div>
                 <Banknote className="h-8 w-8 text-red-500" />
@@ -407,69 +419,73 @@ export default function Payroll() {
                 <p>No teachers found matching filters</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-primary/5">
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Compensation</TableHead>
-                    <TableHead className="text-right">Total Earned</TableHead>
-                    <TableHead className="text-right">Total Withdrawn</TableHead>
-                    <TableHead className="text-right">Net Payable</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTeachers.map((teacher: any) => (
-                    <TableRow key={teacher._id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        {teacher.name}
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {teacher.subject || "-"}
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {teacher.compensation?.type || "percentage"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        Rs. {(teacher.totalEarned || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        Rs. {(teacher.totalWithdrawn || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-green-600">
-                        Rs. {(teacher.netPayable || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setSelectedTeacher(teacher);
-                              setCreditDialogOpen(true);
-                            }}
-                          >
-                            <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                            Credit
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => {
-                              setSelectedTeacher(teacher);
-                              setPayDialogOpen(true);
-                            }}
-                            disabled={(teacher.netPayable || 0) <= 0}
-                          >
-                            Pay
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-primary/5">
+                      <TableHead>Teacher</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Compensation</TableHead>
+                      <TableHead className="text-right">Total Earned</TableHead>
+                      <TableHead className="text-right">
+                        Total Withdrawn
+                      </TableHead>
+                      <TableHead className="text-right">Net Payable</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTeachers.map((teacher: any) => (
+                      <TableRow key={teacher._id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">
+                          {teacher.name}
+                        </TableCell>
+                        <TableCell className="capitalize">
+                          {teacher.subject || "-"}
+                        </TableCell>
+                        <TableCell className="capitalize">
+                          {teacher.compensation?.type || "percentage"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          Rs. {(teacher.totalEarned || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          Rs. {(teacher.totalWithdrawn || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-600">
+                          Rs. {(teacher.netPayable || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setSelectedTeacher(teacher);
+                                setCreditDialogOpen(true);
+                              }}
+                            >
+                              <PlusCircle className="h-3.5 w-3.5 mr-1" />
+                              Credit
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                setSelectedTeacher(teacher);
+                                setPayDialogOpen(true);
+                              }}
+                              disabled={(teacher.netPayable || 0) <= 0}
+                            >
+                              Pay
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -547,10 +563,7 @@ export default function Payroll() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPayDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setPayDialogOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -582,8 +595,6 @@ export default function Payroll() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
 
       {/* Manual Credit Dialog */}
       <Dialog
@@ -618,7 +629,9 @@ export default function Payroll() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Note / Description *</label>
+              <label className="text-sm font-medium">
+                Note / Description *
+              </label>
               <Textarea
                 placeholder="e.g. Jan Session Share, Chemistry Classes Dec..."
                 value={creditNote}
@@ -626,9 +639,9 @@ export default function Payroll() {
               />
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              <strong>Note:</strong> This will increase the teacher's payable balance.
-              The amount will appear in their Payroll as owed. Use the "Pay" button
-              to record actual cash payouts.
+              <strong>Note:</strong> This will increase the teacher's payable
+              balance. The amount will appear in their Payroll as owed. Use the
+              "Pay" button to record actual cash payouts.
             </div>
           </div>
           <DialogFooter>

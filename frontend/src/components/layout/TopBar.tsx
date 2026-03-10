@@ -1,7 +1,8 @@
-import { Bell, User, LogOut, X } from "lucide-react";
+import { Bell, User, LogOut, X, Menu } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/context/SidebarContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +40,7 @@ interface TopBarProps {
 
 export function TopBar({ title }: TopBarProps) {
   const { user, logout } = useAuth();
+  const { toggleMobile } = useSidebar();
   const navigate = useNavigate();
 
   // Notification state
@@ -140,8 +142,21 @@ export function TopBar({ title }: TopBarProps) {
         : "bg-blue-500";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-6">
-      <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+    <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-border bg-card px-3 sm:px-6">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Mobile hamburger */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden shrink-0"
+          onClick={toggleMobile}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <h1 className="text-base sm:text-xl font-semibold text-foreground truncate">
+          {title}
+        </h1>
+      </div>
 
       <div className="flex items-center gap-4">
         {/* Notifications - OWNER ONLY */}
@@ -177,7 +192,10 @@ export function TopBar({ title }: TopBarProps) {
                       </button>
                     )}
                     <button
-                      onClick={() => { setShowNotifications(false); setShowAllNotifications(false); }}
+                      onClick={() => {
+                        setShowNotifications(false);
+                        setShowAllNotifications(false);
+                      }}
                       className="text-gray-400 hover:text-gray-600"
                       title="Close notifications"
                       aria-label="Close notifications"
@@ -188,39 +206,43 @@ export function TopBar({ title }: TopBarProps) {
                 </div>
 
                 {/* Notification List */}
-                <div className={`overflow-y-auto ${showAllNotifications ? "max-h-[70vh]" : "max-h-80"}`}>
+                <div
+                  className={`overflow-y-auto ${showAllNotifications ? "max-h-[70vh]" : "max-h-80"}`}
+                >
                   {notifications.length === 0 ? (
                     <div className="p-6 text-center text-gray-500">
                       <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                       <p className="text-sm">No new notifications</p>
                     </div>
                   ) : (
-                    notifications.slice(0, showAllNotifications ? notifications.length : 5).map((notification) => (
-                      <div
-                        key={notification._id}
-                        className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                          !notification.isRead ? "bg-blue-50/50" : ""
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-                              !notification.isRead
-                                ? "bg-blue-500"
-                                : "bg-transparent"
-                            }`}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-800 leading-snug">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {timeAgo(notification.createdAt)}
-                            </p>
+                    notifications
+                      .slice(0, showAllNotifications ? notifications.length : 5)
+                      .map((notification) => (
+                        <div
+                          key={notification._id}
+                          className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                            !notification.isRead ? "bg-blue-50/50" : ""
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                                !notification.isRead
+                                  ? "bg-blue-500"
+                                  : "bg-transparent"
+                              }`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-800 leading-snug">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {timeAgo(notification.createdAt)}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
 
@@ -228,10 +250,14 @@ export function TopBar({ title }: TopBarProps) {
                 {notifications.length > 5 && (
                   <div className="px-4 py-2 text-center border-t border-gray-100 bg-gray-50">
                     <button
-                      onClick={() => setShowAllNotifications(!showAllNotifications)}
+                      onClick={() =>
+                        setShowAllNotifications(!showAllNotifications)
+                      }
                       className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                     >
-                      {showAllNotifications ? "Show recent only" : `View all notifications (${notifications.length})`}
+                      {showAllNotifications
+                        ? "Show recent only"
+                        : `View all notifications (${notifications.length})`}
                     </button>
                   </div>
                 )}

@@ -54,20 +54,7 @@ interface ClassInstance {
   endTime: string;
 }
 
-// Subject options
-const premedSubjects = [
-  { id: "biology", label: "Biology" },
-  { id: "chemistry", label: "Chemistry" },
-  { id: "physics", label: "Physics" },
-  { id: "english", label: "English" },
-];
-
-const preengSubjects = [
-  { id: "physics", label: "Physics" },
-  { id: "chemistry", label: "Chemistry" },
-  { id: "math", label: "Mathematics" },
-  { id: "english", label: "English" },
-];
+// Subject options - derived dynamically from class data (see availableSubjects below)
 
 export const ViewEditStudentModal = ({
   open,
@@ -134,13 +121,13 @@ export const ViewEditStudentModal = ({
 
   const previewStatus = calculatePreviewStatus();
 
-  // Get available subjects based on group
-  const availableSubjects =
-    group === "Pre-Medical"
-      ? premedSubjects
-      : group === "Pre-Engineering"
-        ? preengSubjects
-        : [];
+  // Derive available subjects from the student's class
+  const selectedClass = activeClasses.find((c) => c._id === selectedClassId);
+  const availableSubjects: { id: string; label: string }[] =
+    (selectedClass as any)?.subjects?.map((s: any) => ({
+      id: s.name.toLowerCase(),
+      label: s.name,
+    })) || [];
 
   // Populate form when student data changes
   useEffect(() => {
@@ -630,16 +617,23 @@ export const ViewEditStudentModal = ({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="studentStatus">Student Status</Label>
-                    <Select value={studentStatus} onValueChange={setStudentStatus}>
+                    <Select
+                      value={studentStatus}
+                      onValueChange={setStudentStatus}
+                    >
                       <SelectTrigger className="bg-background">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
                         <SelectItem value="active">
-                          <span className="flex items-center gap-2">🟢 Active</span>
+                          <span className="flex items-center gap-2">
+                            🟢 Active
+                          </span>
                         </SelectItem>
                         <SelectItem value="inactive">
-                          <span className="flex items-center gap-2">🔴 Inactive</span>
+                          <span className="flex items-center gap-2">
+                            🔴 Inactive
+                          </span>
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -767,7 +761,8 @@ export const ViewEditStudentModal = ({
                       title="Use 'Collect Fee' button to add payments"
                     />
                     <p className="text-xs text-orange-600 dark:text-orange-400">
-                      💡 Use the <strong>Collect Fee</strong> button to record payments
+                      💡 Use the <strong>Collect Fee</strong> button to record
+                      payments
                     </p>
                   </div>
                   <div className="space-y-2">

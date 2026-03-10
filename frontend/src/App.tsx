@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { SidebarProvider } from "@/context/SidebarContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -36,156 +37,161 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/public" element={<PublicLanding />} />
-            <Route path="/public-home" element={<Navigate to="/public" replace />} />
-            <Route path="/register" element={<KioskRegister />} />
+        <SidebarProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/public" element={<PublicLanding />} />
+              <Route
+                path="/public-home"
+                element={<Navigate to="/public" replace />}
+              />
+              <Route path="/register" element={<KioskRegister />} />
 
-            {/* Student Portal */}
-            <Route path="/student-portal" element={<StudentPortal />} />
-            <Route
-              path="/student-portal/seat-selection"
-              element={<StudentSeatSelection />}
-            />
+              {/* Student Portal */}
+              <Route path="/student-portal" element={<StudentPortal />} />
+              <Route
+                path="/student-portal/seat-selection"
+                element={<StudentSeatSelection />}
+              />
 
-            {/* Protected Routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admissions"
-              element={
-                <ProtectedRoute>
-                  <Admissions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/students"
-              element={
-                <ProtectedRoute>
-                  <Students />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/students/:id"
-              element={
-                <ProtectedRoute>
-                  <StudentProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teachers"
-              element={
-                <ProtectedRoute>
-                  <Teachers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teachers/:id"
-              element={
-                <ProtectedRoute>
-                  <TeacherProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/finance"
-              element={
-                <ProtectedRoute>
-                  <Finance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classes"
-              element={
-                <ProtectedRoute>
-                  <Classes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/timetable"
-              element={
-                <ProtectedRoute>
-                  <Timetable />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sessions"
-              element={
-                <ProtectedRoute>
-                  <Sessions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/configuration"
-              element={
-                <ProtectedRoute>
-                  <Configuration />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/payroll"
-              element={
-                <ProtectedRoute>
-                  <Payroll />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads"
-              element={
-                <ProtectedRoute>
-                  <Leads />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/registrations"
-              element={
-                <ProtectedRoute>
-                  <PendingApprovals />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/seat-management"
-              element={
-                <ProtectedRoute>
-                  <SeatManagementPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* Gatekeeper — reserved for SCA academy project */}
-            <Route
-              path="/gatekeeper"
-              element={
-                <ProtectedRoute>
-                  <Gatekeeper />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+              {/* Protected Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admissions"
+                element={
+                  <ProtectedRoute>
+                    <Admissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/students"
+                element={
+                  <ProtectedRoute>
+                    <Students />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/students/:id"
+                element={
+                  <ProtectedRoute>
+                    <StudentProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teachers"
+                element={
+                  <ProtectedRoute>
+                    <Teachers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teachers/:id"
+                element={
+                  <ProtectedRoute>
+                    <TeacherProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance"
+                element={
+                  <ProtectedRoute>
+                    <Finance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/classes"
+                element={
+                  <ProtectedRoute>
+                    <Classes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/timetable"
+                element={
+                  <ProtectedRoute>
+                    <Timetable />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sessions"
+                element={
+                  <ProtectedRoute>
+                    <Sessions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuration"
+                element={
+                  <ProtectedRoute>
+                    <Configuration />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payroll"
+                element={
+                  <ProtectedRoute>
+                    <Payroll />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads"
+                element={
+                  <ProtectedRoute>
+                    <Leads />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/registrations"
+                element={
+                  <ProtectedRoute>
+                    <PendingApprovals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seat-management"
+                element={
+                  <ProtectedRoute>
+                    <SeatManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Gatekeeper — reserved for SCA academy project */}
+              <Route
+                path="/gatekeeper"
+                element={
+                  <ProtectedRoute>
+                    <Gatekeeper />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </SidebarProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

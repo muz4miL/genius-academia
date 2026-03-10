@@ -52,7 +52,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pdf } from "@react-pdf/renderer";
-import { MiscPaymentPDF, type MiscPaymentPDFData } from "@/components/print/MiscPaymentPDF";
+import {
+  MiscPaymentPDF,
+  type MiscPaymentPDFData,
+} from "@/components/print/MiscPaymentPDF";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -148,12 +151,7 @@ const FinanceOverview = () => {
     const term = search.trim().toLowerCase();
     if (!term) return history;
     return history.filter((item) => {
-      const haystack = [
-        item.type,
-        item.category,
-        item.description,
-        item.source,
-      ]
+      const haystack = [item.type, item.category, item.description, item.source]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -224,7 +222,7 @@ const FinanceOverview = () => {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-red-600" />
@@ -234,7 +232,7 @@ const FinanceOverview = () => {
               All income and expense transactions in one scrollable log
             </CardDescription>
           </div>
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Input
               placeholder="Search by type, category, or description"
               value={search}
@@ -276,12 +274,13 @@ const FinanceOverview = () => {
                   {filteredHistory.map((item) => (
                     <TableRow key={item._id}>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(item.date || item.createdAt || Date.now())
-                          .toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                        {new Date(
+                          item.date || item.createdAt || Date.now(),
+                        ).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -350,15 +349,17 @@ const AssetRegistry = () => {
     },
   });
 
-  const assets: (Asset & { _id?: string })[] = (assetsData?.data || []).map((a: any) => ({
-    id: a._id,
-    _id: a._id,
-    itemName: a.itemName,
-    investorName: a.investorName,
-    purchaseDate: a.purchaseDate,
-    originalCost: a.originalCost,
-    depreciationRate: a.depreciationRate,
-  }));
+  const assets: (Asset & { _id?: string })[] = (assetsData?.data || []).map(
+    (a: any) => ({
+      id: a._id,
+      _id: a._id,
+      itemName: a.itemName,
+      investorName: a.investorName,
+      purchaseDate: a.purchaseDate,
+      originalCost: a.originalCost,
+      depreciationRate: a.depreciationRate,
+    }),
+  );
 
   const totalOriginal = assets.reduce((sum, a) => sum + a.originalCost, 0);
   const totalCurrent = assets.reduce(
@@ -370,7 +371,13 @@ const AssetRegistry = () => {
 
   // Create asset mutation
   const createMutation = useMutation({
-    mutationFn: async (newAsset: { itemName: string; investorName: string; purchaseDate: string; originalCost: number; depreciationRate: number }) => {
+    mutationFn: async (newAsset: {
+      itemName: string;
+      investorName: string;
+      purchaseDate: string;
+      originalCost: number;
+      depreciationRate: number;
+    }) => {
       const res = await fetch(`${API_BASE_URL}/api/inventory`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -521,7 +528,9 @@ const AssetRegistry = () => {
           {assetsLoading ? (
             <div className="text-center py-12">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mt-2">Loading assets...</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Loading assets...
+              </p>
             </div>
           ) : assets.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -789,12 +798,7 @@ const DailyExpenses = () => {
   });
 
   const handleAddExpense = () => {
-    if (
-      !expenseTitle ||
-      !expenseCategory ||
-      !expenseAmount ||
-      !expenseVendor
-    ) {
+    if (!expenseTitle || !expenseCategory || !expenseAmount || !expenseVendor) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -1025,7 +1029,9 @@ const StudentCollections = () => {
   const { data: studentsData, isLoading: studentsLoading } = useQuery({
     queryKey: ["students", "search", studentSearch],
     queryFn: async () => {
-      const params = studentSearch ? `?search=${encodeURIComponent(studentSearch)}` : "";
+      const params = studentSearch
+        ? `?search=${encodeURIComponent(studentSearch)}`
+        : "";
       const res = await fetch(`${API_BASE_URL}/api/students${params}`, {
         credentials: "include",
       });
@@ -1039,9 +1045,12 @@ const StudentCollections = () => {
   const { data: historyData, isLoading: historyLoading } = useQuery({
     queryKey: ["finance", "misc-payments"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/finance/student-misc-payments`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/finance/student-misc-payments`,
+        {
+          credentials: "include",
+        },
+      );
       if (!res.ok) throw new Error("Failed to load misc payments");
       return res.json();
     },
@@ -1073,12 +1082,15 @@ const StudentCollections = () => {
   // Collect misc payment mutation
   const collectMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const res = await fetch(`${API_BASE_URL}/api/finance/student-misc-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/api/finance/student-misc-payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        },
+      );
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Failed to record payment");
@@ -1095,7 +1107,10 @@ const StudentCollections = () => {
       const receiptData: MiscPaymentPDFData = data.data.receiptData;
       try {
         const blob = await pdf(
-          <MiscPaymentPDF data={receiptData} logoDataUrl={cachedLogo || undefined} />
+          <MiscPaymentPDF
+            data={receiptData}
+            logoDataUrl={cachedLogo || undefined}
+          />,
         ).toBlob();
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
@@ -1116,7 +1131,6 @@ const StudentCollections = () => {
       setOutsiderName("");
       setOutsiderFatherName("");
       setOutsiderContact("");
-
     },
     onError: (error: any) => {
       toast.error("Payment Failed", { description: error.message });
@@ -1195,10 +1209,14 @@ const StudentCollections = () => {
                 Student Misc Collections
               </CardTitle>
               <CardDescription>
-                Collect & track non-tuition payments — trips, tests, labs, events, and more
+                Collect & track non-tuition payments — trips, tests, labs,
+                events, and more
               </CardDescription>
             </div>
-            <Button onClick={() => setShowCollectDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Button
+              onClick={() => setShowCollectDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               <Plus className="mr-2 h-4 w-4" />
               New Collection
             </Button>
@@ -1226,13 +1244,17 @@ const StudentCollections = () => {
           {historyLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-slate-500">Loading collections...</span>
+              <span className="ml-2 text-slate-500">
+                Loading collections...
+              </span>
             </div>
           ) : filteredPayments.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <CreditCard className="h-12 w-12 mx-auto mb-3 text-slate-300" />
               <p className="font-medium">No misc collections recorded yet</p>
-              <p className="text-sm mt-1">Click "New Collection" to record a student payment</p>
+              <p className="text-sm mt-1">
+                Click "New Collection" to record a student payment
+              </p>
             </div>
           ) : (
             <div className="max-h-[500px] overflow-auto">
@@ -1256,7 +1278,10 @@ const StudentCollections = () => {
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={categoryColors[p.category] || "bg-slate-100 text-slate-700"}
+                          className={
+                            categoryColors[p.category] ||
+                            "bg-slate-100 text-slate-700"
+                          }
                         >
                           {categoryLabels[p.category] || p.category}
                         </Badge>
@@ -1267,9 +1292,13 @@ const StudentCollections = () => {
                             {p.studentId?.studentName || p.outsiderName || "-"}
                           </span>
                           {p.studentId?.studentId ? (
-                            <span className="text-xs text-slate-400 ml-1">({p.studentId.studentId})</span>
+                            <span className="text-xs text-slate-400 ml-1">
+                              ({p.studentId.studentId})
+                            </span>
                           ) : p.outsiderName ? (
-                            <span className="text-xs text-amber-500 ml-1">(Walk-in)</span>
+                            <span className="text-xs text-amber-500 ml-1">
+                              (Walk-in)
+                            </span>
                           ) : null}
                         </div>
                       </TableCell>
@@ -1314,7 +1343,12 @@ const StudentCollections = () => {
                   size="sm"
                   variant={!isOutsider ? "default" : "outline"}
                   className={!isOutsider ? "bg-blue-600 hover:bg-blue-700" : ""}
-                  onClick={() => { setIsOutsider(false); setOutsiderName(""); setOutsiderFatherName(""); setOutsiderContact(""); }}
+                  onClick={() => {
+                    setIsOutsider(false);
+                    setOutsiderName("");
+                    setOutsiderFatherName("");
+                    setOutsiderContact("");
+                  }}
                 >
                   Enrolled Student
                 </Button>
@@ -1322,8 +1356,14 @@ const StudentCollections = () => {
                   type="button"
                   size="sm"
                   variant={isOutsider ? "default" : "outline"}
-                  className={isOutsider ? "bg-amber-600 hover:bg-amber-700" : ""}
-                  onClick={() => { setIsOutsider(true); setSelectedStudent(null); setStudentSearch(""); }}
+                  className={
+                    isOutsider ? "bg-amber-600 hover:bg-amber-700" : ""
+                  }
+                  onClick={() => {
+                    setIsOutsider(true);
+                    setSelectedStudent(null);
+                    setStudentSearch("");
+                  }}
                 >
                   Outsider / Walk-in
                 </Button>
@@ -1334,13 +1374,22 @@ const StudentCollections = () => {
                 selectedStudent ? (
                   <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md p-3">
                     <div>
-                      <span className="font-semibold">{selectedStudent.studentName}</span>
-                      <span className="text-xs ml-2 text-slate-500">({selectedStudent.studentId})</span>
+                      <span className="font-semibold">
+                        {selectedStudent.studentName}
+                      </span>
+                      <span className="text-xs ml-2 text-slate-500">
+                        ({selectedStudent.studentId})
+                      </span>
                       <div className="text-xs text-slate-500 mt-0.5">
-                        {selectedStudent.class} | Father: {selectedStudent.fatherName || "-"}
+                        {selectedStudent.class} | Father:{" "}
+                        {selectedStudent.fatherName || "-"}
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedStudent(null)}
+                    >
                       Change
                     </Button>
                   </div>
@@ -1366,9 +1415,15 @@ const StudentCollections = () => {
                               setStudentSearch("");
                             }}
                           >
-                            <span className="font-medium text-sm">{s.studentName}</span>
-                            <span className="text-xs ml-2 text-slate-400">({s.studentId})</span>
-                            <span className="text-xs ml-2 text-slate-500">{s.class}</span>
+                            <span className="font-medium text-sm">
+                              {s.studentName}
+                            </span>
+                            <span className="text-xs ml-2 text-slate-400">
+                              ({s.studentId})
+                            </span>
+                            <span className="text-xs ml-2 text-slate-500">
+                              {s.class}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -1471,12 +1526,20 @@ const StudentCollections = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCollectDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCollectDialog(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleCollect}
-              disabled={collectMutation.isPending || (!isOutsider && !selectedStudent) || (isOutsider && !outsiderName.trim()) || !amount}
+              disabled={
+                collectMutation.isPending ||
+                (!isOutsider && !selectedStudent) ||
+                (isOutsider && !outsiderName.trim()) ||
+                !amount
+              }
               className="bg-blue-600 hover:bg-blue-700"
             >
               {collectMutation.isPending ? (
@@ -1537,7 +1600,10 @@ const Finance = () => {
               <TrendingUp className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="collections" className="flex items-center gap-2">
+            <TabsTrigger
+              value="collections"
+              className="flex items-center gap-2"
+            >
               <CreditCard className="h-4 w-4" />
               Collections
             </TabsTrigger>

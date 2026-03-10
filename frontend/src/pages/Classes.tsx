@@ -795,7 +795,10 @@ export default function Classes() {
     () => ({
       total: classes.length,
       active: classes.filter((c) => c.status === "active").length,
-      students: classes.reduce((sum, c) => sum + (c.enrolledStudents || c.studentCount || 0), 0),
+      students: classes.reduce(
+        (sum, c) => sum + (c.enrolledStudents || c.studentCount || 0),
+        0,
+      ),
       linked: classes.filter((c) => getSessionInfo(c.session).found).length,
     }),
     [classes, getSessionInfo],
@@ -875,7 +878,7 @@ export default function Classes() {
               setFilters((prev) => ({ ...prev, session: val }))
             }
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full sm:w-[220px]">
               <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
               <SelectValue placeholder="Filter by Session" />
             </SelectTrigger>
@@ -898,7 +901,7 @@ export default function Classes() {
               setFilters((prev) => ({ ...prev, status: val }))
             }
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -928,161 +931,175 @@ export default function Classes() {
         ) : classes.length === 0 ? (
           <EmptyState onAdd={handleOpenAdd} />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead>Class Details</TableHead>
-                <TableHead>Academic Session</TableHead>
-                <TableHead>Group / Schedule</TableHead>
-                <TableHead>Subjects & Teachers</TableHead>
-                <TableHead className="text-center">Students</TableHead>
-                <TableHead className="text-right">Revenue Collected</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <AnimatePresence>
-                {classes.map((classDoc, index) => {
-                  // ✅ SMART LOOKUP: Get session name using sessionPrices as source of truth
-                  const sessionInfo = getSessionInfo(classDoc.session);
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead>Class Details</TableHead>
+                  <TableHead>Academic Session</TableHead>
+                  <TableHead>Group / Schedule</TableHead>
+                  <TableHead>Subjects & Teachers</TableHead>
+                  <TableHead className="text-center">Students</TableHead>
+                  <TableHead className="text-right">
+                    Revenue Collected
+                  </TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <AnimatePresence>
+                  {classes.map((classDoc, index) => {
+                    // ✅ SMART LOOKUP: Get session name using sessionPrices as source of truth
+                    const sessionInfo = getSessionInfo(classDoc.session);
 
-                  return (
-                    <motion.tr
-                      key={classDoc._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b hover:bg-muted/30 transition-colors"
-                    >
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-foreground">
-                            {classDoc.classTitle}
-                          </span>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
-                              {classDoc.classId}
+                    return (
+                      <motion.tr
+                        key={classDoc._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b hover:bg-muted/30 transition-colors"
+                      >
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-foreground">
+                              {classDoc.classTitle}
                             </span>
-                            <span>•</span>
-                            <span>{classDoc.gradeLevel}</span>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
+                                {classDoc.classId}
+                              </span>
+                              <span>•</span>
+                              <span>{classDoc.gradeLevel}</span>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {/* ✅ FIXED: Smart Session Display using lookup - Clean UI without redundant status */}
-                        {sessionInfo.found ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-                            <Building2 className="h-3 w-3 mr-1.5" />
-                            {sessionInfo.name}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {sessionInfo.name}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 w-fit">
-                            {classDoc.group}
-                          </span>
-                          {classDoc.shift && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {classDoc.shift} • {classDoc.days?.join(", ")}
+                        </TableCell>
+                        <TableCell>
+                          {/* ✅ FIXED: Smart Session Display using lookup - Clean UI without redundant status */}
+                          {sessionInfo.found ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              <Building2 className="h-3 w-3 mr-1.5" />
+                              {sessionInfo.name}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              {sessionInfo.name}
                             </span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex flex-wrap gap-1">
-                            {getSubjectDisplay(classDoc).map((s) => (
-                              <span
-                                key={s.name}
-                                className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium"
-                              >
-                                {s.name}
-                              </span>
-                            ))}
-                            {(classDoc.subjects || []).length > 2 && (
-                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
-                                +{(classDoc.subjects || []).length - 2}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 w-fit">
+                              {classDoc.group}
+                            </span>
+                            {classDoc.shift && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {classDoc.shift} • {classDoc.days?.join(", ")}
                               </span>
                             )}
                           </div>
-                          {(classDoc.subjectTeachers || []).length > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {classDoc.subjectTeachers?.length} teachers
-                              assigned
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-1">
+                              {getSubjectDisplay(classDoc).map((s) => (
+                                <span
+                                  key={s.name}
+                                  className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-medium"
+                                >
+                                  {s.name}
+                                </span>
+                              ))}
+                              {(classDoc.subjects || []).length > 2 && (
+                                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                                  +{(classDoc.subjects || []).length - 2}
+                                </span>
+                              )}
+                            </div>
+                            {(classDoc.subjectTeachers || []).length > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {classDoc.subjectTeachers?.length} teachers
+                                assigned
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
+                            <span className="text-lg font-bold text-primary">
+                              {classDoc.enrolledStudents ||
+                                classDoc.studentCount ||
+                                0}
                             </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-lg font-bold text-primary">
-                            {classDoc.enrolledStudents || classDoc.studentCount || 0}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                            Enrolled
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="text-lg font-bold text-emerald-600">
-                            PKR {(classDoc.totalRevenueCollected || 0).toLocaleString()}
-                          </span>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
-                              {classDoc.teacherSharePct || 70}% = PKR {(classDoc.estimatedTeacherShare || 0).toLocaleString()}
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                              Enrolled
                             </span>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge
-                          status={
-                            classDoc.status === "active" ? "active" : "inactive"
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenEdit(classDoc)}
-                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setDeleteDialog({
-                                isOpen: true,
-                                classInstance: classDoc,
-                              })
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-lg font-bold text-emerald-600">
+                              PKR{" "}
+                              {(
+                                classDoc.totalRevenueCollected || 0
+                              ).toLocaleString()}
+                            </span>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
+                                {classDoc.teacherSharePct || 70}% = PKR{" "}
+                                {(
+                                  classDoc.estimatedTeacherShare || 0
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={
+                              classDoc.status === "active"
+                                ? "active"
+                                : "inactive"
                             }
-                            className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  );
-                })}
-              </AnimatePresence>
-            </TableBody>
-          </Table>
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEdit(classDoc)}
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setDeleteDialog({
+                                  isOpen: true,
+                                  classInstance: classDoc,
+                                })
+                              }
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 

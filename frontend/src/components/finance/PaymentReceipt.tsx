@@ -23,7 +23,11 @@ interface PaymentReceiptProps {
   } | null;
 }
 
-export const PaymentReceipt = ({ isOpen, onClose, voucherData }: PaymentReceiptProps) => {
+export const PaymentReceipt = ({
+  isOpen,
+  onClose,
+  voucherData,
+}: PaymentReceiptProps) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   if (!voucherData) return null;
@@ -32,7 +36,7 @@ export const PaymentReceipt = ({ isOpen, onClose, voucherData }: PaymentReceiptP
     const printContent = printRef.current;
     if (!printContent) return;
 
-    const printWindow = window.open('', '', 'height=600,width=800');
+    const printWindow = window.open("", "", "height=600,width=800");
     if (!printWindow) return;
 
     printWindow.document.write(`
@@ -163,7 +167,7 @@ export const PaymentReceipt = ({ isOpen, onClose, voucherData }: PaymentReceiptP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[520px] p-0">
+      <DialogContent className="w-full sm:max-w-[520px] p-0">
         <DialogHeader className="px-5 pt-4 pb-2">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <CheckCircle className="h-5 w-5 text-green-600" />
@@ -175,9 +179,15 @@ export const PaymentReceipt = ({ isOpen, onClose, voucherData }: PaymentReceiptP
           <div className="receipt-container border-2 border-gray-900 p-4 bg-white">
             {/* Compact Header */}
             <div className="header text-center border-b-2 border-gray-900 pb-3 mb-4">
-              <h1 className="text-lg font-bold mb-0.5">Academy Management System</h1>
-              <p className="text-[10px] text-gray-600">Peshawar, Khyber Pakhtunkhwa</p>
-              <p className="text-[10px] text-gray-600 font-medium">Teacher Payment Voucher</p>
+              <h1 className="text-lg font-bold mb-0.5">
+                Academy Management System
+              </h1>
+              <p className="text-[10px] text-gray-600">
+                Peshawar, Khyber Pakhtunkhwa
+              </p>
+              <p className="text-[10px] text-gray-600 font-medium">
+                Teacher Payment Voucher
+              </p>
             </div>
 
             {/* Voucher ID - Compact */}
@@ -188,55 +198,87 @@ export const PaymentReceipt = ({ isOpen, onClose, voucherData }: PaymentReceiptP
             {/* Details Grid - Compact */}
             <div className="details-grid grid grid-cols-2 gap-3 mb-4">
               <div className="detail-item border-b border-gray-300 pb-1.5">
-                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">Teacher Name</div>
-                <div className="detail-value text-sm font-semibold mt-0.5">{voucherData.teacherName}</div>
-              </div>
-              <div className="detail-item border-b border-gray-300 pb-1.5">
-                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">Subject</div>
-                <div className="detail-value text-sm font-semibold mt-0.5 capitalize">{voucherData.subject}</div>
-              </div>
-              <div className="detail-item border-b border-gray-300 pb-1.5">
-                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">Payment Period</div>
-                <div className="detail-value text-sm font-semibold mt-0.5">{voucherData.month} {voucherData.year}</div>
-              </div>
-              <div className="detail-item border-b border-gray-300 pb-1.5">
-                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">Payment Date</div>
+                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">
+                  Teacher Name
+                </div>
                 <div className="detail-value text-sm font-semibold mt-0.5">
-                  {new Date(voucherData.paymentDate).toLocaleDateString('en-PK', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })}
+                  {voucherData.teacherName}
+                </div>
+              </div>
+              <div className="detail-item border-b border-gray-300 pb-1.5">
+                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">
+                  Subject
+                </div>
+                <div className="detail-value text-sm font-semibold mt-0.5 capitalize">
+                  {voucherData.subject}
+                </div>
+              </div>
+              <div className="detail-item border-b border-gray-300 pb-1.5">
+                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">
+                  Payment Period
+                </div>
+                <div className="detail-value text-sm font-semibold mt-0.5">
+                  {voucherData.month} {voucherData.year}
+                </div>
+              </div>
+              <div className="detail-item border-b border-gray-300 pb-1.5">
+                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">
+                  Payment Date
+                </div>
+                <div className="detail-value text-sm font-semibold mt-0.5">
+                  {new Date(voucherData.paymentDate).toLocaleDateString(
+                    "en-PK",
+                    {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    },
+                  )}
                 </div>
               </div>
               <div className="detail-item border-b border-gray-300 pb-1.5 col-span-2">
-                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">Payment Method</div>
-                <div className="detail-value text-sm font-semibold mt-0.5 capitalize">{voucherData.paymentMethod}</div>
+                <div className="detail-label text-[9px] text-gray-500 uppercase tracking-wide">
+                  Payment Method
+                </div>
+                <div className="detail-value text-sm font-semibold mt-0.5 capitalize">
+                  {voucherData.paymentMethod}
+                </div>
               </div>
             </div>
 
             {/* Amount Section - Compact */}
             <div className="amount-section bg-green-600 text-white p-4 text-center rounded-lg my-4">
               <div className="label text-xs opacity-90">Amount Paid</div>
-              <div className="amount text-3xl font-bold mt-1">PKR {voucherData.amountPaid.toLocaleString()}</div>
+              <div className="amount text-3xl font-bold mt-1">
+                PKR {voucherData.amountPaid.toLocaleString()}
+              </div>
             </div>
 
             {/* Signature Section - Compact */}
             <div className="signature-section grid grid-cols-2 gap-6 mt-6">
               <div className="signature-box text-center">
                 <div className="signature-line border-t-2 border-gray-900 pt-1.5 mb-1"></div>
-                <div className="signature-label text-[9px] text-gray-600 uppercase">Teacher's Signature</div>
+                <div className="signature-label text-[9px] text-gray-600 uppercase">
+                  Teacher's Signature
+                </div>
               </div>
               <div className="signature-box text-center">
                 <div className="signature-line border-t-2 border-gray-900 pt-1.5 mb-1"></div>
-                <div className="signature-label text-[9px] text-gray-600 uppercase">Authorized By (Admin)</div>
+                <div className="signature-label text-[9px] text-gray-600 uppercase">
+                  Authorized By (Admin)
+                </div>
               </div>
             </div>
 
             {/* Footer - Compact */}
             <div className="footer mt-6 pt-3 border-t border-gray-300 text-center text-[9px] text-gray-500">
-              <p>This is a computer-generated voucher. Please retain for your records.</p>
-              <p className="mt-0.5">For queries, contact academy administration.</p>
+              <p>
+                This is a computer-generated voucher. Please retain for your
+                records.
+              </p>
+              <p className="mt-0.5">
+                For queries, contact academy administration.
+              </p>
             </div>
           </div>
         </div>

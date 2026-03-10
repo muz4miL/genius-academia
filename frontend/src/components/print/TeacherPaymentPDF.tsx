@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     transform: "translate(-50%, -50%) rotate(-30deg)",
     fontSize: 48,
     fontWeight: 700,
-    color: "rgba(184, 134, 11, 0.15)",
+    color: "rgba(184, 134, 11, 0.10)",
     letterSpacing: 10,
     zIndex: 10,
   },
@@ -42,10 +42,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     borderBottom: "2pt solid #1a365d",
-    paddingBottom: 8,
-    marginBottom: 10,
+    paddingBottom: 10,
+    marginBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
@@ -53,196 +53,189 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     objectFit: "contain",
   },
   academyInfo: {
     flexDirection: "column",
   },
   academyName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 700,
     color: "#1a365d",
     letterSpacing: 0.5,
   },
   contactText: {
-    fontSize: 8,
+    fontSize: 7,
     color: "#dc2626",
     marginTop: 2,
     fontWeight: 500,
   },
-  headerCenter: {
-    alignItems: "center",
-  },
-  voucherBadge: {
-    backgroundColor: "#b8860b",
-    paddingVertical: 4,
-    paddingHorizontal: 14,
-    borderRadius: 3,
-    marginBottom: 3,
-  },
-  voucherBadgeText: {
-    fontSize: 9,
-    fontWeight: 700,
-    color: "#ffffff",
-    letterSpacing: 2,
-  },
   headerRight: {
     alignItems: "flex-end",
+    gap: 3,
   },
-  voucherBox: {
-    border: "2pt solid #1a365d",
-    backgroundColor: "#f8fafc",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    marginBottom: 3,
+  voucherBadge: {
+    backgroundColor: "#1a365d",
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    borderRadius: 3,
+    marginBottom: 2,
+  },
+  voucherBadgeText: {
+    fontSize: 8,
+    fontWeight: 700,
+    color: "#ffffff",
+    letterSpacing: 1.5,
   },
   voucherIdText: {
     fontSize: 11,
     fontWeight: 700,
     color: "#1a365d",
     fontFamily: "Courier",
+    textAlign: "right",
   },
   dateText: {
     fontSize: 8,
     color: "#4b5563",
-    marginTop: 2,
+    textAlign: "right",
   },
 
   // ==================== MAIN CONTENT ====================
   mainContent: {
     flexDirection: "row",
-    gap: 14,
+    gap: 16,
     flex: 1,
   },
 
   // Left Section - Teacher Details
   leftSection: {
-    flex: 1.2,
+    flex: 1.4,
     flexDirection: "column",
   },
   detailsGrid: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   detailRow: {
     flexDirection: "row",
-    marginBottom: 5,
-  },
-  detailItem: {
-    flex: 1,
-    flexDirection: "row",
+    marginBottom: 6,
+    alignItems: "flex-end",
   },
   detailLabel: {
-    width: 58,
+    width: 65,
     fontSize: 8,
     fontWeight: 700,
-    color: "#374151",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
   detailValue: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: 600,
     color: "#111827",
-    borderBottom: "1pt solid #d1d5db",
+    borderBottom: "1pt solid #e5e7eb",
     paddingBottom: 3,
+  },
+  detailRowInline: {
+    flexDirection: "row",
+    marginBottom: 6,
+    gap: 20,
+  },
+  detailInlineItem: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  detailInlineLabel: {
+    width: 50,
+    fontSize: 8,
+    fontWeight: 700,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  detailInlineValue: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#111827",
+    borderBottom: "1pt solid #e5e7eb",
+    paddingBottom: 3,
+    minWidth: 70,
   },
 
   // Notes section
   notesSection: {
-    marginTop: 8,
+    marginTop: 10,
     paddingTop: 8,
     borderTop: "1pt solid #e5e7eb",
   },
   notesTitle: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: 700,
-    color: "#374151",
+    color: "#6b7280",
     marginBottom: 3,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
   notesText: {
     fontSize: 9,
-    color: "#4b5563",
-  },
-
-  // Center Section - Voucher ID
-  centerSection: {
-    flex: 0.5,
-    alignItems: "center",
-    justifyContent: "center",
-    borderLeft: "1pt dashed #9ca3af",
-    borderRight: "1pt dashed #9ca3af",
-    paddingHorizontal: 10,
-  },
-  centerLabel: {
-    fontSize: 7,
-    fontWeight: 700,
-    color: "#4b5563",
-    marginBottom: 5,
-    letterSpacing: 1,
-  },
-  centerValue: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "#1a365d",
-    letterSpacing: 0.5,
-    textAlign: "center",
-  },
-  centerHint: {
-    fontSize: 7,
-    color: "#6b7280",
-    marginTop: 4,
+    color: "#374151",
   },
 
   // Right Section - Financial Box
   rightSection: {
     flex: 0.9,
-    alignItems: "center",
+    flexDirection: "column",
+    justifyContent: "space-between",
   },
   feeBox: {
     width: "100%",
     border: "2pt solid #b8860b",
-    borderRadius: 4,
+    borderRadius: 5,
     overflow: "hidden",
-    marginBottom: 8,
   },
   feeStatusHeader: {
     backgroundColor: "#b8860b",
-    paddingVertical: 5,
+    paddingVertical: 6,
     alignItems: "center",
   },
   feeStatusLabel: {
     fontSize: 7,
     fontWeight: 700,
-    color: "#ffffff",
+    color: "rgba(255,255,255,0.8)",
     letterSpacing: 0.5,
+    marginBottom: 1,
   },
   feeStatusValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 700,
     color: "#ffffff",
+    letterSpacing: 1,
   },
   feeDetails: {
-    padding: 8,
+    padding: 10,
     backgroundColor: "#fffef5",
   },
   feeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 3,
+    alignItems: "center",
+    paddingVertical: 4,
   },
   feeRowLabel: {
     fontSize: 8,
     color: "#4b5563",
   },
   feeRowValue: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 700,
     color: "#111827",
   },
   feeRowTotal: {
-    borderTop: "1pt solid #d1d5db",
+    borderTop: "1.5pt solid #d1d5db",
     marginTop: 4,
-    paddingTop: 4,
+    paddingTop: 5,
   },
   balanceBefore: {
     color: "#ea580c",
@@ -259,19 +252,18 @@ const styles = StyleSheet.create({
 
   // Signature
   signatureSection: {
-    marginTop: "auto",
     alignItems: "flex-end",
-    paddingTop: 8,
+    paddingTop: 10,
   },
   signatureLabel: {
     fontSize: 7,
     color: "#6b7280",
-    marginBottom: 18,
+    marginBottom: 20,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   signatureLine: {
-    width: 120,
+    width: 130,
     borderBottom: "1.5pt solid #1a365d",
     height: 1,
   },
@@ -301,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: "#6b7280",
     textAlign: "right",
-    maxWidth: 200,
+    maxWidth: 220,
   },
 });
 
@@ -368,51 +360,43 @@ export const TeacherPaymentPDF = ({
               </View>
             </View>
 
-            {/* Center: Voucher Badge */}
-            <View style={styles.headerCenter}>
+            {/* Right: Badge, Voucher No & Date */}
+            <View style={styles.headerRight}>
               <View style={styles.voucherBadge}>
                 <Text style={styles.voucherBadgeText}>PAYMENT VOUCHER</Text>
               </View>
-            </View>
-
-            {/* Right: Voucher No & Date */}
-            <View style={styles.headerRight}>
-              <View style={styles.voucherBox}>
-                <Text style={styles.voucherIdText}>{data.voucherId}</Text>
-              </View>
+              <Text style={styles.voucherIdText}>{data.voucherId}</Text>
               <Text style={styles.dateText}>
-                Date: {formatDate(data.paymentDate)}
+                {formatDate(data.paymentDate)}
               </Text>
             </View>
           </View>
 
-          {/* ==================== MAIN CONTENT ==================== */}
+          {/* ==================== MAIN CONTENT (2-column) ==================== */}
           <View style={styles.mainContent}>
             {/* Left Section - Teacher Details */}
             <View style={styles.leftSection}>
               <View style={styles.detailsGrid}>
-                {/* Row 1: Paid To */}
+                {/* Paid To */}
                 <View style={styles.detailRow}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Paid To:</Text>
-                    <Text style={styles.detailValue}>{data.teacherName}</Text>
-                  </View>
+                  <Text style={styles.detailLabel}>Paid To:</Text>
+                  <Text style={styles.detailValue}>{data.teacherName}</Text>
                 </View>
 
-                {/* Row 2: Subject | Type */}
-                <View style={styles.detailRow}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Subject:</Text>
-                    <Text style={styles.detailValue}>
+                {/* Subject & Compensation Type - inline */}
+                <View style={styles.detailRowInline}>
+                  <View style={styles.detailInlineItem}>
+                    <Text style={styles.detailInlineLabel}>Subject:</Text>
+                    <Text style={styles.detailInlineValue}>
                       {data.subject
                         ? data.subject.charAt(0).toUpperCase() +
                           data.subject.slice(1)
-                        : "-"}
+                        : "—"}
                     </Text>
                   </View>
-                  <View style={[styles.detailItem, { marginLeft: 14 }]}>
-                    <Text style={styles.detailLabel}>Type:</Text>
-                    <Text style={styles.detailValue}>
+                  <View style={styles.detailInlineItem}>
+                    <Text style={styles.detailInlineLabel}>Type:</Text>
+                    <Text style={styles.detailInlineValue}>
                       {data.compensationType
                         ? data.compensationType.charAt(0).toUpperCase() +
                           data.compensationType.slice(1)
@@ -421,14 +405,12 @@ export const TeacherPaymentPDF = ({
                   </View>
                 </View>
 
-                {/* Row 3: Session */}
+                {/* Session */}
                 <View style={styles.detailRow}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Session:</Text>
-                    <Text style={styles.detailValue}>
-                      {data.sessionName || "N/A"}
-                    </Text>
-                  </View>
+                  <Text style={styles.detailLabel}>Session:</Text>
+                  <Text style={styles.detailValue}>
+                    {data.sessionName || "N/A"}
+                  </Text>
                 </View>
               </View>
 
@@ -441,14 +423,7 @@ export const TeacherPaymentPDF = ({
               )}
             </View>
 
-            {/* Center Section - Voucher Ref */}
-            <View style={styles.centerSection}>
-              <Text style={styles.centerLabel}>VOUCHER REF</Text>
-              <Text style={styles.centerValue}>{data.voucherId}</Text>
-              <Text style={styles.centerHint}>For record verification</Text>
-            </View>
-
-            {/* Right Section - Financial Box */}
+            {/* Right Section - Financial Box + Signature */}
             <View style={styles.rightSection}>
               <View style={styles.feeBox}>
                 {/* Status Header */}
@@ -503,16 +478,14 @@ export const TeacherPaymentPDF = ({
 
           {/* ==================== FOOTER ==================== */}
           <View style={styles.footer}>
-            <Text style={styles.footerWarning}>
-              Computer-generated voucher
-            </Text>
+            <Text style={styles.footerWarning}>Computer-generated voucher</Text>
             <Text style={styles.footerReceipt}>Ref: {data.voucherId}</Text>
             <Text style={styles.footerAddress}>
               Opp. Islamia College, Danishabad, University Road, Peshawar
             </Text>
           </View>
 
-          {/* Watermark - rendered last to appear on top */}
+          {/* Watermark */}
           <Text style={styles.academyWatermark}>GENIUS ISLAMIAN'S</Text>
         </View>
       </Page>

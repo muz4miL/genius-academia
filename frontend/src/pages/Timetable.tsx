@@ -477,9 +477,11 @@ const Timetable = () => {
         (st: any) => st.subject === subjectName,
       );
       const teacherId =
-        stMapping?.teacherId || cls.assignedTeacher?._id || cls.assignedTeacher || "";
-      const teacherName =
-        stMapping?.teacherName || cls.teacherName || "";
+        stMapping?.teacherId ||
+        cls.assignedTeacher?._id ||
+        cls.assignedTeacher ||
+        "";
+      const teacherName = stMapping?.teacherName || cls.teacherName || "";
 
       // One default entry per subject (first class day)
       if (days.length > 0) {
@@ -649,7 +651,8 @@ const Timetable = () => {
   const handlePrintTimetable = useCallback(async () => {
     if (filterClassId === "all") {
       toast.error("Please select a class first", {
-        description: "Choose a specific class from the filter to print its timetable.",
+        description:
+          "Choose a specific class from the filter to print its timetable.",
       });
       return;
     }
@@ -704,7 +707,8 @@ const Timetable = () => {
         link.download = `Timetable-${classDisplayName}.pdf`;
         link.click();
         toast.info("PDF downloaded", {
-          description: "Pop-up was blocked. The PDF has been downloaded instead.",
+          description:
+            "Pop-up was blocked. The PDF has been downloaded instead.",
         });
       }
 
@@ -888,7 +892,11 @@ const Timetable = () => {
             onClick={handlePrintTimetable}
             disabled={isPrintingTimetable || filterClassId === "all"}
             style={{ borderRadius: "0.75rem" }}
-            title={filterClassId === "all" ? "Select a class to print" : "Print timetable for selected class"}
+            title={
+              filterClassId === "all"
+                ? "Select a class to print"
+                : "Print timetable for selected class"
+            }
           >
             {isPrintingTimetable ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -926,7 +934,7 @@ const Timetable = () => {
 
       {/* Filters Row */}
       <div className="mt-6 flex flex-wrap items-center gap-4">
-        <div className="w-[260px]">
+        <div className="w-full sm:w-[260px]">
           <Select value={filterClassId} onValueChange={setFilterClassId}>
             <SelectTrigger className="bg-card border-border">
               <SelectValue placeholder="Filter by class" />
@@ -1232,10 +1240,7 @@ const Timetable = () => {
       </AlertDialog>
 
       {/* ========== CLEAR CLASS SCHEDULE ========== */}
-      <AlertDialog
-        open={isClearDialogOpen}
-        onOpenChange={setIsClearDialogOpen}
-      >
+      <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -1243,8 +1248,8 @@ const Timetable = () => {
               Clear Entire Class Schedule?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete ALL timetable entries for the selected class. This
-              action cannot be undone.
+              This will delete ALL timetable entries for the selected class.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1324,9 +1329,7 @@ const Timetable = () => {
                     {(selectedBulkClass.days || []).join(", ") || "Not set"}
                   </span>
                   <span>|</span>
-                  <span>
-                    Room: {selectedBulkClass.roomNumber || "TBD"}
-                  </span>
+                  <span>Room: {selectedBulkClass.roomNumber || "TBD"}</span>
                 </div>
               </div>
             )}

@@ -142,7 +142,4 @@ SettingsSchema.pre("save", function () {
   }
 });
 
-// Ensure only one settings document exists (Singleton pattern)
-SettingsSchema.index({ _id: 1 }, { unique: true });
-
 module.exports = mongoose.model("Settings", SettingsSchema);

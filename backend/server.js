@@ -26,10 +26,17 @@ connectDB();
 
 const app = express();
 
-// Middleware - Allow all origins for Codespaces compatibility
+// CORS — whitelist allowed origins from env, fallback to localhost for dev
 app.use(
   cors({
-    origin: true, // Allow all origins
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : [
+          "http://localhost:3000",
+          "http://localhost:5173",
+          "http://localhost:8080",
+          "http://localhost:8081",
+        ],
     credentials: true,
   }),
 );
@@ -44,17 +51,19 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Debug Middleware
-app.use((req, res, next) => {
-  console.log(
-    "📡 Request:",
-    req.method,
-    req.url,
-    "| 🍪 Cookies:",
-    Object.keys(req.cookies || {}),
-  );
-  next();
-});
+// Debug Middleware (only in development)
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(
+      "📡 Request:",
+      req.method,
+      req.url,
+      "| 🍪 Cookies:",
+      Object.keys(req.cookies || {}),
+    );
+    next();
+  });
+}
 
 // Import Routes
 const authRoutes = require("./routes/auth");

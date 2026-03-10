@@ -347,7 +347,12 @@ exports.getPayrollDashboard = async (req, res) => {
     );
 
     const creditTotals = await Transaction.aggregate([
-      { $match: { type: "CREDIT", "splitDetails.teacherId": { $ne: null } } },
+      {
+        $match: {
+          type: { $in: ["CREDIT", "LIABILITY"] },
+          "splitDetails.teacherId": { $ne: null },
+        },
+      },
       {
         $group: { _id: "$splitDetails.teacherId", total: { $sum: "$amount" } },
       },
@@ -869,7 +874,7 @@ exports.manualCreditTeacher = async (req, res) => {
     const updatedTeacher = await Teacher.findByIdAndUpdate(
       teacherId,
       { $inc: { "balance.pending": creditAmount } },
-      { new: true }
+      { new: true },
     );
 
     // 2. Create a LIABILITY transaction (tracks debt, NOT cash movement)
@@ -896,7 +901,7 @@ exports.manualCreditTeacher = async (req, res) => {
     });
 
     console.log(
-      `✅ Manual credit: PKR ${creditAmount.toLocaleString()} → ${teacher.name} (Pending: ${updatedTeacher.balance.pending})`
+      `✅ Manual credit: PKR ${creditAmount.toLocaleString()} → ${teacher.name} (Pending: ${updatedTeacher.balance.pending})`,
     );
 
     return res.status(200).json({
