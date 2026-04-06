@@ -54,6 +54,7 @@ import { ViewEditStudentModal } from "@/components/dashboard/ViewEditStudentModa
 import { WithdrawStudentDialog } from "@/components/dashboard/WithdrawStudentDialog";
 // Import PDF Receipt System (replaces react-to-print)
 import { usePDFReceipt } from "@/hooks/usePDFReceipt";
+import { exportStudentsToExcel } from "@/lib/exportUtils";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -524,8 +525,16 @@ const Students = () => {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" size="icon">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportStudentsToExcel(students)}
+            disabled={students.length === 0}
+            title="Download all students as Excel backup"
+            className="flex items-center gap-2 border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+          >
             <Download className="h-4 w-4" />
+            Export Excel
           </Button>
         </div>
       </div>

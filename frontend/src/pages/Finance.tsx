@@ -47,6 +47,7 @@ import {
   Loader2,
   CreditCard,
   Search,
+  Download,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +57,7 @@ import {
   MiscPaymentPDF,
   type MiscPaymentPDFData,
 } from "@/components/print/MiscPaymentPDF";
+import { exportFinanceToExcel } from "@/lib/exportUtils";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -1567,6 +1569,7 @@ const Finance = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const tabFromUrl = urlParams.get("tab") || "overview";
   const [activeTab, setActiveTab] = useState(tabFromUrl);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     // Update active tab if URL changes
@@ -1575,6 +1578,36 @@ const Finance = () => {
       setActiveTab(urlTab);
     }
   }, []);
+
+  const handleFinanceExport = async () => {
+    try {
+      setIsExporting(true);
+      // Fetch all three datasets in parallel
+      const [txRes, expRes, assetRes, statsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/finance/history?limit=5000`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/api/expenses`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/api/inventory`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/api/finance/stats/overview`, { credentials: 'include' }),
+      ]);
+      const [txData, expData, assetData, statsData] = await Promise.all([
+        txRes.json(),
+        expRes.json(),
+        assetRes.json(),
+        statsRes.json(),
+      ]);
+      exportFinanceToExcel(
+        txData?.data || [],
+        expData?.data || [],
+        assetData?.data || [],
+        statsData?.data || {},
+      );
+    } catch (err: any) {
+      console.error('Finance export error:', err);
+      toast.error('Failed to export finance data: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <DashboardLayout title="Finance">
@@ -1588,10 +1621,26 @@ const Finance = () => {
               Track revenue, expenses, and academy assets
             </p>
           </div>
-          <Badge variant="outline" className="text-sm px-4 py-2">
-            <Wallet className="mr-2 h-4 w-4" />
-            Finance
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleFinanceExport}
+              disabled={isExporting}
+              className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+              title="Download full finance backup as Excel"
+            >
+              {isExporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {isExporting ? 'Exporting...' : 'Export Excel'}
+            </Button>
+            <Badge variant="outline" className="text-sm px-4 py-2">
+              <Wallet className="mr-2 h-4 w-4" />
+              Finance
+            </Badge>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

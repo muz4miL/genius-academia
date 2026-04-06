@@ -30,6 +30,7 @@ import {
   Copy,
   CheckCircle2,
   Printer,
+  Download,
 } from "lucide-react";
 // Import the Modals and API
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ import { DeleteTeacherDialog } from "@/components/dashboard/DeleteTeacherDialog"
 import { TeacherFinanceModal } from "@/components/dashboard/TeacherFinanceModal";
 import { teacherApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { exportTeachersToExcel } from "@/lib/exportUtils";
 
 // Helper function to capitalize subject names
 const capitalizeSubject = (subject: string) => {
@@ -259,6 +261,17 @@ const Teachers = () => {
             : `Total Teachers: ${teacherCount} | ${teacherCount > 0 ? "All Active" : "No Teachers Yet"}`
         }
       >
+        {/* Export Button */}
+        <Button
+          variant="outline"
+          onClick={() => exportTeachersToExcel(teachers)}
+          disabled={teachers.length === 0 || isLoading}
+          className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 mr-2"
+          title="Download all teachers as Excel backup"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export Excel
+        </Button>
         {/* Updated Button to match Hub Design */}
         <Button
           onClick={() => setIsAddModalOpen(true)}
