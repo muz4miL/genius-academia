@@ -86,13 +86,17 @@ const bookSeat = async (req, res) => {
             });
         }
 
-        // Gender Guard: Validate gender matches seat wing
-        const allowedSide = student.gender === 'Female' ? 'Left' : 'Right';
-        if (seat.side !== allowedSide && seat.wing !== allowedSide) {
-            return res.status(403).json({
-                message: `Access Denied: ${student.gender} students can only book seats on the ${allowedSide} side`,
-            });
+        // Gender Guard: Validate gender matches seat's allowed gender
+        // Check the allowedGender field (Female/Male/Any) instead of wing/side
+        if (seat.allowedGender && seat.allowedGender !== 'Any') {
+            if (seat.allowedGender !== student.gender) {
+                const seatGenderLabel = seat.allowedGender === 'Female' ? 'Girls' : 'Boys';
+                return res.status(403).json({
+                    message: `Access Denied: This seat is designated for ${seatGenderLabel} only. Your gender: ${student.gender}`,
+                });
+            }
         }
+        // If allowedGender is 'Any' or not set, allow both genders
 
         // Note: No auto-release needed - students must explicitly release first
 
@@ -259,7 +263,8 @@ const initializeSeats = async (req, res) => {
         for (let row = 1; row <= ROWS; row++) {
             for (let col = 0; col < TOTAL_COLS; col++) {
                 const wing = col < COLS_PER_WING ? 'Left' : 'Right';
-                const seatLabel = `R${String(row).padStart(2, '0')}-${String(col).padStart(2, '0')}`;
+                // Changed from R01-00 format to simple sequential numbering
+                const seatLabel = String(seatNumber);
 
                 newSeats.push({
                     sclass: classId,
@@ -437,6 +442,60 @@ const toggleReservation = async (req, res) => {
     }
 };
 
+/**
+ * Change Seat Gender Assignment (Admin Only)
+ * Allows admin to override the default wing-based gender assignment
+ */
+const changeSeatGender = async (req, res) => {
+    try {
+        const { seatId } = req.params;
+        const { allowedGender } = req.body; // "Female", "Male", or "Any"
+        const adminId = req.user?._id;
+
+        if (!['Female', 'Male'].includes(allowedGender)) {
+            return res.status(400).json({ 
+                message: "Invalid gender. Must be 'Female' or 'Male'" 
+            });
+        }
+
+        const seat = await Seat.findById(seatId);
+        if (!seat) {
+            return res.status(404).json({ message: "Seat not found" });
+        }
+
+        // Check if seat is occupied - prevent changing if student is sitting
+        if (seat.isTaken) {
+            return res.status(400).json({ 
+                message: "Cannot change gender assignment for an occupied seat. Vacate it first." 
+            });
+        }
+
+        // Allow changing reserved seats (just not occupied ones)
+
+        const oldGender = seat.allowedGender || (seat.wing === 'Left' ? 'Female' : 'Male');
+        seat.allowedGender = allowedGender;
+        seat.lastModifiedBy = adminId;
+
+        seat.history.push({
+            action: 'gender-changed',
+            performedBy: adminId,
+            performedByModel: 'admin',
+            notes: `Gender changed from ${oldGender} to ${allowedGender}`,
+        });
+
+        await seat.save();
+
+        res.status(200).json({
+            message: `Seat gender changed to ${allowedGender}`,
+            seat,
+            previousGender: oldGender,
+        });
+    } catch (err) {
+        console.error('❌ Error changing seat gender:', err);
+        res.status(500).json({ message: "Error changing seat gender", error: err.message });
+    }
+};
+
 module.exports = {
     getAvailableSeats,
     bookSeat,
@@ -445,4 +504,5 @@ module.exports = {
     getAllSeatsAdmin,
     vacateSeat,
     toggleReservation,
+    changeSeatGender,
 };

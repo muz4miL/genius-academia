@@ -39,6 +39,15 @@ const seatSchema = new mongoose.Schema(
       enum: ["Left", "Right"],
       required: true,
     },
+    // Flexible gender assignment - allows admin to override default wing gender
+    allowedGender: {
+      type: String,
+      enum: ["Female", "Male"],
+      default: function() {
+        // Default based on wing: Left=Female, Right=Male
+        return this.wing === "Left" ? "Female" : "Male";
+      },
+    },
     position: {
       row: {
         type: Number,
@@ -85,7 +94,7 @@ const seatSchema = new mongoose.Schema(
       {
         action: {
           type: String,
-          enum: ["booked", "released", "reserved", "unreserved", "vacated"],
+          enum: ["booked", "released", "reserved", "unreserved", "vacated", "gender-changed"],
           required: true,
         },
         performedBy: {

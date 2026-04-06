@@ -69,6 +69,7 @@ const Configuration = () => {
   const [academyName, setAcademyName] = useState("Genius Islamian's Academy");
   const [academyAddress, setAcademyAddress] = useState("Peshawar, Pakistan");
   const [academyPhone, setAcademyPhone] = useState("");
+  const [ownerName, setOwnerName] = useState("");
 
   // --- Master Subject Pricing ---
   const [defaultSubjectFees, setDefaultSubjectFees] = useState<
@@ -181,6 +182,7 @@ const Configuration = () => {
           setAcademyName(data.academyName || "Genius Islamian's Academy");
           setAcademyAddress(data.academyAddress || "Peshawar, Pakistan");
           setAcademyPhone(data.academyPhone || "");
+          setOwnerName(data.ownerName || "");
 
           // Master Subject Pricing
           setDefaultSubjectFees(data.defaultSubjectFees || []);
@@ -516,6 +518,7 @@ const Configuration = () => {
         academyName,
         academyAddress,
         academyPhone,
+        ownerName,
         defaultSubjectFees: subjects,
         sessionPrices: sessionPricesOverride || sessionPrices,
         studentProfilePictureSettings: profilePictureSettings,
@@ -576,6 +579,7 @@ const Configuration = () => {
         academyName,
         academyAddress,
         academyPhone,
+        ownerName,
         defaultSubjectFees,
         sessionPrices,
         studentProfilePictureSettings: profilePictureSettings,
@@ -693,6 +697,15 @@ const Configuration = () => {
                   <Input
                     value={academyName}
                     onChange={(e) => setAcademyName(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Owner Name</Label>
+                  <Input
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="Enter owner's name"
                     className="h-10"
                   />
                 </div>

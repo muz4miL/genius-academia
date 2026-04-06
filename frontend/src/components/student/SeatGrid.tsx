@@ -110,14 +110,18 @@ export default function SeatGrid({
       );
       return;
     }
-    if (seat.side !== allowedSide && seat.wing !== allowedSide) {
-      const wingName = allowedSide === "Left" ? "Girls Wing (Left)" : "Boys Wing (Right)";
+    
+    // Check gender restriction based on allowedGender field (only Female or Male now)
+    const seatGender = seat.allowedGender || (seat.wing === "Left" ? "Female" : "Male");
+    if (seatGender !== studentGender) {
+      const genderLabel = seatGender === "Female" ? "Girls" : "Boys";
       toast.error(
-        `🚫 This seat is in the ${seat.side === "Left" ? "Girls" : "Boys"} Wing. You can only select seats in the ${wingName}.`,
+        `🚫 This seat is designated for ${genderLabel} only. Please select a seat on your wing.`,
         { duration: 4000 }
       );
       return;
     }
+    
     setSelectedSeat(seat);
     setConfirmOpen(true);
   };
@@ -703,9 +707,7 @@ function SeatButton({
         <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-60" />
       ) : (
         <span className="leading-none">
-          {seat.position.column < 7
-            ? seat.position.column + 1
-            : seat.position.column - 6}
+          {seat.seatLabel || seat.seatNumber}
         </span>
       )}
     </motion.button>

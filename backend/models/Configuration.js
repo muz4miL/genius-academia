@@ -5,6 +5,7 @@ const configurationSchema = new mongoose.Schema(
     // Academy Identity
     academyName: { type: String, default: "Genius Academia" },
     systemAdminName: { type: String, default: "System Admin", trim: true },
+    ownerName: { type: String, default: "", trim: true },
     academyLogo: { type: String, default: "" },
     academyAddress: { type: String, default: "Peshawar, Pakistan" },
     academyPhone: { type: String, default: "" },

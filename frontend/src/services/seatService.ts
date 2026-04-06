@@ -22,6 +22,7 @@ export interface Seat {
   seatLabel: string;
   wing: 'Left' | 'Right';
   side: 'Left' | 'Right';
+  allowedGender?: 'Female' | 'Male'; // Admin-assignable gender restriction
   position: {
     row: number;
     column: number;
@@ -208,6 +209,22 @@ export const seatService = {
     if (!response.ok) {
       console.error('❌ Toggle failed:', data);
       throw new Error(data.message || 'Failed to toggle reservation');
+    }
+    return data;
+  },
+
+  // Admin: Change seat gender assignment
+  changeSeatGender: async (seatId: string, allowedGender: 'Female' | 'Male'): Promise<{ message: string; seat: Seat }> => {
+    const response = await fetch(`${API_BASE_URL}/seats/change-gender/${seatId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ allowedGender }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to change seat gender');
     }
     return data;
   },

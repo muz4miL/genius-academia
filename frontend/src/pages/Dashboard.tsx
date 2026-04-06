@@ -141,6 +141,7 @@ const OwnerDashboard = () => {
 
   // System admin name from Configuration
   const [systemAdminName, setSystemAdminName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
 
   // Report modal
   const [reportOpen, setReportOpen] = useState(false);
@@ -337,6 +338,9 @@ const OwnerDashboard = () => {
           if (configData.success && configData.data?.systemAdminName) {
             setSystemAdminName(configData.data.systemAdminName);
           }
+          if (configData.success && configData.data?.ownerName) {
+            setOwnerName(configData.data.ownerName);
+          }
         } catch (e) {
           // Non-critical, fallback to user name
         }
@@ -380,7 +384,7 @@ const OwnerDashboard = () => {
             <h1 className="text-4xl font-bold text-white mb-2">
               Welcome back,{" "}
               <span className="text-red-400">
-                {systemAdminName || user?.fullName || "Owner"}
+                {ownerName || systemAdminName || user?.fullName || "Owner"}
               </span>
             </h1>
             <p className="text-slate-300 text-lg">

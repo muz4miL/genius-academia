@@ -7,6 +7,7 @@ const {
     getAllSeatsAdmin,
     vacateSeat,
     toggleReservation,
+    changeSeatGender,
 } = require('../controllers/seat-controller');
 const { protect } = require('../middleware/authMiddleware');
 const { protectStudent } = require('../middleware/auth');
@@ -21,5 +22,6 @@ router.get('/admin/:classId/:sessionId', protect, getAllSeatsAdmin);
 router.post('/initialize', protect, initializeSeats);
 router.post('/vacate/:seatId', protect, vacateSeat);
 router.patch('/reserve/:seatId', protect, toggleReservation);
+router.patch('/change-gender/:seatId', protect, changeSeatGender);
 
 module.exports = router;

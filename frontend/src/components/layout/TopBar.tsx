@@ -49,6 +49,9 @@ export function TopBar({ title }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  
+  // Owner name from configuration
+  const [ownerName, setOwnerName] = useState("");
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -94,6 +97,26 @@ export function TopBar({ title }: TopBarProps) {
     };
   }, []);
 
+  // Fetch owner name from configuration
+  useEffect(() => {
+    const fetchOwnerName = async () => {
+      if (user?.role === "OWNER") {
+        try {
+          const res = await fetch(`${API_BASE_URL}/config`, {
+            credentials: "include",
+          });
+          const data = await res.json();
+          if (data.success && data.data?.ownerName) {
+            setOwnerName(data.data.ownerName);
+          }
+        } catch (err) {
+          console.error("Error fetching owner name:", err);
+        }
+      }
+    };
+    fetchOwnerName();
+  }, [user]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -133,7 +156,10 @@ export function TopBar({ title }: TopBarProps) {
   };
 
   // Get display name and role badge color
-  const displayName = user?.fullName || user?.username || "Admin";
+  const displayName = 
+    user?.role === "OWNER" && ownerName 
+      ? ownerName 
+      : user?.fullName || user?.username || "Admin";
   const roleBadgeColor =
     user?.role === "OWNER"
       ? "bg-amber-500"
@@ -278,7 +304,7 @@ export function TopBar({ title }: TopBarProps) {
               <div className="hidden md:flex md:flex-col md:items-start">
                 <span className="font-medium text-sm">{displayName}</span>
                 <span className="text-xs text-muted-foreground">
-                  {user?.role || "User"}
+                  {user?.role === "OWNER" ? "Academy Owner" : user?.role || "User"}
                 </span>
               </div>
             </Button>
@@ -287,7 +313,9 @@ export function TopBar({ title }: TopBarProps) {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium">{displayName}</p>
-                <p className="text-xs text-muted-foreground">{user?.role}</p>
+                <p className="text-xs text-muted-foreground">
+                  {user?.role === "OWNER" ? "Academy Owner" : user?.role}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
