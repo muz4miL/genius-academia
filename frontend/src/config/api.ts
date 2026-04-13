@@ -16,7 +16,8 @@ const getApiBaseUrl = (): string => {
   }
   
   // Fallback to localhost for local development
-  return 'http://localhost:5000';
+  // return 'http://localhost:5000';
+  return 'http://72.62.197.86:5000';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
